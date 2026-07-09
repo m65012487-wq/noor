@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Noor",
+    "slug": "noor-islamic-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#0e1a2a"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourname.noor",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to calculate accurate prayer times and the Qibla direction.",
+        "NSMotionUsageDescription": "Motion access is used for the Qibla compass."
+      }
+    },
+    "android": {
+      "package": "com.yourname.noor",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0e1a2a"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
+    "plugins": ["expo-location", "expo-notifications", "expo-font"]
+  }
+}
