@@ -1,18 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback,
   FlatList, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform,
-  Animated, Dimensions,
+  Animated,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useLocation, searchCity } from '../utils/LocationContext';
 import { useAppearance } from '../utils/AppearanceContext';
-
-const SCREEN_H = Dimensions.get('window').height;
+import useSheetDrag from '../utils/useSheetDrag';
 
 export default function LocationPicker({ visible, onClose }) {
   const { t } = useLang();
@@ -23,31 +23,7 @@ export default function LocationPicker({ visible, onClose }) {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const insets = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(SCREEN_H)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0, useNativeDriver: true,
-          friction: 14, tension: 60,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 1, duration: 280, useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: SCREEN_H, duration: 260, useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 0, duration: 220, useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible]);
+  const { translateY, backdropOpacity, panHandlers, onScroll } = useSheetDrag(visible, onClose);
 
   async function doSearch() {
     if (query.trim().length < 2) return;
@@ -62,11 +38,6 @@ export default function LocationPicker({ visible, onClose }) {
   const base = glassOpacity != null ? glassOpacity : 0.07;
   const rgb = (tint || '150,200,225');
   const blurI = Math.round(34 + base * 120);
-  const sheetBg = (() => {
-    const c = (tint || '19,32,47').split(',').map(Number);
-    const mix = (d, t) => Math.round(d * 0.80 + (t || d) * 0.20 * 0.3);
-    return `rgb(${mix(19, c[0])},${mix(32, c[1])},${mix(47, c[2])})`;
-  })();
 
   return (
     <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
@@ -81,7 +52,7 @@ export default function LocationPicker({ visible, onClose }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.kav}
         pointerEvents="box-none">
-        <Animated.View style={[styles.sheetWrap, { transform: [{ translateY }] }]}>
+        <Animated.View style={[styles.sheetWrap, { transform: [{ translateY }] }]} {...panHandlers}>
           {/* glass layers */}
           <View style={[StyleSheet.absoluteFill, styles.glassClip]} pointerEvents="none">
             <BlurView intensity={blurI} tint="dark" style={StyleSheet.absoluteFill} />
@@ -104,23 +75,27 @@ export default function LocationPicker({ visible, onClose }) {
             <Text style={styles.title}>{t('loc_title')}</Text>
 
             <View style={styles.searchRow}>
-              <TextInput
-                style={styles.input}
-                placeholder={t('loc_search_ph')}
-                placeholderTextColor={COLORS.textMuted}
-                value={query}
-                onChangeText={setQuery}
-                onSubmitEditing={doSearch}
-                returnKeyType="search"
-                autoFocus
-              />
-              <TouchableOpacity style={[styles.searchBtn, { backgroundColor: `rgba(${rgb},0.35)` }]} onPress={doSearch}>
-                <Text style={styles.searchBtnText}>🔍</Text>
+              <View style={styles.inputWrap}>
+                <Ionicons name="search" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('loc_search_ph')}
+                  placeholderTextColor={COLORS.textMuted}
+                  value={query}
+                  onChangeText={setQuery}
+                  onSubmitEditing={doSearch}
+                  returnKeyType="search"
+                  autoFocus
+                />
+              </View>
+              <TouchableOpacity style={styles.searchBtn} onPress={doSearch} activeOpacity={0.8}>
+                <Ionicons name="search" size={20} color={COLORS.text} />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={[styles.gpsBtn, { backgroundColor: `rgba(${rgb},0.15)` }]} onPress={gps}>
-              <Text style={styles.gpsText}>📍 {t('loc_use_gps')}</Text>
+            <TouchableOpacity style={styles.gpsBtn} onPress={gps} activeOpacity={0.8}>
+              <Ionicons name="location-outline" size={19} color={COLORS.text} style={{ marginRight: SPACING.sm }} />
+              <Text style={styles.gpsText}>{t('loc_use_gps')}</Text>
             </TouchableOpacity>
 
             {loading && <ActivityIndicator color={COLORS.accent} style={{ marginTop: 16 }} />}
@@ -130,11 +105,14 @@ export default function LocationPicker({ visible, onClose }) {
 
             <FlatList
               data={results}
+              onScroll={onScroll}
+              scrollEventThrottle={16}
               keyboardShouldPersistTaps="handled"
               keyExtractor={(item, i) => `${item.lat}-${item.lng}-${i}`}
               style={{ marginTop: SPACING.sm, maxHeight: 240 }}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.row} onPress={() => pick(item)}>
+                  <Ionicons name="location-outline" size={17} color={COLORS.accentSoft} style={{ marginRight: SPACING.sm }} />
                   <Text style={styles.rowText}>{item.label}</Text>
                 </TouchableOpacity>
               )}
@@ -160,18 +138,23 @@ const styles = StyleSheet.create({
   handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)', alignSelf: 'center', marginBottom: SPACING.md },
   title: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginBottom: SPACING.md },
   searchRow: { flexDirection: 'row', gap: SPACING.sm },
-  input: { flex: 1, backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md, color: COLORS.text, fontSize: 16,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)' },
-  searchBtn: { borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.20)' },
-  searchBtnText: { fontSize: 18 },
-  gpsBtn: { padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.18)', marginTop: SPACING.md },
-  gpsText: { color: COLORS.text, fontSize: 16, textAlign: 'center' },
+  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)' },
+  inputIcon: { marginRight: SPACING.sm },
+  input: { flex: 1, paddingVertical: SPACING.md, color: COLORS.text, fontSize: 16 },
+  searchBtn: { width: 50, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
+  gpsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    padding: SPACING.md, borderRadius: RADIUS.md, marginTop: SPACING.md,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
+  gpsText: { color: COLORS.text, fontSize: 16 },
   empty: { color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.lg },
-  row: { paddingVertical: SPACING.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  rowText: { color: COLORS.text, fontSize: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  rowText: { color: COLORS.text, fontSize: 16, flex: 1 },
   close: { marginTop: SPACING.md, padding: SPACING.md, alignItems: 'center' },
   closeText: { color: COLORS.textMuted, fontSize: 16 },
 });

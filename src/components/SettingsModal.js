@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
@@ -68,9 +68,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   function close() { stopAudio(); setPreviewing(null); onClose(); }
 
   return (
-    <DraggableSheet visible={visible} onClose={close}>
-      <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingTop: 0 }} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{t('general_settings')}</Text>
+    <DraggableSheet visible={visible} onClose={close} contentContainerStyle={{ paddingTop: 0 }}>
+      <Text style={styles.title}>{t('general_settings')}</Text>
 
         {/* ===== PRAYER ===== */}
         <Section id="prayer" title={t('sec_prayer')} open={openSection === 'prayer'} onToggle={toggle}>
@@ -163,10 +162,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
           <Opt label="Русский" active={lang === 'ru'} onPress={() => setLang('ru')} activeBg={activeBg} />
         </Section>
 
-        <TouchableOpacity style={styles.doneBtn} onPress={close}>
-          <Text style={styles.doneText}>{t('save')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      <TouchableOpacity style={styles.doneBtn} onPress={close}>
+        <Text style={styles.doneText}>{t('save')}</Text>
+      </TouchableOpacity>
     </DraggableSheet>
   );
 }

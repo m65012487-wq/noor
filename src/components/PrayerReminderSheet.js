@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
@@ -16,9 +16,7 @@ export default function PrayerReminderSheet({ prayer, onClose }) {
 
   return (
     <DraggableSheet visible={!!prayer} onClose={onClose}>
-      <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingTop: SPACING.sm }}
-        showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{prayerName(prayer, lang)}</Text>
+      <Text style={styles.title}>{prayerName(prayer, lang)}</Text>
         <Text style={styles.section}>{t('reminder_before')}</Text>
 
         <TouchableOpacity style={[styles.row, !cfg.enabled && styles.rowActive]}
@@ -40,10 +38,9 @@ export default function PrayerReminderSheet({ prayer, onClose }) {
           );
         })}
 
-        <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
-          <Text style={styles.doneText}>{t('save')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
+        <Text style={styles.doneText}>{t('save')}</Text>
+      </TouchableOpacity>
     </DraggableSheet>
   );
 }

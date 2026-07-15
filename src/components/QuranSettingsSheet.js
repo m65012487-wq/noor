@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
@@ -83,9 +83,7 @@ export default function QuranSettingsSheet({ visible, onClose }) {
 
   return (
     <DraggableSheet visible={visible} onClose={onClose}>
-      <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingTop: SPACING.sm }}
-        showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{t('quran_title')}</Text>
+      <Text style={styles.title}>{t('quran_title')}</Text>
 
         <Text style={styles.section}>{t('display')}</Text>
         <ToggleRow label={t('show_arabic')} value={showArabic} onToggle={() => toggleArabic(!showArabic)} />
@@ -129,10 +127,9 @@ export default function QuranSettingsSheet({ visible, onClose }) {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
-          <Text style={styles.doneText}>{t('save')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
+        <Text style={styles.doneText}>{t('save')}</Text>
+      </TouchableOpacity>
     </DraggableSheet>
   );
 }
