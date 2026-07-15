@@ -68,10 +68,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   function close() { stopAudio(); setPreviewing(null); onClose(); }
 
   return (
-    <DraggableSheet visible={visible} onClose={close} contentContainerStyle={{ paddingTop: 0 }}>
-      <Text style={styles.title}>{t('general_settings')}</Text>
-
-        {/* ===== PRAYER ===== */}
+    <DraggableSheet visible={visible} onClose={close} title={t('general_settings')}>
+      {/* ===== PRAYER ===== */}
         <Section id="prayer" title={t('sec_prayer')} open={openSection === 'prayer'} onToggle={toggle}>
           <Text style={styles.label}>{t('time_source')}</Text>
           {TIME_SOURCES.map((s) => (

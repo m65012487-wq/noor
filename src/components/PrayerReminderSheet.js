@@ -15,9 +15,8 @@ export default function PrayerReminderSheet({ prayer, onClose }) {
   const cfg = reminders[prayer] || { minutesBefore: 0, enabled: true };
 
   return (
-    <DraggableSheet visible={!!prayer} onClose={onClose}>
-      <Text style={styles.title}>{prayerName(prayer, lang)}</Text>
-        <Text style={styles.section}>{t('reminder_before')}</Text>
+    <DraggableSheet visible={!!prayer} onClose={onClose} title={prayerName(prayer, lang)}>
+      <Text style={styles.section}>{t('reminder_before')}</Text>
 
         <TouchableOpacity style={[styles.row, !cfg.enabled && styles.rowActive]}
           onPress={() => setReminder(prayer, { enabled: false })}>

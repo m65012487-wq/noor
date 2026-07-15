@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import GlassIconButton from '../components/GlassIconButton';
 import GlassView from '../components/GlassView';
 import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
-import { getSurah, getSurahAudio, getWordByWord } from '../utils/quranApi';
+import { getSurah, getSurahAudio, getWordByWord, getSurahList } from '../utils/quranApi';
 import { getWordByWordRuLocal } from '../utils/quranLocalWbw';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
 import { useLang } from '../i18n/LanguageContext';
@@ -44,8 +44,17 @@ export default function SurahReaderScreen({ route, navigation }) {
   const [playingAll, setPlayingAll] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
   const [scale, setScale] = useState(1);
+  const [nextSurah, setNextSurah] = useState(null);
   const scrollRef = useRef(null);
   const ayahYs = useRef({});
+
+  useEffect(() => {
+    let alive = true;
+    getSurahList()
+      .then((l) => { if (alive) setNextSurah(l.find((s) => s.number === surah.number + 1) || null); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [surah.number]);
 
   useEffect(() => {
     let alive = true;
@@ -195,6 +204,21 @@ export default function SurahReaderScreen({ route, navigation }) {
                   </GlassView>
                 </View>
               ))}
+
+              {nextSurah && (
+                <TouchableOpacity activeOpacity={0.85}
+                  onPress={() => { stopAudio(); navigation.replace('SurahReader', { surah: nextSurah }); }}>
+                  <GlassView azure radius={RADIUS.md} style={styles.nextSurah}>
+                    <View style={styles.nextInner}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.nextLabel}>{t('next_surah')}</Text>
+                        <Text style={styles.nextName}>{nextSurah.number}. {nextSurah.englishName}</Text>
+                      </View>
+                      <Ionicons name="arrow-forward-circle" size={30} color={COLORS.white} />
+                    </View>
+                  </GlassView>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           )}
         </SafeAreaView>
@@ -219,10 +243,15 @@ const styles = StyleSheet.create({
   ayahNumText: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
   ayahActions: { flexDirection: 'row', alignItems: 'center' },
   ar: { color: COLORS.white, textAlign: 'right', fontFamily: FONTS.arabic },
-  wbwWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 6 },
-  wbwCell: { alignItems: 'center', marginBottom: 6, maxWidth: 110 },
+  wbwWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  wbwCell: {
+    alignItems: 'center', justifyContent: 'flex-start',
+    minWidth: 54, maxWidth: 150, paddingHorizontal: 9, paddingVertical: 7,
+    borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
+  },
   wbwAr: { color: COLORS.white, fontFamily: FONTS.arabic, textAlign: 'center' },
-  wbwRu: { color: COLORS.accentSoft, fontSize: 10, textAlign: 'center', marginTop: 1 },
+  wbwRu: { color: COLORS.accentSoft, fontSize: 12, lineHeight: 15, textAlign: 'center', marginTop: 4 },
   tr: { color: COLORS.accentSoft, fontStyle: 'italic', marginTop: SPACING.sm },
   transBlock: {
     marginTop: SPACING.md,
@@ -231,4 +260,8 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.16)',
   },
   en: { color: COLORS.text, letterSpacing: 0.2 },
+  nextSurah: { marginTop: SPACING.sm, marginBottom: SPACING.xl },
+  nextInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
+  nextLabel: { color: COLORS.accentSoft, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' },
+  nextName: { color: COLORS.white, fontSize: 19, fontWeight: '700', marginTop: 3 },
 });

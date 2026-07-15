@@ -82,10 +82,8 @@ export default function QuranSettingsSheet({ visible, onClose }) {
   }
 
   return (
-    <DraggableSheet visible={visible} onClose={onClose}>
-      <Text style={styles.title}>{t('quran_title')}</Text>
-
-        <Text style={styles.section}>{t('display')}</Text>
+    <DraggableSheet visible={visible} onClose={onClose} title={t('quran_title')}>
+      <Text style={styles.section}>{t('display')}</Text>
         <ToggleRow label={t('show_arabic')} value={showArabic} onToggle={() => toggleArabic(!showArabic)} />
         <ToggleRow label={t('show_translit')} value={showTranslit} onToggle={() => toggleTranslit(!showTranslit)} />
         <ToggleRow label={t('show_translation')} value={showTranslation} onToggle={() => toggleTranslation(!showTranslation)} />

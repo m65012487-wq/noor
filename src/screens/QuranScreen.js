@@ -113,7 +113,7 @@ export default function QuranScreen({ navigation }) {
           <Text style={styles.sectionLabel}>{t('bookmarks')}</Text>
           {bookmarks.slice(0, 4).map((b, i) => (
             <TouchableOpacity key={i} activeOpacity={0.85} onPress={() => openByNumber(b.surahNumber, b.ayah)}>
-              <GlassView flat style={styles.bmRow} radius={RADIUS.sm}>
+              <GlassView style={styles.bmRow} radius={RADIUS.sm}>
                 <View style={styles.bmInner}>
                   <Ionicons name="bookmark" size={15} color={COLORS.accentSoft} style={{ marginRight: 8 }} />
                   <Text style={styles.bmText}>{b.name} · {t('ayah')} {b.ayah}</Text>
@@ -135,7 +135,7 @@ export default function QuranScreen({ navigation }) {
           {ayahResults.map((r, i) => (
             <TouchableOpacity key={i} activeOpacity={0.85}
               onPress={() => openByNumber(r.surahNumber, r.ayah)}>
-              <GlassView flat style={styles.ayahResult} radius={RADIUS.sm}>
+              <GlassView style={styles.ayahResult} radius={RADIUS.sm}>
                 <View style={{ padding: SPACING.md }}>
                   <Text style={styles.ayahResultRef}>{r.surahName} · {t('ayah')} {r.ayah}</Text>
                   <Text style={styles.ayahResultText} numberOfLines={2}>{r.text}</Text>
@@ -167,7 +167,7 @@ export default function QuranScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: 160 }}
           renderItem={({ item }) => (
             <TouchableOpacity activeOpacity={0.85} onPress={() => openSurah(item)}>
-              <GlassView flat style={styles.row} radius={RADIUS.md}>
+              <GlassView style={styles.row} radius={RADIUS.md}>
                 <View style={styles.rowInner}>
                   <View style={styles.numBadge}><Text style={styles.num}>{item.number}</Text></View>
                   <View style={{ flex: 1 }}>
