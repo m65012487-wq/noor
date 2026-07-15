@@ -7,6 +7,7 @@ import GlassIconButton from '../components/GlassIconButton';
 import GlassView from '../components/GlassView';
 import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
 import { getSurah, getSurahAudio, getWordByWord } from '../utils/quranApi';
+import { getWordByWordRuLocal } from '../utils/quranLocalWbw';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
 import { useLang } from '../i18n/LanguageContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
@@ -49,9 +50,15 @@ export default function SurahReaderScreen({ route, navigation }) {
   useEffect(() => {
     let alive = true;
     if (wordByWord) {
-      getWordByWord(surah.number, lang === 'ru' ? 'ru' : 'en')
-        .then((m) => { if (alive) setWbw(m); })
-        .catch(() => { if (alive) setWbw(null); });
+      if (lang === 'ru') {
+        // Russian word-by-word: bundled offline glosses (no live source has RU).
+        const local = getWordByWordRuLocal(surah.number);
+        setWbw(local);
+      } else {
+        getWordByWord(surah.number, 'en')
+          .then((m) => { if (alive) setWbw(m); })
+          .catch(() => { if (alive) setWbw(null); });
+      }
     } else setWbw(null);
     return () => { alive = false; };
   }, [wordByWord, surah.number, lang]);
@@ -180,7 +187,11 @@ export default function SurahReaderScreen({ route, navigation }) {
                       <Text style={[styles.ar, { fontSize: 28 * scale, lineHeight: 52 * scale }]}>{a.ar}</Text>
                     ) : null}
                     {showTranslit && !!a.tr && <Text style={[styles.tr, { fontSize: 14 * scale }]}>{a.tr}</Text>}
-                    {showTranslation && <Text style={[styles.en, { fontSize: 15 * scale, lineHeight: 22 * scale }]}>{a.en}</Text>}
+                    {showTranslation && (
+                      <View style={styles.transBlock}>
+                        <Text style={[styles.en, { fontSize: 16.5 * scale, lineHeight: 27 * scale }]}>{a.en}</Text>
+                      </View>
+                    )}
                   </GlassView>
                 </View>
               ))}
@@ -213,5 +224,11 @@ const styles = StyleSheet.create({
   wbwAr: { color: COLORS.white, fontFamily: FONTS.arabic, textAlign: 'center' },
   wbwRu: { color: COLORS.accentSoft, fontSize: 10, textAlign: 'center', marginTop: 1 },
   tr: { color: COLORS.accentSoft, fontStyle: 'italic', marginTop: SPACING.sm },
-  en: { color: COLORS.textMuted, marginTop: SPACING.xs },
+  transBlock: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.16)',
+  },
+  en: { color: COLORS.text, letterSpacing: 0.2 },
 });
