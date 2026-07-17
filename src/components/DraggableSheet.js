@@ -4,7 +4,7 @@ import { Modal, View, Text, Animated, PanResponder, StyleSheet, Dimensions,
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SPACING } from '../constants/theme';
+import { COLORS, RADIUS, SPACING, FONTS } from '../constants/theme';
 import { useAppearance } from '../utils/AppearanceContext';
 
 const SCREEN_H = Dimensions.get('window').height;
@@ -18,7 +18,7 @@ export default function DraggableSheet({
   contentContainerStyle, keyboardAvoiding = false,
 }) {
   const insets = useSafeAreaInsets();
-  const { tint, glassOpacity } = useAppearance();
+  const { tint, glassOpacity, flat: mono } = useAppearance();
   const SHEET_MAX = SCREEN_H * maxHeightPct;
   const translateY = useRef(new Animated.Value(SCREEN_H)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -73,28 +73,33 @@ export default function DraggableSheet({
     <Animated.View
       style={[styles.sheetWrap, { maxHeight: SHEET_MAX, paddingBottom: insets.bottom + 16,
         transform: [{ translateY }] }]}>
-      {/* glass layers */}
-      <View style={[StyleSheet.absoluteFill, styles.clip]} pointerEvents="none">
-        <BlurView intensity={blurI} tint="dark" style={StyleSheet.absoluteFill} />
-        <LinearGradient
-          colors={[`rgba(${rgb},${Math.min(0.30, base + 0.08).toFixed(3)})`,
-                   `rgba(${rgb},${base.toFixed(3)})`]}
-          start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <LinearGradient
-          colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0)']}
-          start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.35 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
+      {/* glass layers (or flat mono fill) */}
+      {mono ? (
+        <View style={[StyleSheet.absoluteFill, styles.clip, styles.monoFill]} pointerEvents="none" />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, styles.clip]} pointerEvents="none">
+          <BlurView intensity={blurI} tint="dark" style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={[`rgba(${rgb},${Math.min(0.30, base + 0.08).toFixed(3)})`,
+                     `rgba(${rgb},${base.toFixed(3)})`]}
+            start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <LinearGradient
+            colors={['rgba(255,255,255,0.22)', 'rgba(255,255,255,0)']}
+            start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.35 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+      )}
       {/* rim */}
-      <View style={[StyleSheet.absoluteFill, styles.clip, styles.rim]} pointerEvents="none" />
+      <View style={[StyleSheet.absoluteFill, styles.clip, styles.rim,
+        mono && { borderColor: 'rgba(255,255,255,0.20)' }]} pointerEvents="none" />
 
       {/* draggable grabber: handle + title */}
       <View style={styles.grab} {...pan.panHandlers}>
-        <View style={styles.handle} />
-        {title ? <Text style={styles.title}>{title}</Text> : null}
+        <View style={[styles.handle, mono && { backgroundColor: 'rgba(255,255,255,0.45)', borderRadius: 0 }]} />
+        {title ? <Text style={[styles.title, mono && styles.titleDot]}>{title}</Text> : null}
       </View>
 
       <Animated.ScrollView
@@ -135,9 +140,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   clip: { borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg, overflow: 'hidden' },
+  monoFill: { backgroundColor: '#060606' },
   rim: { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(255,255,255,0.28)', borderBottomWidth: 0 },
   grab: { paddingTop: 12, paddingBottom: SPACING.sm, paddingHorizontal: SPACING.lg },
   handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)', alignSelf: 'center' },
   title: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginTop: SPACING.md },
+  titleDot: { color: COLORS.white, letterSpacing: 1.5, textTransform: 'uppercase' },
   content: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg, paddingTop: SPACING.xs },
 });

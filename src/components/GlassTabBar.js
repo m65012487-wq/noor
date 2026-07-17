@@ -25,7 +25,7 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
   }
 
   const insets = useSafeAreaInsets();
-  const { glassOpacity, tint } = useAppearance();
+  const { glassOpacity, tint, flat: mono, accent } = useAppearance();
   const rgb = tint || '150,200,225';
   const base = glassOpacity != null ? glassOpacity : 0.07;
   const count = state.routes.length;
@@ -46,44 +46,58 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
 
   const blurI = Math.round(34 + base * 120);
 
+  const items = (
+    <>
+      {/* sliding highlight pill */}
+      <Animated.View
+        style={[styles.highlight,
+          mono && { backgroundColor: 'rgba(230,0,25,0.16)', borderColor: accent },
+          { width: SLOT - 12, transform: [{ translateX }] }]}
+        pointerEvents="none"
+      />
+      <View style={styles.row}>
+        {state.routes.map((route, index) => {
+          const focused = state.index === index;
+          const glyph = GLYPHS[route.name];
+          const onPress = () => {
+            const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
+          };
+          return (
+            <TouchableOpacity key={route.key} style={[styles.item, { width: SLOT }]}
+              onPress={onPress} activeOpacity={0.8}>
+              <Image source={glyph}
+                style={{ width: 25, height: 25, tintColor: focused ? COLORS.white : COLORS.textMuted,
+                         opacity: focused ? 1 : 0.65 }}
+                resizeMode="contain" />
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </>
+  );
+
   return (
     <View style={[styles.wrap, { bottom: insets.bottom + 10 }]} pointerEvents="box-none">
-      <BlurView intensity={blurI} tint="dark" style={[styles.island, { width: ISLAND_W }]}>
-        {/* liquid glass layers */}
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <LinearGradient
-            colors={[`rgba(${rgb},${Math.min(0.30, base + 0.08).toFixed(3)})`,
-                     `rgba(${rgb},${Math.min(0.18, base).toFixed(3)})`]}
-            start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
-          <LinearGradient
-            colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
-            start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.6 }} style={StyleSheet.absoluteFill} />
+      {mono ? (
+        <View style={[styles.island, styles.islandMono, { width: ISLAND_W }]}>
+          {items}
         </View>
-        {/* sliding highlight pill */}
-        <Animated.View
-          style={[styles.highlight, { width: SLOT - 12, transform: [{ translateX }] }]}
-          pointerEvents="none"
-        />
-        <View style={styles.row}>
-          {state.routes.map((route, index) => {
-            const focused = state.index === index;
-            const glyph = GLYPHS[route.name];
-            const onPress = () => {
-              const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
-            };
-            return (
-              <TouchableOpacity key={route.key} style={[styles.item, { width: SLOT }]}
-                onPress={onPress} activeOpacity={0.8}>
-                <Image source={glyph}
-                  style={{ width: 25, height: 25, tintColor: focused ? COLORS.white : COLORS.textMuted,
-                           opacity: focused ? 1 : 0.65 }}
-                  resizeMode="contain" />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </BlurView>
+      ) : (
+        <BlurView intensity={blurI} tint="dark" style={[styles.island, { width: ISLAND_W }]}>
+          {/* liquid glass layers */}
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <LinearGradient
+              colors={[`rgba(${rgb},${Math.min(0.30, base + 0.08).toFixed(3)})`,
+                       `rgba(${rgb},${Math.min(0.18, base).toFixed(3)})`]}
+              start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
+            <LinearGradient
+              colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
+              start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.6 }} style={StyleSheet.absoluteFill} />
+          </View>
+          {items}
+        </BlurView>
+      )}
     </View>
   );
 }
@@ -96,6 +110,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 8 },
   },
+  islandMono: { backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.20)' },
   film: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(127,180,204,0.10)' },
   highlight: {
     position: 'absolute', left: 6, height: 46, top: 8, borderRadius: 23,

@@ -20,6 +20,11 @@ export const THEMES = [
   // Cosmos pack — deep indigo/violet starry sky.
   { id: 'cosmos', label_en: 'Cosmos', label_ru: 'Космос',
     main: 'cosmos_main', reader: 'cosmos_reader', lesson: 'cosmos_lesson', tint: '170,150,220', accent: '#b6a6e0' },
+  // Flat monochrome "dot" style — pure black, thin white lines, red accent.
+  // No wallpaper, no frosted glass: components render a flat mono variant.
+  { id: 'dot', label_en: 'Dot', label_ru: 'Точки',
+    main: 'main', reader: 'main', lesson: 'main', tint: '255,255,255', accent: '#e60019',
+    flat: true, bg: '#000000' },
 ];
 
 // Resolve a wallpaper key for a theme + slot, with fallback to main.
@@ -37,6 +42,16 @@ export function accentFor(themeId) {
 export function tintFor(themeId) {
   const th = THEMES.find((t) => t.id === themeId) || THEMES[0];
   return th.tint || '150,200,225';
+}
+// Whether the theme uses the flat monochrome look (no wallpaper, no glass blur).
+export function flatFor(themeId) {
+  const th = THEMES.find((t) => t.id === themeId) || THEMES[0];
+  return !!th.flat;
+}
+// Solid background color for flat themes.
+export function bgFor(themeId) {
+  const th = THEMES.find((t) => t.id === themeId) || THEMES[0];
+  return th.bg || '#0e1a2a';
 }
 
 export function AppearanceProvider({ children }) {
@@ -58,7 +73,7 @@ export function AppearanceProvider({ children }) {
   if (!ready) return null;
   return (
     <AppearanceContext.Provider value={{ theme, chooseTheme, glassOpacity, chooseGlassOpacity, THEMES,
-      accent: accentFor(theme), tint: tintFor(theme) }}>
+      accent: accentFor(theme), tint: tintFor(theme), flat: flatFor(theme), bg: bgFor(theme) }}>
       {children}
     </AppearanceContext.Provider>
   );
@@ -66,5 +81,5 @@ export function AppearanceProvider({ children }) {
 
 export const useAppearance = () => useContext(AppearanceContext) || {
   theme: 'main', glassOpacity: 0.07, chooseTheme: () => {}, chooseGlassOpacity: () => {}, THEMES,
-  accent: '#bcd3e0', tint: '150,200,225',
+  accent: '#bcd3e0', tint: '150,200,225', flat: false, bg: '#0e1a2a',
 };

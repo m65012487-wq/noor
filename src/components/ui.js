@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { COLORS, RADIUS, SPACING } from '../constants/theme';
+import { COLORS, RADIUS, SPACING, FONTS } from '../constants/theme';
 import GlassView from './GlassView';
+import { useAppearance } from '../utils/AppearanceContext';
 
 // Glass card — frosted panel that blurs the background behind it.
 export function Card({ children, style, intensity = 38, azure = false, gold = false }) {
@@ -14,7 +15,8 @@ export function Card({ children, style, intensity = 38, azure = false, gold = fa
 }
 
 export function SectionTitle({ children }) {
-  return <Text style={styles.title}>{children}</Text>;
+  const { flat: mono } = useAppearance();
+  return <Text style={[styles.title, mono && styles.titleDot]}>{children}</Text>;
 }
 
 export function Subtitle({ children }) {
@@ -28,5 +30,6 @@ const styles = StyleSheet.create({
     color: COLORS.cream, fontSize: 26, fontWeight: '700',
     marginTop: SPACING.md, marginBottom: SPACING.xs, letterSpacing: 0.3,
   },
+  titleDot: { color: COLORS.white, letterSpacing: 2, textTransform: 'uppercase' },
   subtitle: { color: COLORS.textMuted, fontSize: 14, marginBottom: SPACING.md },
 });

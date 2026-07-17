@@ -7,7 +7,8 @@ import { Card, SectionTitle, Subtitle } from '../components/ui';
 import LocationPicker from '../components/LocationPicker';
 import SettingsModal from '../components/SettingsModal';
 import PrayerReminderSheet from '../components/PrayerReminderSheet';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { useAppearance } from '../utils/AppearanceContext';
 import { getNextPrayer, saveJSON, loadJSON } from '../utils/helpers';
 import { getPrayerTimes2, TIME_SOURCES } from '../utils/prayerSource';
 import { useLang } from '../i18n/LanguageContext';
@@ -22,6 +23,7 @@ const PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 export default function PrayerTimesScreen() {
   const { t, lang } = useLang();
   const swipe = useTabSwipe('Prayer');
+  const { flat: mono } = useAppearance();
   const { coords } = useLocation();
   const { reminders, timeSourceId, asrSchool } = useAppSettings();
   const [timings, setTimings] = useState(null);
@@ -140,7 +142,7 @@ export default function PrayerTimesScreen() {
             <Card azure style={styles.nextCard}>
               <Text style={styles.nextLabel}>{t('next_prayer')}</Text>
               <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ''}</Text>
-              <Text style={styles.countdown}>{countdown}</Text>
+              <Text style={[styles.countdown, mono && styles.countdownDot]}>{countdown}</Text>
             </Card>
 
             {PRAYERS.map((p) => {
@@ -157,7 +159,7 @@ export default function PrayerTimesScreen() {
                           <Ionicons name="notifications" size={14} color={COLORS.accentSoft}
                             style={{ marginRight: 8 }} />
                         )}
-                        <Text style={[styles.time, isNext && styles.prayerActive]}>{timings[p]}</Text>
+                        <Text style={[styles.time, mono && styles.timeDot, isNext && styles.prayerActive]}>{timings[p]}</Text>
                       </View>
                     </View>
                   </GlassView>
@@ -185,6 +187,8 @@ const styles = StyleSheet.create({
   nextLabel: { color: COLORS.accentSoft, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase' },
   nextName: { color: COLORS.white, fontSize: 36, fontWeight: '800', marginVertical: SPACING.xs },
   countdown: { color: COLORS.text, fontSize: 20, fontVariant: ['tabular-nums'] },
+  countdownDot: { fontFamily: FONTS.dot, fontSize: 30, letterSpacing: 2, color: COLORS.white },
+  timeDot: { fontFamily: FONTS.dot, fontSize: 21, letterSpacing: 1.5 },
   rowGlass: { marginBottom: SPACING.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.md },

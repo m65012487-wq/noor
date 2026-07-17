@@ -138,10 +138,9 @@ export default function SurahReaderScreen({ route, navigation }) {
   }
 
   const meaning = surahMeaning(surah.number, lang) || surah.englishNameTranslation;
+  const flat = !!appearance?.flat;
 
-  return (
-    <ImageBackground source={readerBg} style={{ flex: 1 }} resizeMode="cover">
-      <LinearGradient colors={['rgba(14,26,42,0.55)', 'rgba(14,26,42,0.80)']} style={{ flex: 1 }}>
+  const body = (
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           {/* Header */}
           <View style={styles.header}>
@@ -222,6 +221,15 @@ export default function SurahReaderScreen({ route, navigation }) {
             </ScrollView>
           )}
         </SafeAreaView>
+  );
+
+  if (flat) {
+    return <View style={{ flex: 1, backgroundColor: appearance.bg || '#000' }}>{body}</View>;
+  }
+  return (
+    <ImageBackground source={readerBg} style={{ flex: 1 }} resizeMode="cover">
+      <LinearGradient colors={['rgba(14,26,42,0.55)', 'rgba(14,26,42,0.80)']} style={{ flex: 1 }}>
+        {body}
       </LinearGradient>
     </ImageBackground>
   );

@@ -12,9 +12,18 @@ export default function GlassView({
   children, style, intensity, radius = RADIUS.md,
   azure = false, noBorder = false, blur = false, clip = false, flat = false,
 }) {
-  const { glassOpacity, tint } = useAppearance();
+  const { glassOpacity, tint, flat: mono } = useAppearance();
   const base = glassOpacity != null ? glassOpacity : 0.07;
   const rgb = tint || '150,200,225';
+
+  // Flat monochrome look: near-black card with a thin light rim, no blur/gloss.
+  if (mono) {
+    return (
+      <View style={[styles.mono, { borderRadius: radius }, azure && styles.monoAccent, style]}>
+        {children}
+      </View>
+    );
+  }
 
   const fillTop = azure
     ? `rgba(${rgb},${Math.min(0.34, base + 0.10).toFixed(3)})`
@@ -59,5 +68,14 @@ const styles = StyleSheet.create({
       ios: { shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
       android: { elevation: 4 },
     }),
+  },
+  mono: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  monoAccent: {
+    backgroundColor: 'rgba(230,0,25,0.10)',
+    borderColor: 'rgba(230,0,25,0.45)',
   },
 });
