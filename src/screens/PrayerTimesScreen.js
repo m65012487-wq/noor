@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, ScrollView, TouchableOpacity, AppState } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, ScrollView, TouchableOpacity, AppState,
+  LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
@@ -20,6 +21,10 @@ import { scheduleFajrAlarm, markAwake, isInAlarmWindow, getFajrAlarmSettings } f
 
 const PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function PrayerTimesScreen() {
   const { t, lang } = useLang();
   const swipe = useTabSwipe('Prayer');
@@ -34,7 +39,13 @@ export default function PrayerTimesScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [reminderPrayer, setReminderPrayer] = useState(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const timer = useRef(null);
+
+  function toggleSchedule() {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setScheduleOpen((v) => !v);
+  }
 
   const [alarmWindow, setAlarmWindow] = useState(false);
 
@@ -139,13 +150,30 @@ export default function PrayerTimesScreen() {
 
         {timings && !loading && (
           <>
+            {/* Essential — always visible: next prayer + countdown */}
             <Card azure style={styles.nextCard}>
               <Text style={styles.nextLabel}>{t('next_prayer')}</Text>
               <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ''}</Text>
               <Text style={[styles.countdown, mono && styles.countdownDot]}>{countdown}</Text>
             </Card>
 
-            {PRAYERS.map((p) => {
+            {/* Full schedule — collapsed into a spoiler */}
+            <TouchableOpacity activeOpacity={0.85} onPress={toggleSchedule}>
+              <GlassView radius={RADIUS.md} style={styles.spoilerHead}>
+                <View style={styles.spoilerRow}>
+                  <Text style={styles.spoilerTitle}>{t('schedule')}</Text>
+                  <View style={styles.rowRight}>
+                    {!scheduleOpen && !!nextName && (
+                      <Text style={[styles.spoilerNext, mono && styles.timeDot]}>{timings[nextName]}</Text>
+                    )}
+                    <Ionicons name={scheduleOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18} color={COLORS.textMuted} style={{ marginLeft: 10 }} />
+                  </View>
+                </View>
+              </GlassView>
+            </TouchableOpacity>
+
+            {scheduleOpen && PRAYERS.map((p) => {
               const isNext = p === nextName;
               const r = reminders[p];
               return (
@@ -166,7 +194,7 @@ export default function PrayerTimesScreen() {
                 </TouchableOpacity>
               );
             })}
-            <Text style={styles.hint}>{t('customize')} →</Text>
+            {scheduleOpen && <Text style={styles.hint}>{t('customize')} →</Text>}
           </>
         )}
       </ScrollView>
@@ -186,9 +214,14 @@ const styles = StyleSheet.create({
   nextCard: { alignItems: 'center', paddingVertical: SPACING.lg },
   nextLabel: { color: COLORS.accentSoft, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase' },
   nextName: { color: COLORS.white, fontSize: 36, fontWeight: '800', marginVertical: SPACING.xs },
-  countdown: { color: COLORS.text, fontSize: 20, fontVariant: ['tabular-nums'] },
-  countdownDot: { fontSize: 24, letterSpacing: 3, color: COLORS.white },
+  countdown: { color: COLORS.text, fontSize: 26, letterSpacing: 1, fontVariant: ['tabular-nums'] },
+  countdownDot: { fontSize: 30, letterSpacing: 4, color: COLORS.white },
   timeDot: { letterSpacing: 2 },
+  spoilerHead: { marginBottom: SPACING.sm },
+  spoilerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: SPACING.md, paddingHorizontal: SPACING.md },
+  spoilerTitle: { color: COLORS.text, fontSize: 13, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' },
+  spoilerNext: { color: COLORS.white, fontSize: 17, fontWeight: '700', fontVariant: ['tabular-nums'] },
   rowGlass: { marginBottom: SPACING.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.md },
