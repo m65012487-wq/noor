@@ -30,14 +30,15 @@ export default function ScreenWrapper({ children, edges = ['top'], bg, slot = 'm
     if (!key && appearance && appearance.theme) key = wallpaperFor(appearance.theme, slot);
   } catch {}
 
-  // Flat monochrome theme: solid background, no wallpaper or scrim.
+  // Flat monochrome theme: soft grey "wallpaper" gradient, no photo, no scrim.
   if (appearance && appearance.flat) {
     return (
-      <View style={[styles.flex, { backgroundColor: appearance.bg || '#000' }]}>
+      <LinearGradient colors={['#54545c', '#33333a', '#1e1e22']} locations={[0, 0.55, 1]}
+        style={styles.flex}>
         <SafeAreaView style={styles.safe} edges={edges}>
           <View style={styles.inner} {...(swipeHandlers || {})}>{children}</View>
         </SafeAreaView>
-      </View>
+      </LinearGradient>
     );
   }
 

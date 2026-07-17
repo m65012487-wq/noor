@@ -24,7 +24,7 @@ export const THEMES = [
   // No wallpaper, no frosted glass: components render a flat mono variant.
   { id: 'dot', label_en: 'Dot', label_ru: 'Точки',
     main: 'main', reader: 'main', lesson: 'main', tint: '255,255,255', accent: '#e60019',
-    flat: true, bg: '#000000' },
+    flat: true, bg: '#2a2a30' },
 ];
 
 // Resolve a wallpaper key for a theme + slot, with fallback to main.

@@ -70,12 +70,12 @@ const styles = StyleSheet.create({
     }),
   },
   mono: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   monoAccent: {
-    backgroundColor: 'rgba(230,0,25,0.10)',
-    borderColor: 'rgba(230,0,25,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderColor: 'rgba(230,0,25,0.55)',
   },
 });

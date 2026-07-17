@@ -33,9 +33,9 @@ const styles = StyleSheet.create({
   },
   active: { backgroundColor: 'rgba(127,180,204,0.20)', borderColor: 'rgba(255,255,255,0.4)' },
   mono: {
-    minWidth: 38, height: 38, borderRadius: 10,
+    minWidth: 38, height: 38, borderRadius: 19,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
   },
 });
