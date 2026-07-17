@@ -30,6 +30,6 @@ const styles = StyleSheet.create({
     color: COLORS.cream, fontSize: 26, fontWeight: '700',
     marginTop: SPACING.md, marginBottom: SPACING.xs, letterSpacing: 0.3,
   },
-  titleDot: { fontFamily: FONTS.dot, fontWeight: '400', fontSize: 22, color: COLORS.white, letterSpacing: 1, textTransform: 'uppercase' },
+  titleDot: { color: COLORS.white, letterSpacing: 2, textTransform: 'uppercase' },
   subtitle: { color: COLORS.textMuted, fontSize: 14, marginBottom: SPACING.md },
 });

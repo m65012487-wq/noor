@@ -145,6 +145,6 @@ const styles = StyleSheet.create({
   grab: { paddingTop: 12, paddingBottom: SPACING.sm, paddingHorizontal: SPACING.lg },
   handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)', alignSelf: 'center' },
   title: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginTop: SPACING.md },
-  titleDot: { fontFamily: FONTS.dot, fontWeight: '400', fontSize: 19, color: COLORS.white, letterSpacing: 1, textTransform: 'uppercase' },
+  titleDot: { color: COLORS.white, letterSpacing: 1.5, textTransform: 'uppercase' },
   content: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg, paddingTop: SPACING.xs },
 });
