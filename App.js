@@ -50,7 +50,7 @@ export default function App() {
         await Font.loadAsync({
           Amiri: require('./assets/fonts/Amiri-Regular.ttf'),
           'Amiri-Bold': require('./assets/fonts/Amiri-Bold.ttf'),
-          Doto: require('./assets/fonts/Doto.ttf'),
+          NoorDot: require('./assets/fonts/NoorDot.ttf'),
         });
       } catch (e) {}
       setFontsLoaded(true);
