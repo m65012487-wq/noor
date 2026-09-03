@@ -17,13 +17,9 @@ const { width } = Dimensions.get('window');
 
 // Floating "island" frosted tab bar with a sliding highlight.
 export default function GlassTabBar({ state, descriptors, navigation }) {
-  // Hide inside the Surah reader detail screen.
-  const focusedRoute = state.routes[state.index];
-  const nested = focusedRoute?.state;
-  if (nested && nested.routes && nested.routes[nested.index]) {
-    if (nested.routes[nested.index].name === 'SurahReader') return null;
-  }
-
+  // Все хуки вызываются безусловно и до любого возврата: ранний return null
+  // менял их число между рендерами и ронял приложение с «Rendered more hooks
+  // than during the previous render» при входе в чтение суры.
   const insets = useSafeAreaInsets();
   const { glassOpacity, tint, flat: mono, accent } = useAppearance();
   const rgb = tint || '150,200,225';
@@ -37,7 +33,14 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
     Animated.spring(slide, {
       toValue: state.index, useNativeDriver: true, friction: 9, tension: 80,
     }).start();
-  }, [state.index]);
+  }, [state.index, slide]);
+
+  // Скрываем панель внутри читалки суры — уже после всех хуков.
+  const focusedRoute = state.routes[state.index];
+  const nested = focusedRoute?.state;
+  const hidden =
+    !!nested?.routes?.[nested.index] &&
+    nested.routes[nested.index].name === 'SurahReader';
 
   const translateX = slide.interpolate({
     inputRange: [0, count - 1],
@@ -76,6 +79,8 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
       </View>
     </>
   );
+
+  if (hidden) return null;
 
   return (
     <View style={[styles.wrap, { bottom: insets.bottom + 10 }]} pointerEvents="box-none">

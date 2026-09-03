@@ -8,7 +8,7 @@ import { useLocation, searchCity } from '../utils/LocationContext';
 
 export default function LocationPicker({ visible, onClose }) {
   const { t } = useLang();
-  const { useGps, setManual } = useLocation();
+  const { requestGps, setManual } = useLocation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function LocationPicker({ visible, onClose }) {
     setLoading(false);
   }
   async function pick(item) { await setManual({ lat: item.lat, lng: item.lng, label: item.short }); onClose(); }
-  async function gps() { await useGps(); onClose(); }
+  async function gps() { await requestGps(); onClose(); }
 
   return (
     <DraggableSheet visible={visible} onClose={onClose} title={t('loc_title')} keyboardAvoiding>

@@ -26,4 +26,7 @@ export const COLORS = {
 
 export const SPACING = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
 export const RADIUS = { sm: 10, md: 20, lg: 28, pill: 999 };
-export const FONTS = { arabic: 'Amiri', arabicBold: 'Amiri-Bold', dot: 'NoorDot' };
+// Арабский рисуется системным шрифтом: на iOS это SF Arabic.
+// Если положить Amiri-Regular.ttf и Amiri-Bold.ttf в assets/fonts и загрузить их
+// в App.js, достаточно вернуть сюда 'Amiri' — остальной код не изменится.
+export const FONTS = { arabic: undefined, arabicBold: undefined };

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import * as Font from 'expo-font';
 import * as Notifications from 'expo-notifications';
 
 import GlassTabBar from './src/components/GlassTabBar';
@@ -42,22 +41,19 @@ function Tabs() {
 }
 
 export default function App() {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     (async () => {
-      try {
-        await Font.loadAsync({
-          Amiri: require('./assets/fonts/Amiri-Regular.ttf'),
-          'Amiri-Bold': require('./assets/fonts/Amiri-Bold.ttf'),
-        });
-      } catch (e) {}
-      setFontsLoaded(true);
+      // Шрифты не загружаются: Amiri в репозитории нет, а статический require
+      // несуществующего файла Metro не собирает вовсе. Арабский текст рисуется
+      // системным шрифтом — на iOS это SF Arabic, он для этого и предназначен.
       await requestNotifPermission();
+      setReady(true);
     })();
   }, []);
 
-  if (!fontsLoaded) {
+  if (!ready) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.navyDeep, justifyContent: 'center' }}>
         <ActivityIndicator color={COLORS.accent} size="large" />

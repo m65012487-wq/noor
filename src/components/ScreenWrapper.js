@@ -23,12 +23,11 @@ const BACKGROUNDS = {
 // `slot` picks which wallpaper from the current theme pack: 'main' | 'reader' | 'lesson'.
 // `bg` can still force a specific image directly.
 export default function ScreenWrapper({ children, edges = ['top'], bg, slot = 'main', swipeHandlers }) {
-  let key = bg;
-  let appearance = null;
-  try {
-    appearance = useAppearance();
-    if (!key && appearance && appearance.theme) key = wallpaperFor(appearance.theme, slot);
-  } catch {}
+  // Хук вызывается безусловно. Раньше он стоял внутри try/catch — то есть
+  // условно, что нарушает правила хуков и ломает порядок между рендерами.
+  // Контекст и так отдаёт значения по умолчанию, если провайдера нет.
+  const appearance = useAppearance();
+  const key = bg || (appearance?.theme ? wallpaperFor(appearance.theme, slot) : undefined);
 
   // Flat monochrome theme: soft grey "wallpaper" gradient, no photo, no scrim.
   if (appearance && appearance.flat) {

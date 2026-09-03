@@ -19,13 +19,13 @@ export function LocationProvider({ children }) {
       }
       // Then try to refresh from GPS unless user manually picked a city.
       if (!saved || saved.fromGps) {
-        await useGps();
+        await requestGps();
       }
       setReady(true);
     })();
   }, []);
 
-  async function useGps() {
+  async function requestGps() {
     try {
       const { status: perm } = await Location.requestForegroundPermissionsAsync();
       if (perm !== 'granted') {
@@ -68,7 +68,7 @@ export function LocationProvider({ children }) {
   if (!ready) return null;
 
   return (
-    <LocationContext.Provider value={{ coords, status, useGps, setManual }}>
+    <LocationContext.Provider value={{ coords, status, requestGps, setManual }}>
       {children}
     </LocationContext.Provider>
   );
