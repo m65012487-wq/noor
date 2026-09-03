@@ -21,7 +21,7 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
   // менял их число между рендерами и ронял приложение с «Rendered more hooks
   // than during the previous render» при входе в чтение суры.
   const insets = useSafeAreaInsets();
-  const { glassOpacity, tint, flat: mono, accent } = useAppearance();
+  const { glassOpacity, tint, accent } = useAppearance();
   const rgb = tint || '150,200,225';
   const base = glassOpacity != null ? glassOpacity : 0.07;
   const count = state.routes.length;
@@ -54,7 +54,6 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
       {/* sliding highlight pill */}
       <Animated.View
         style={[styles.highlight,
-          mono && { backgroundColor: 'rgba(230,0,25,0.16)', borderColor: accent },
           { width: SLOT - 12, transform: [{ translateX }] }]}
         pointerEvents="none"
       />
@@ -84,25 +83,19 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
 
   return (
     <View style={[styles.wrap, { bottom: insets.bottom + 10 }]} pointerEvents="box-none">
-      {mono ? (
-        <View style={[styles.island, styles.islandMono, { width: ISLAND_W }]}>
-          {items}
+      <BlurView intensity={blurI} tint="dark" style={[styles.island, { width: ISLAND_W }]}>
+        {/* liquid glass layers */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <LinearGradient
+            colors={[`rgba(${rgb},${Math.min(0.30, base + 0.08).toFixed(3)})`,
+                     `rgba(${rgb},${Math.min(0.18, base).toFixed(3)})`]}
+            start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
+          <LinearGradient
+            colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
+            start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.6 }} style={StyleSheet.absoluteFill} />
         </View>
-      ) : (
-        <BlurView intensity={blurI} tint="dark" style={[styles.island, { width: ISLAND_W }]}>
-          {/* liquid glass layers */}
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <LinearGradient
-              colors={[`rgba(${rgb},${Math.min(0.30, base + 0.08).toFixed(3)})`,
-                       `rgba(${rgb},${Math.min(0.18, base).toFixed(3)})`]}
-              start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
-            <LinearGradient
-              colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
-              start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.6 }} style={StyleSheet.absoluteFill} />
-          </View>
-          {items}
-        </BlurView>
-      )}
+        {items}
+      </BlurView>
     </View>
   );
 }
@@ -115,7 +108,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 8 },
   },
-  islandMono: { backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.20)' },
   film: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(127,180,204,0.10)' },
   highlight: {
     position: 'absolute', left: 6, height: 46, top: 8, borderRadius: 23,

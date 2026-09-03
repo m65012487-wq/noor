@@ -28,7 +28,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function PrayerTimesScreen() {
   const { t, lang } = useLang();
   const swipe = useTabSwipe('Prayer');
-  const { flat: mono, accent } = useAppearance();
+  const { accent } = useAppearance();
   const { coords } = useLocation();
   const { reminders, timeSourceId, asrSchool } = useAppSettings();
   const [timings, setTimings] = useState(null);
@@ -150,23 +150,11 @@ export default function PrayerTimesScreen() {
 
         {timings && !loading && (
           <>
-            {/* Essential — always visible: next prayer + countdown */}
-            {mono ? (
-              <View style={styles.heroWrap}>
-                <View style={styles.heroCircle}>
-                  <View style={[styles.heroDot, { backgroundColor: accent }]} />
-                  <Text style={styles.heroLabel}>{t('next_prayer')}</Text>
-                  <Text style={styles.heroName}>{nextName ? prayerName(nextName, lang) : ''}</Text>
-                  <Text style={styles.heroCountdown}>{countdown}</Text>
-                </View>
-              </View>
-            ) : (
-              <Card azure style={styles.nextCard}>
-                <Text style={styles.nextLabel}>{t('next_prayer')}</Text>
-                <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ''}</Text>
-                <Text style={styles.countdown}>{countdown}</Text>
-              </Card>
-            )}
+            <Card azure style={styles.nextCard}>
+              <Text style={styles.nextLabel}>{t('next_prayer')}</Text>
+              <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ''}</Text>
+              <Text style={styles.countdown}>{countdown}</Text>
+            </Card>
 
             {/* Full schedule — collapsed into a spoiler */}
             <TouchableOpacity activeOpacity={0.85} onPress={toggleSchedule}>
@@ -175,7 +163,7 @@ export default function PrayerTimesScreen() {
                   <Text style={styles.spoilerTitle}>{t('schedule')}</Text>
                   <View style={styles.rowRight}>
                     {!scheduleOpen && !!nextName && (
-                      <Text style={[styles.spoilerNext, mono && styles.timeDot]}>{timings[nextName]}</Text>
+                      <Text style={styles.spoilerNext}>{timings[nextName]}</Text>
                     )}
                     <Ionicons name={scheduleOpen ? 'chevron-up' : 'chevron-down'}
                       size={18} color={COLORS.textMuted} style={{ marginLeft: 10 }} />
@@ -198,7 +186,7 @@ export default function PrayerTimesScreen() {
                           <Ionicons name="notifications" size={14} color={COLORS.accentSoft}
                             style={{ marginRight: 8 }} />
                         )}
-                        <Text style={[styles.time, mono && styles.timeDot, isNext && styles.prayerActive]}>{timings[p]}</Text>
+                        <Text style={[styles.time, isNext && styles.prayerActive]}>{timings[p]}</Text>
                       </View>
                     </View>
                   </GlassView>
@@ -226,16 +214,6 @@ const styles = StyleSheet.create({
   nextLabel: { color: COLORS.accentSoft, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase' },
   nextName: { color: COLORS.white, fontSize: 36, fontWeight: '800', marginVertical: SPACING.xs },
   countdown: { color: COLORS.text, fontSize: 26, letterSpacing: 1, fontVariant: ['tabular-nums'] },
-  countdownDot: { fontSize: 30, letterSpacing: 4, color: COLORS.white },
-  timeDot: { letterSpacing: 2 },
-  heroWrap: { alignItems: 'center', marginTop: SPACING.sm, marginBottom: SPACING.lg },
-  heroCircle: { width: 264, height: 264, borderRadius: 132,
-    backgroundColor: 'rgba(0,0,0,0.62)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
-  heroDot: { position: 'absolute', top: 26, width: 8, height: 8, borderRadius: 4 },
-  heroLabel: { color: COLORS.textMuted, fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-  heroName: { color: COLORS.white, fontSize: 30, fontWeight: '800', marginBottom: 10, textAlign: 'center' },
-  heroCountdown: { color: COLORS.white, fontSize: 26, letterSpacing: 2, fontVariant: ['tabular-nums'] },
   spoilerHead: { marginBottom: SPACING.sm },
   spoilerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.md },

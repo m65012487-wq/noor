@@ -29,18 +29,6 @@ export default function ScreenWrapper({ children, edges = ['top'], bg, slot = 'm
   const appearance = useAppearance();
   const key = bg || (appearance?.theme ? wallpaperFor(appearance.theme, slot) : undefined);
 
-  // Flat monochrome theme: soft grey "wallpaper" gradient, no photo, no scrim.
-  if (appearance && appearance.flat) {
-    return (
-      <LinearGradient colors={['#54545c', '#33333a', '#1e1e22']} locations={[0, 0.55, 1]}
-        style={styles.flex}>
-        <SafeAreaView style={styles.safe} edges={edges}>
-          <View style={styles.inner} {...(swipeHandlers || {})}>{children}</View>
-        </SafeAreaView>
-      </LinearGradient>
-    );
-  }
-
   const source = BACKGROUNDS[key] || BACKGROUNDS.main;
   return (
     <ImageBackground source={source} style={styles.flex} resizeMode="cover">
