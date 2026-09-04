@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
@@ -32,7 +32,7 @@ function Section({ id, title, open, onToggle, children }) {
     <View style={styles.section}>
       <TouchableOpacity style={styles.sectionHead} onPress={() => onToggle(id)} activeOpacity={0.8}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.accentSoft} />
+        <Icon name={open ? 'up' : 'down'} size={20} color={COLORS.accentSoft} />
       </TouchableOpacity>
       {open && <View style={styles.sectionBody}>{children}</View>}
     </View>

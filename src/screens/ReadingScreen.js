@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Animated, Image, PanResponder, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import { SectionTitle } from '../components/ui';
@@ -200,7 +200,7 @@ export default function ReadingScreen() {
                 {showTranslit && !!ayah.tr && <Text style={styles.tr}>{ayah.tr}</Text>}
                 {showTranslation && <Text style={styles.en}>{ayah.en}</Text>}
                 <TouchableOpacity style={styles.listenBtn} onPress={listen}>
-                  <Ionicons name={playing ? 'pause' : 'play'} size={16} color={COLORS.text} />
+                  <Icon name={playing ? 'pause' : 'play'} size={16} color={COLORS.text} />
                   <Text style={styles.listenText}>  {playing ? t('stop') : t('preview')}</Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -213,13 +213,13 @@ export default function ReadingScreen() {
       <View style={styles.nav}>
         <TouchableOpacity onPress={goPrev} activeOpacity={0.8}>
           <GlassView radius={RADIUS.pill} style={styles.navBtn}>
-            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+            <Icon name="back" size={22} color={COLORS.text} />
           </GlassView>
         </TouchableOpacity>
         <TouchableOpacity onPress={goNext} activeOpacity={0.85} style={{ flex: 1, marginLeft: SPACING.sm }}>
           <GlassView azure radius={RADIUS.pill} style={styles.nextBtn}>
             <Text style={styles.nextText}>{t('next_ayah')}</Text>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.white} />
+            <Icon name="forward" size={20} color={COLORS.white} />
           </GlassView>
         </TouchableOpacity>
       </View>

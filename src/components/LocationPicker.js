@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
@@ -28,7 +28,7 @@ export default function LocationPicker({ visible, onClose }) {
     <DraggableSheet visible={visible} onClose={onClose} title={t('loc_title')} keyboardAvoiding>
       <View style={styles.searchRow}>
         <View style={styles.inputWrap}>
-          <Ionicons name="search" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
+          <Icon name="search" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder={t('loc_search_ph')}
@@ -40,12 +40,12 @@ export default function LocationPicker({ visible, onClose }) {
           />
         </View>
         <TouchableOpacity style={styles.searchBtn} onPress={doSearch} activeOpacity={0.8}>
-          <Ionicons name="search" size={20} color={COLORS.text} />
+          <Icon name="search" size={20} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.gpsBtn} onPress={gps} activeOpacity={0.8}>
-        <Ionicons name="location-outline" size={19} color={COLORS.text} style={{ marginRight: SPACING.sm }} />
+        <Icon name="location" size={19} color={COLORS.text} style={{ marginRight: SPACING.sm }} />
         <Text style={styles.gpsText}>{t('loc_use_gps')}</Text>
       </TouchableOpacity>
 
@@ -56,7 +56,7 @@ export default function LocationPicker({ visible, onClose }) {
 
       {results.map((item, i) => (
         <TouchableOpacity key={`${item.lat}-${item.lng}-${i}`} style={styles.row} onPress={() => pick(item)}>
-          <Ionicons name="location-outline" size={17} color={COLORS.accentSoft} style={{ marginRight: SPACING.sm }} />
+          <Icon name="location" size={17} color={COLORS.accentSoft} style={{ marginRight: SPACING.sm }} />
           <Text style={styles.rowText}>{item.label}</Text>
         </TouchableOpacity>
       ))}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { StyleSheet, View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import { SectionTitle } from '../components/ui';
@@ -90,7 +90,7 @@ export default function QuranScreen({ navigation }) {
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gear}>
-        <Ionicons name="options-outline" size={22} color={COLORS.text} />
+        <Icon name="options" size={22} color={COLORS.text} />
       </TouchableOpacity>
     </View>
   );
@@ -115,7 +115,7 @@ export default function QuranScreen({ navigation }) {
             <TouchableOpacity key={i} activeOpacity={0.85} onPress={() => openByNumber(b.surahNumber, b.ayah)}>
               <GlassView style={styles.bmRow} radius={RADIUS.sm}>
                 <View style={styles.bmInner}>
-                  <Ionicons name="bookmark" size={15} color={COLORS.accentSoft} style={{ marginRight: 8 }} />
+                  <Icon name="bookmark" size={15} color={COLORS.accentSoft} style={{ marginRight: 8 }} />
                   <Text style={styles.bmText}>{b.name} · {t('ayah')} {b.ayah}</Text>
                 </View>
               </GlassView>

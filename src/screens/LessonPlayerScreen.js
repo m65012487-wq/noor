@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../components/Icon';
 import GlassView from '../components/GlassView';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { COURSE } from '../constants/course';
@@ -103,12 +103,12 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
       <LessonBg>
         <View style={styles.doneWrap}>
           <View style={[styles.bigCircle, { borderColor: accent }]}>
-            <Ionicons name="checkmark" size={56} color={accent} />
+            <Icon name="check" size={56} color={accent} />
           </View>
           <Text style={styles.doneTitle}>{t('lesson_done')}</Text>
           <View style={styles.starsRow}>
             {[0, 1, 2].map((i) => (
-              <Ionicons key={i} name={i < stars ? 'star' : 'star-outline'} size={40}
+              <Icon key={i} name={i < stars ? 'star' : 'starOff'} size={40}
                 color={i < stars ? COLORS.warning : 'rgba(255,255,255,0.3)'} style={{ marginHorizontal: 4 }} />
             ))}
           </View>
@@ -127,7 +127,7 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
       <View style={styles.topBarWrap}>
         <GlassView radius={RADIUS.pill} style={styles.topBar}>
           <TouchableOpacity onPress={onExit} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close" size={24} color={COLORS.white} />
+            <Icon name="close" size={24} color={COLORS.white} />
           </TouchableOpacity>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: accent }]} />
@@ -143,7 +143,7 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
         {ex.type === 'listen_choose' && (
           <TouchableOpacity onPress={() => speakArabic(ex.correct.say)} activeOpacity={0.7}>
             <GlassView blur clip radius={48} azure noBorder={false} style={styles.speaker}>
-              <Ionicons name="volume-high" size={42} color={COLORS.white} />
+              <Icon name="speakerHi" size={42} color={COLORS.white} />
             </GlassView>
           </TouchableOpacity>
         )}
@@ -154,7 +154,7 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
             <GlassView azure radius={RADIUS.lg} style={styles.promptCard}>
               <Text style={styles.promptAr}>{ex.correct.ar}</Text>
               <View style={styles.tapHintRow}>
-                <Ionicons name="volume-medium" size={15} color={COLORS.textMuted} />
+                <Icon name="speaker" size={15} color={COLORS.textMuted} />
                 <Text style={styles.tapHint}>  {t('tap_to_hear_q')}</Text>
               </View>
             </GlassView>

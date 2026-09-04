@@ -38,7 +38,14 @@ export const ICONS = {
   star:      { sf: 'star.fill',         ion: 'star' },
   download:  { sf: 'arrow.down.circle', ion: 'download-outline' },
   refresh:   { sf: 'arrow.clockwise',   ion: 'refresh' },
+  add:       { sf: 'plus',              ion: 'add' },
+  remove:    { sf: 'minus',             ion: 'remove' },
+  lock:      { sf: 'lock.fill',         ion: 'lock-closed' },
+  starOff:   { sf: 'star',              ion: 'star-outline' },
+  speakerHi: { sf: 'speaker.wave.3',    ion: 'volume-high' },
   info:      { sf: 'info.circle',       ion: 'information-circle-outline' },
+  options:   { sf: 'slider.horizontal.3', ion: 'options-outline' },
+  next:      { sf: 'arrow.forward.circle', ion: 'arrow-forward-circle' },
 };
 
 const IS_IOS = Platform.OS === 'ios';

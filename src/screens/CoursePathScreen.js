@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../components/Icon';
 import GlassView from '../components/GlassView';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { COURSE, LESSONS_PER_UNIT } from '../constants/course';
@@ -28,7 +28,7 @@ export default function CoursePathScreen({ onOpenLesson, refreshKey }) {
       {/* Stars total header */}
       <GlassView azure radius={RADIUS.md} style={styles.xpBar}>
         <View style={styles.xpInner}>
-          <Ionicons name="star" size={20} color="#ffce5a" />
+          <Icon name="star" size={20} color="#ffce5a" />
           <Text style={styles.xpText}>{totalStars(starsMap)} {t('stars')}</Text>
         </View>
       </GlassView>
@@ -61,11 +61,11 @@ export default function CoursePathScreen({ onOpenLesson, refreshKey }) {
                         !lessonUnlocked && styles.circleLocked,
                       ]}>
                         {lessonDone ? (
-                          <Ionicons name="checkmark" size={26} color={COLORS.navy} />
+                          <Icon name="check" size={26} color={COLORS.navy} />
                         ) : !lessonUnlocked ? (
-                          <Ionicons name="lock-closed" size={20} color={COLORS.textMuted} />
+                          <Icon name="lock" size={20} color={COLORS.textMuted} />
                         ) : (
-                          <Ionicons name="star" size={24} color={accent} />
+                          <Icon name="star" size={24} color={accent} />
                         )}
                       </View>
                     </TouchableOpacity>
@@ -75,7 +75,7 @@ export default function CoursePathScreen({ onOpenLesson, refreshKey }) {
                         {[0, 1, 2].map((s) => {
                           const earned = (starsMap[`${unit.id}:${li}`] || 0) > s;
                           return (
-                            <Ionicons key={s} name={earned ? 'star' : 'star-outline'} size={11}
+                            <Icon key={s} name={earned ? 'star' : 'starOff'} size={11}
                               color={earned ? COLORS.warning : 'rgba(255,255,255,0.25)'} />
                           );
                         })}

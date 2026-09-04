@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../components/Icon';
 import GlassIconButton from '../components/GlassIconButton';
 import GlassView from '../components/GlassView';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, READER } from '../constants/theme';
@@ -144,7 +144,7 @@ export default function SurahReaderScreen({ route, navigation }) {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
-              <Ionicons name="chevron-back" size={26} color={COLORS.text} />
+              <Icon name="back" size={26} color={COLORS.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{surah.englishName}</Text>
@@ -212,7 +212,7 @@ export default function SurahReaderScreen({ route, navigation }) {
                         <Text style={styles.nextLabel}>{t('next_surah')}</Text>
                         <Text style={styles.nextName}>{nextSurah.number}. {nextSurah.englishName}</Text>
                       </View>
-                      <Ionicons name="arrow-forward-circle" size={30} color={COLORS.white} />
+                      <Icon name="next" size={30} color={COLORS.white} />
                     </View>
                   </GlassView>
                 </TouchableOpacity>

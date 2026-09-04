@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator, ScrollView, TouchableOpacity, AppState,
   LayoutAnimation, Platform, UIManager } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import { Card, SectionTitle, Subtitle } from '../components/ui';
@@ -147,7 +147,7 @@ export default function PrayerTimesScreen() {
       <View style={styles.header}>
         <SectionTitle>{t('prayer_title')}</SectionTitle>
         <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gear}>
-          <Ionicons name="settings-outline" size={24} color={COLORS.text} />
+          <Icon name="settings" size={24} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
@@ -182,7 +182,7 @@ export default function PrayerTimesScreen() {
                     {!scheduleOpen && !!nextName && (
                       <Text style={styles.spoilerNext}>{timings[nextName]}</Text>
                     )}
-                    <Ionicons name={scheduleOpen ? 'chevron-up' : 'chevron-down'}
+                    <Icon name={scheduleOpen ? 'up' : 'down'}
                       size={18} color={COLORS.textMuted} style={{ marginLeft: 10 }} />
                   </View>
                 </View>
@@ -200,7 +200,7 @@ export default function PrayerTimesScreen() {
                       <Text style={[styles.prayer, isNext && styles.prayerActive]}>{prayerName(p, lang)}</Text>
                       <View style={styles.rowRight}>
                         {r?.enabled && (
-                          <Ionicons name="notifications" size={14} color={COLORS.accentSoft}
+                          <Icon name="bell" size={14} color={COLORS.accentSoft}
                             style={{ marginRight: 8 }} />
                         )}
                         <Text style={[styles.time, isNext && styles.prayerActive]}>{timings[p]}</Text>

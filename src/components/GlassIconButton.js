@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from './Icon';
 import { COLORS } from '../constants/theme';
 import { useAppearance } from '../utils/AppearanceContext';
 
@@ -20,7 +20,7 @@ export default function GlassIconButton({
         // иначе на «Рассвете» и «Садах» кнопка выпадала из палитры.
         active && { backgroundColor: `rgba(${rgb},0.22)`, borderColor: 'rgba(255,255,255,0.40)' },
       ]}>
-        <Ionicons name={name} size={size} color={active ? accent : COLORS.text} />
+        <Icon name={name} size={size} color={active ? accent : COLORS.text} />
       </View>
     </TouchableOpacity>
   );
