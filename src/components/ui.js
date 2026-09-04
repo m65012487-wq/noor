@@ -1,12 +1,12 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { COLORS, RADIUS, SPACING, FONTS } from '../constants/theme';
+import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import GlassView from './GlassView';
 
-// Glass card — frosted panel that blurs the background behind it.
-export function Card({ children, style, intensity = 38, azure = false, gold = false }) {
+// Стеклянная карточка — матовая панель, размывающая фон под собой.
+export function Card({ children, style, intensity = 38, azure = false }) {
   return (
-    <GlassView intensity={intensity} radius={RADIUS.md} azure={azure} gold={gold}
+    <GlassView intensity={intensity} radius={RADIUS.md} azure={azure}
       style={[styles.cardOuter, style]}>
       <View style={styles.cardInner}>{children}</View>
     </GlassView>
@@ -21,12 +21,19 @@ export function Subtitle({ children }) {
   return <Text style={styles.subtitle}>{children}</Text>;
 }
 
+// Надзаголовок над группой: разрядка и капитель. Раньше такой стиль
+// выписывали руками в каждом экране, каждый раз чуть по-своему.
+export function Overline({ children, style }) {
+  return <Text style={[styles.overline, style]}>{children}</Text>;
+}
+
 const styles = StyleSheet.create({
   cardOuter: { marginBottom: SPACING.md },
   cardInner: { padding: SPACING.md },
   title: {
-    color: COLORS.cream, fontSize: 26, fontWeight: '700',
+    ...TYPE.title, color: COLORS.cream,
     marginTop: SPACING.md, marginBottom: SPACING.xs, letterSpacing: 0.3,
   },
-  subtitle: { color: COLORS.textMuted, fontSize: 14, marginBottom: SPACING.md },
+  subtitle: { ...TYPE.callout, color: COLORS.textMuted, marginBottom: SPACING.md },
+  overline: { ...TYPE.overline, color: COLORS.textMuted, marginBottom: SPACING.sm },
 });

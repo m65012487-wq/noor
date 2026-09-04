@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import ScreenWrapper from '../components/ScreenWrapper';
 import { Card, SectionTitle, Subtitle } from '../components/ui';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { VERSES_OF_THE_DAY } from '../constants/content';
 import { loadJSON, saveJSON, todayKey } from '../utils/helpers';
 
@@ -59,15 +59,18 @@ export default function VerseScreen({ onRead }) {
 
 const styles = StyleSheet.create({
   verseCard: { alignItems: 'center', paddingVertical: SPACING.xl },
-  ar: { color: COLORS.gold, fontSize: 32, textAlign: 'center', fontFamily: FONTS.arabic, lineHeight: 54 },
-  en: { color: COLORS.cream, fontSize: 18, textAlign: 'center', marginTop: SPACING.lg, lineHeight: 26 },
-  ref: { color: COLORS.textMuted, fontSize: 14, marginTop: SPACING.md },
+  // COLORS.gold в палитре нет — золото убрали из темы, а ссылки остались.
+  // color: undefined давал системный чёрный, то есть текст пропадал на фоне.
+  ar: { ...ARABIC.md, color: COLORS.accent, textAlign: 'center', fontFamily: FONTS.arabic },
+  en: { ...TYPE.subhead, color: COLORS.cream, fontWeight: '400',
+    textAlign: 'center', marginTop: SPACING.lg, lineHeight: 26 },
+  ref: { ...TYPE.callout, color: COLORS.textMuted, marginTop: SPACING.md },
   btn: {
-    backgroundColor: COLORS.gold, paddingVertical: SPACING.md,
+    backgroundColor: COLORS.accentSoft, paddingVertical: SPACING.md,
     borderRadius: RADIUS.pill, alignItems: 'center', marginTop: SPACING.lg,
   },
-  btnDone: { backgroundColor: 'rgba(13,92,74,0.6)', borderWidth: 1, borderColor: COLORS.gold },
-  btnText: { color: COLORS.navy, fontSize: 18, fontWeight: '700' },
-  btnTextDone: { color: COLORS.gold },
-  encourage: { color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.md },
+  btnDone: { backgroundColor: 'rgba(76,175,114,0.28)', borderWidth: 1, borderColor: COLORS.success },
+  btnText: { ...TYPE.subhead, color: COLORS.navy, fontWeight: '700' },
+  btnTextDone: { color: COLORS.accent },
+  encourage: { ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.md },
 });

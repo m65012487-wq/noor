@@ -8,7 +8,7 @@ import { Card, SectionTitle, Subtitle } from '../components/ui';
 import LocationPicker from '../components/LocationPicker';
 import SettingsModal from '../components/SettingsModal';
 import PrayerReminderSheet from '../components/PrayerReminderSheet';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useAppearance } from '../utils/AppearanceContext';
 import { getNextPrayer, saveJSON, loadJSON } from '../utils/helpers';
 import { getPrayerTimes2, TIME_SOURCES } from '../utils/prayerSource';
@@ -207,30 +207,34 @@ export default function PrayerTimesScreen() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  gear: { padding: 8 },
+  gear: { padding: SPACING.sm },
   locChip: { alignSelf: 'flex-start', marginBottom: SPACING.md },
-  locText: { color: COLORS.text, fontSize: 14, paddingVertical: 8, fontWeight: '500' },
+  locText: { ...TYPE.callout, color: COLORS.text, paddingVertical: SPACING.sm, fontWeight: '500' },
+
   nextCard: { alignItems: 'center', paddingVertical: SPACING.lg },
-  nextLabel: { color: COLORS.accentSoft, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase' },
-  nextName: { color: COLORS.white, fontSize: 36, fontWeight: '800', marginVertical: SPACING.xs },
-  countdown: { color: COLORS.text, fontSize: 26, letterSpacing: 1, fontVariant: ['tabular-nums'] },
+  nextLabel: { ...TYPE.overline, color: COLORS.accentSoft },
+  nextName: { ...TYPE.display, color: COLORS.white, marginVertical: SPACING.xs },
+  countdown: { ...TYPE.title, ...TYPE.mono, color: COLORS.text, fontWeight: '400', letterSpacing: 1 },
+
   spoilerHead: { marginBottom: SPACING.sm },
   spoilerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.md },
-  spoilerTitle: { color: COLORS.text, fontSize: 13, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase' },
-  spoilerNext: { color: COLORS.white, fontSize: 17, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  spoilerTitle: { ...TYPE.overline, color: COLORS.text },
+  spoilerNext: { ...TYPE.subhead, ...TYPE.mono, color: COLORS.white, fontWeight: '700' },
+
   rowGlass: { marginBottom: SPACING.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.md },
   rowRight: { flexDirection: 'row', alignItems: 'center' },
-  prayer: { color: COLORS.text, fontSize: 18 },
-  time: { color: COLORS.text, fontSize: 18, fontVariant: ['tabular-nums'] },
+  prayer: { ...TYPE.subhead, color: COLORS.text, fontWeight: '400' },
+  time: { ...TYPE.subhead, ...TYPE.mono, color: COLORS.text, fontWeight: '400' },
   prayerActive: { color: COLORS.white, fontWeight: '700' },
-  hint: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center', marginTop: SPACING.xs },
+  hint: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xs },
+
   alarmBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: SPACING.md, marginHorizontal: SPACING.md, marginBottom: SPACING.sm },
-  alarmText: { color: COLORS.white, fontSize: 14, flex: 1 },
-  awakeBtn: { backgroundColor: 'rgba(76,175,114,0.45)', paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 10, borderWidth: 1, borderColor: '#4caf72' },
-  awakeText: { color: COLORS.white, fontWeight: '800' },
+  alarmText: { ...TYPE.callout, color: COLORS.white, flex: 1 },
+  awakeBtn: { backgroundColor: 'rgba(76,175,114,0.45)', paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.success },
+  awakeText: { ...TYPE.callout, color: COLORS.white, fontWeight: '800' },
 });
