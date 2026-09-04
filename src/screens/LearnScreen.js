@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import ScreenWrapper from '../components/ScreenWrapper';
 import { Card, SectionTitle, Subtitle } from '../components/ui';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { ARABIC_LETTERS, HARAKAT, SYLLABLES, TAJWEED_BASICS, SURAHS } from '../constants/content';
 import { useLang } from '../i18n/LanguageContext';
 import { speakArabic } from '../utils/speech';
@@ -111,12 +111,12 @@ const styles = StyleSheet.create({
   tab: {
     paddingVertical: SPACING.sm, paddingHorizontal: SPACING.md,
     borderRadius: RADIUS.pill, marginRight: SPACING.sm,
-    backgroundColor: 'rgba(255,255,255,0.05)', height: 40, justifyContent: 'center',
+    backgroundColor: COLORS.surface, height: 40, justifyContent: 'center',
   },
   tabActive: { backgroundColor: COLORS.accent },
   tabText: { color: COLORS.cream, fontWeight: '600' },
   tabTextActive: { color: COLORS.navy },
-  hint: { color: COLORS.textMuted, fontSize: 12, marginBottom: SPACING.md },
+  hint: { ...TYPE.caption, color: COLORS.textMuted, marginBottom: SPACING.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   cell: {
     width: '23%', aspectRatio: 0.8, marginBottom: SPACING.sm,
@@ -130,18 +130,18 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(180,215,230,0.3)',
     alignItems: 'center', justifyContent: 'center',
   },
-  cellAr: { color: COLORS.accent, fontSize: 34, fontFamily: FONTS.arabic },
-  cellName: { color: COLORS.cream, fontSize: 11, marginTop: 4, textAlign: 'center' },
-  cellSound: { color: COLORS.textMuted, fontSize: 10 },
+  cellAr: { ...ARABIC.lg, color: COLORS.accent, fontFamily: FONTS.arabic },
+  cellName: { ...TYPE.caption, color: COLORS.cream, marginTop: 4, textAlign: 'center' },
+  cellSound: { ...TYPE.caption, color: COLORS.textMuted },
   sylCard: { alignItems: 'center' },
-  sylAr: { color: COLORS.accent, fontSize: 30, fontFamily: FONTS.arabic },
-  sylTr: { color: COLORS.cream, fontSize: 14, marginTop: 4 },
-  tjTitle: { color: COLORS.accent, fontSize: 18, fontWeight: '700', marginBottom: 4 },
-  tjText: { color: COLORS.cream, fontSize: 14, lineHeight: 20 },
-  surahName: { color: COLORS.accent, fontSize: 22, fontWeight: '800' },
+  sylAr: { ...ARABIC.md, color: COLORS.accent, fontFamily: FONTS.arabic },
+  sylTr: { ...TYPE.callout, color: COLORS.cream, marginTop: 4 },
+  tjTitle: { ...TYPE.subhead, color: COLORS.accent, fontWeight: '700', marginBottom: 4 },
+  tjText: { ...TYPE.callout, color: COLORS.cream, lineHeight: 20 },
+  surahName: { ...TYPE.heading, color: COLORS.accent, fontWeight: '800' },
   surahMeaning: { color: COLORS.textMuted, marginBottom: SPACING.md },
-  ayah: { marginBottom: SPACING.md, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: SPACING.sm },
-  ayahAr: { color: COLORS.cream, fontSize: 26, textAlign: 'right', fontFamily: FONTS.arabic, lineHeight: 46 },
-  ayahTr: { color: COLORS.accentSoft, fontSize: 14, fontStyle: 'italic', marginTop: 4 },
-  ayahEn: { color: COLORS.textMuted, fontSize: 14, marginTop: 2 },
+  ayah: { marginBottom: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.surfaceStrong, paddingTop: SPACING.sm },
+  ayahAr: { ...ARABIC.sm, color: COLORS.cream, textAlign: 'right', fontFamily: FONTS.arabic },
+  ayahTr: { ...TYPE.callout, color: COLORS.accentSoft, fontStyle: 'italic', marginTop: 4 },
+  ayahEn: { ...TYPE.callout, color: COLORS.textMuted, marginTop: 2 },
 });

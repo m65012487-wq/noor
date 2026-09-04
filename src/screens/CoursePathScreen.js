@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image } from 'rea
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import GlassView from '../components/GlassView';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { COURSE, LESSONS_PER_UNIT } from '../constants/course';
 import { getCourseProgress, getLessonStars, totalStars, isUnitUnlocked, unitLessonsDone } from '../utils/courseEngine';
 import { useLang } from '../i18n/LanguageContext';
@@ -101,17 +101,19 @@ export default function CoursePathScreen({ onOpenLesson, refreshKey }) {
 
 const styles = StyleSheet.create({
   xpBar: { marginBottom: SPACING.lg },
-  xpInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, justifyContent: 'center' },
-  xpText: { color: COLORS.white, fontSize: 18, fontWeight: '800', marginLeft: SPACING.sm },
+  xpInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md,
+    justifyContent: 'center' },
+  xpText: { ...TYPE.subhead, color: COLORS.white, fontWeight: '800', marginLeft: SPACING.sm },
   unit: { marginBottom: SPACING.xl },
-  unitTitle: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginBottom: SPACING.md },
+  unitTitle: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', marginBottom: SPACING.md },
   dim: { opacity: 0.4 },
   path: { alignItems: 'center' },
   node: { marginBottom: SPACING.md, alignItems: 'center' },
-  starsUnder: { flexDirection: 'row', marginTop: 4, gap: 2 },
+  starsUnder: { flexDirection: 'row', marginTop: SPACING.xs, gap: SPACING.xxs },
   circle: { width: 66, height: 66, borderRadius: 33, borderWidth: 3,
-    backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
-  circleLocked: { borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.03)' },
-  letterPreview: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: SPACING.sm, gap: 10 },
-  previewAr: { color: COLORS.accentSoft, fontSize: 24, fontFamily: FONTS.arabic },
+    backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
+  circleLocked: { borderColor: COLORS.hairline, backgroundColor: 'rgba(255,255,255,0.03)' },
+  letterPreview: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center',
+    marginTop: SPACING.sm, gap: SPACING.sm },
+  previewAr: { ...ARABIC.sm, color: COLORS.accentSoft, fontFamily: FONTS.arabic },
 });

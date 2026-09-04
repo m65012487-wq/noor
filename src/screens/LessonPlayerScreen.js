@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import GlassView from '../components/GlassView';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { COURSE } from '../constants/course';
 import { buildLesson, completeLesson, starsFor } from '../utils/courseEngine';
 import { useAppearance, wallpaperFor } from '../utils/AppearanceContext';
@@ -178,7 +178,7 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
                 const bgStyle = showWrong
                   ? { backgroundColor: 'rgba(192,86,63,0.35)', borderColor: COLORS.danger, borderWidth: 2 }
                   : showCorrect
-                  ? { backgroundColor: 'rgba(76,175,114,0.35)', borderColor: '#4caf72', borderWidth: 2 }
+                  ? { backgroundColor: 'rgba(76,175,114,0.35)', borderColor: COLORS.success, borderWidth: 2 }
                   : isSel
                   ? { backgroundColor: `rgba(${tintRgb},0.35)`, borderColor: accent, borderWidth: 2 }
                   : {};
@@ -212,7 +212,7 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
         ) : (
           <TouchableOpacity
             style={[styles.primaryBtn,
-              { backgroundColor: checked ? (isCorrectAnswer() ? '#4caf72' : accent) : accent },
+              { backgroundColor: checked ? (isCorrectAnswer() ? COLORS.success : accent) : accent },
               (!checked && !selected) && styles.btnDisabled]}
             disabled={!checked && !selected}
             onPress={checked ? onContinue : onCheck}>
@@ -301,48 +301,48 @@ const styles = StyleSheet.create({
   topBarWrap: { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
   closeBtn: { padding: 6, marginRight: SPACING.sm },
-  progressTrack: { flex: 1, height: 12, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.12)',
+  progressTrack: { flex: 1, height: 12, borderRadius: 6, backgroundColor: COLORS.surfaceStrong,
     marginLeft: SPACING.sm, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 6 },
-  prompt: { color: COLORS.white, fontSize: 19, fontWeight: '700', marginBottom: SPACING.lg, textAlign: 'center', letterSpacing: 0.2 },
+  prompt: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', marginBottom: SPACING.lg, textAlign: 'center', letterSpacing: 0.2 },
   speaker: { width: 84, height: 84, borderRadius: 42, alignSelf: 'center',
     alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.lg, marginTop: SPACING.xs },
   starsRow: { flexDirection: 'row', marginTop: SPACING.md, marginBottom: SPACING.sm },
   promptCard: { alignItems: 'center', paddingVertical: SPACING.xl, marginBottom: SPACING.lg, marginHorizontal: SPACING.xl },
-  promptAr: { color: COLORS.white, fontSize: 56, fontFamily: FONTS.arabic },
-  tapHint: { color: COLORS.textMuted, fontSize: 12, marginTop: SPACING.sm },
+  promptAr: { ...ARABIC.xl, color: COLORS.white, fontFamily: FONTS.arabic },
+  tapHint: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.sm },
   tapHintRow: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.sm },
   options: { gap: SPACING.sm },
   opt: { paddingVertical: SPACING.md, alignItems: 'center' },
   optSel: { borderColor: COLORS.white, borderWidth: 2.5, transform: [{ scale: 1.03 }] },
   optTextSel: { fontWeight: '800' },
-  optCorrect: { backgroundColor: 'rgba(76,175,114,0.3)', borderColor: '#4caf72', borderWidth: 1.5 },
+  optCorrect: { backgroundColor: 'rgba(76,175,114,0.3)', borderColor: COLORS.success, borderWidth: 1.5 },
   optWrong: { backgroundColor: 'rgba(192,86,63,0.3)', borderColor: COLORS.danger, borderWidth: 1.5 },
-  optAr: { color: COLORS.white, fontSize: 34, fontFamily: FONTS.arabic },
-  optText: { color: COLORS.white, fontSize: 19, fontWeight: '600' },
+  optAr: { ...ARABIC.lg, color: COLORS.white, fontFamily: FONTS.arabic },
+  optText: { ...TYPE.subhead, color: COLORS.white, fontWeight: '600' },
   matchRow: { flexDirection: 'row', justifyContent: 'space-between', gap: SPACING.md },
   matchCol: { flex: 1, gap: SPACING.sm },
   matchCell: { height: 60, alignItems: 'center', justifyContent: 'center' },
-  matchOk: { opacity: 0.55, backgroundColor: 'rgba(76,175,114,0.28)', borderColor: '#4caf72', borderWidth: 1.5 },
+  matchOk: { opacity: 0.55, backgroundColor: 'rgba(76,175,114,0.28)', borderColor: COLORS.success, borderWidth: 1.5 },
   matchWrong: { borderColor: COLORS.danger, borderWidth: 2 },
-  matchHint: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: SPACING.md },
-  matchAr: { color: COLORS.white, fontSize: 32, fontFamily: FONTS.arabic },
-  matchText: { color: COLORS.white, fontSize: 18, fontWeight: '600' },
+  matchHint: { ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center', paddingVertical: SPACING.md },
+  matchAr: { ...ARABIC.md, color: COLORS.white, fontFamily: FONTS.arabic },
+  matchText: { ...TYPE.subhead, color: COLORS.white, fontWeight: '600' },
   footer: { padding: SPACING.lg, paddingBottom: SPACING.xl, borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.1)' },
+    borderTopColor: COLORS.surfaceStrong },
   footerOk: { backgroundColor: 'rgba(76,175,114,0.12)' },
   footerBad: { backgroundColor: 'rgba(192,86,63,0.12)' },
-  feedback: { fontSize: 16, fontWeight: '700', marginBottom: SPACING.sm },
-  fbOk: { color: '#4caf72' },
+  feedback: { ...TYPE.body, fontWeight: '700', marginBottom: SPACING.sm },
+  fbOk: { color: COLORS.success },
   fbBad: { color: COLORS.danger },
   primaryBtn: { borderRadius: RADIUS.pill, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl,
     alignItems: 'center', justifyContent: 'center', minHeight: 54, width: '100%' },
-  primaryText: { color: COLORS.white, fontSize: 17, fontWeight: '800', textAlign: 'center' },
+  primaryText: { ...TYPE.subhead, color: COLORS.white, fontWeight: '800', textAlign: 'center' },
   btnDisabled: { opacity: 0.4 },
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
   bigCircle: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, alignItems: 'center',
     justifyContent: 'center', marginBottom: SPACING.lg },
-  doneTitle: { color: COLORS.white, fontSize: 28, fontWeight: '800' },
-  doneXp: { color: COLORS.accentSoft, fontSize: 18, marginTop: SPACING.sm },
-  doneScore: { color: COLORS.textMuted, fontSize: 16, marginTop: SPACING.xs, marginBottom: SPACING.xl },
+  doneTitle: { ...TYPE.title, color: COLORS.white, fontWeight: '800' },
+  doneXp: { ...TYPE.subhead, color: COLORS.accentSoft, fontWeight: '400', marginTop: SPACING.sm },
+  doneScore: { ...TYPE.body, color: COLORS.textMuted, marginTop: SPACING.xs, marginBottom: SPACING.xl },
 });
