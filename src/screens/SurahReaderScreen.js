@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import GlassIconButton from '../components/GlassIconButton';
 import GlassView from '../components/GlassView';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE } from '../constants/theme';
 import { getSurah, getSurahAudio, getWordByWord, getSurahList } from '../utils/quranApi';
 import { getWordByWordRuLocal } from '../utils/quranLocalWbw';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
@@ -234,38 +234,44 @@ export default function SurahReaderScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', padding: SPACING.sm, paddingHorizontal: SPACING.md },
   back: { width: 32, height: 40, justifyContent: 'center' },
-  title: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
-  sub: { color: COLORS.textMuted, fontSize: 12 },
+  title: { ...TYPE.heading, color: COLORS.text, fontSize: 20, fontWeight: '800' },
+  sub: { ...TYPE.caption, color: COLORS.textMuted },
   controls: { flexDirection: 'row', alignItems: 'center' },
-  error: { color: COLORS.danger, textAlign: 'center', marginTop: 60 },
-  ayahCard: {
-    padding: SPACING.md, marginBottom: SPACING.md,
-  },
+  error: { ...TYPE.callout, color: COLORS.danger, textAlign: 'center', marginTop: SPACING.xxl },
+
+  ayahCard: { padding: SPACING.md, marginBottom: SPACING.md },
   ayahActive: { borderColor: COLORS.glassBorder },
-  ayahHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
-  ayahNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(180,215,230,0.18)', alignItems: 'center', justifyContent: 'center' },
-  ayahNumText: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  ayahHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: SPACING.sm },
+  ayahNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.surfaceActive,
+    alignItems: 'center', justifyContent: 'center' },
+  ayahNumText: { ...TYPE.caption, color: COLORS.accent, fontWeight: '700' },
   ayahActions: { flexDirection: 'row', alignItems: 'center' },
+
+  // Кегль и межстрочный приходят из настроек читалки, поэтому здесь только
+  // цвет и направление: конкретный размер подмешивается в самом экране.
   ar: { color: COLORS.white, textAlign: 'right', fontFamily: FONTS.arabic },
-  wbwWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+
+  wbwWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xxs },
   wbwCell: {
     alignItems: 'center', justifyContent: 'flex-start',
     minWidth: 54, maxWidth: 150, paddingHorizontal: 9, paddingVertical: 7,
-    borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: RADIUS.sm, backgroundColor: COLORS.surface,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorderSoft,
   },
   wbwAr: { color: COLORS.white, fontFamily: FONTS.arabic, textAlign: 'center' },
-  wbwRu: { color: COLORS.accentSoft, fontSize: 12, lineHeight: 15, textAlign: 'center', marginTop: 4 },
-  tr: { color: COLORS.accentSoft, fontStyle: 'italic', marginTop: SPACING.sm },
+  wbwRu: { ...TYPE.caption, color: COLORS.accentSoft, lineHeight: 15,
+    textAlign: 'center', marginTop: SPACING.xs },
+
+  tr: { ...TYPE.body, color: COLORS.accentSoft, fontStyle: 'italic', marginTop: SPACING.sm },
   transBlock: {
-    marginTop: SPACING.md,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.16)',
+    marginTop: SPACING.md, paddingTop: SPACING.md,
+    borderTopWidth: 1, borderTopColor: COLORS.hairline,
   },
-  en: { color: COLORS.text, letterSpacing: 0.2 },
+  en: { ...TYPE.body, color: COLORS.text, letterSpacing: 0.2 },
+
   nextSurah: { marginTop: SPACING.sm, marginBottom: SPACING.xl },
   nextInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
-  nextLabel: { color: COLORS.accentSoft, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' },
-  nextName: { color: COLORS.white, fontSize: 19, fontWeight: '700', marginTop: 3 },
+  nextLabel: { ...TYPE.overline, color: COLORS.accentSoft },
+  nextName: { ...TYPE.subhead, color: COLORS.white, fontSize: 19, fontWeight: '700', marginTop: 3 },
 });

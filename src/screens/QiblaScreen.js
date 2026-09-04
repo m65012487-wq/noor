@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import { SectionTitle, Subtitle } from '../components/ui';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { getQiblaBearing } from '../utils/helpers';
 import { useLang } from '../i18n/LanguageContext';
 import { useLocation } from '../utils/LocationContext';
@@ -195,32 +195,47 @@ const styles = StyleSheet.create({
   discAligned: { borderColor: COLORS.white, borderWidth: 2 },
   discInner: { width: DISC, height: DISC, alignItems: 'center', justifyContent: 'center' },
   dialLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  northMark: { position: 'absolute', top: 10, alignItems: 'center' },
+
+  northMark: { position: 'absolute', top: SPACING.sm, alignItems: 'center' },
   northTri: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 14,
-    borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#ff6b6b' },
-  northLetter: { color: COLORS.white, fontSize: 16, fontWeight: '800', marginTop: 2 },
-  tick: { position: 'absolute', color: COLORS.textMuted, fontSize: 13, fontWeight: '700' },
+    borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: COLORS.danger },
+  northLetter: { ...TYPE.body, color: COLORS.white, fontWeight: '800', marginTop: SPACING.xxs },
+  tick: { ...TYPE.caption, position: 'absolute', color: COLORS.textMuted, fontWeight: '700' },
   tickS: { bottom: 12 },
   tickE: { right: 14 },
   tickW: { left: 14 },
-  needleLayer: { position: 'absolute', width: DISC, height: DISC, alignItems: 'center', justifyContent: 'center' },
+
+  needleLayer: { position: 'absolute', width: DISC, height: DISC,
+    alignItems: 'center', justifyContent: 'center' },
   needleStem: { position: 'absolute', top: DISC / 2 - NEEDLE_LEN, height: NEEDLE_LEN, width: 6,
     backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 3, alignItems: 'center' },
   needleHead: { position: 'absolute', top: -18, width: 0, height: 0,
     borderLeftWidth: 14, borderRightWidth: 14, borderBottomWidth: 28,
-    borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: 'rgba(255,255,255,0.95)' },
-  hub: { position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.white,
-    borderWidth: 2, borderColor: COLORS.accentSoft },
-  deg: { color: COLORS.white, fontSize: 46, fontWeight: '200', marginTop: SPACING.xl, letterSpacing: 1 },
-  degLabel: { color: COLORS.textMuted, fontSize: 13, marginTop: 2 },
-  aligned: { color: COLORS.white, fontSize: 15, marginTop: SPACING.md, fontWeight: '600' },
+    borderLeftColor: 'transparent', borderRightColor: 'transparent',
+    borderBottomColor: 'rgba(255,255,255,0.95)' },
+  hub: { position: 'absolute', width: 18, height: 18, borderRadius: 9,
+    backgroundColor: COLORS.white, borderWidth: 2, borderColor: COLORS.accentSoft },
+
+  // Градусы — главная цифра экрана: тонкое начертание крупным кеглем.
+  deg: { ...TYPE.hero, ...TYPE.mono, color: COLORS.white, fontWeight: '200',
+    marginTop: SPACING.xl, letterSpacing: 1 },
+  degLabel: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },
+  aligned: { ...TYPE.body, color: COLORS.white, marginTop: SPACING.md, fontWeight: '600' },
+
   calibrateBtn: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.lg,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.08)' },
-  calibrateText: { color: COLORS.accentSoft, fontSize: 14 },
-  calBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
-  calCard: { backgroundColor: '#13202f', borderRadius: RADIUS.lg, padding: SPACING.xl, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
-  calTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: SPACING.sm },
-  calHint: { color: COLORS.text, fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.lg },
-  calBtn: { backgroundColor: COLORS.accent, borderRadius: RADIUS.pill, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl },
-  calBtnText: { color: COLORS.navy, fontSize: 16, fontWeight: '800' },
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill, backgroundColor: COLORS.surfaceStrong },
+  calibrateText: { ...TYPE.callout, color: COLORS.accentSoft },
+
+  calBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
+  calCard: { backgroundColor: COLORS.navy, borderRadius: RADIUS.lg, padding: SPACING.xl,
+    alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
+  calTitle: { ...TYPE.heading, color: COLORS.white, fontSize: 20, fontWeight: '800',
+    marginBottom: SPACING.sm },
+  calHint: { ...TYPE.body, color: COLORS.text, textAlign: 'center',
+    lineHeight: 22, marginBottom: SPACING.lg },
+  calBtn: { backgroundColor: COLORS.accent, borderRadius: RADIUS.pill,
+    paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl },
+  calBtnText: { ...TYPE.body, color: COLORS.navy, fontWeight: '800' },
 });
