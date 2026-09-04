@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import DraggableSheet from './DraggableSheet';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { prayerName } from '../constants/prayerNames';
@@ -45,13 +45,13 @@ export default function PrayerReminderSheet({ prayer, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  title: { color: COLORS.text, fontSize: 26, fontWeight: '800' },
-  section: { color: COLORS.accentSoft, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase', marginTop: SPACING.md, marginBottom: SPACING.sm },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, marginBottom: SPACING.sm, backgroundColor: 'rgba(255,255,255,0.06)' },
-  rowActive: { backgroundColor: 'rgba(180,215,230,0.16)' },
-  rowText: { color: COLORS.text, fontSize: 16 },
+  title: { ...TYPE.title, color: COLORS.text, fontWeight: '800' },
+  section: { ...TYPE.overline, color: COLORS.accentSoft, marginTop: SPACING.md, marginBottom: SPACING.sm },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, marginBottom: SPACING.sm, backgroundColor: COLORS.surface },
+  rowActive: { backgroundColor: COLORS.surfaceActive },
+  rowText: { ...TYPE.body, color: COLORS.text },
   rowTextActive: { color: COLORS.white, fontWeight: '700' },
-  check: { color: COLORS.white, fontSize: 18, fontWeight: '900' },
+  check: { ...TYPE.subhead, color: COLORS.white, fontWeight: '900' },
   doneBtn: { backgroundColor: COLORS.accent, borderRadius: RADIUS.pill, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.lg },
-  doneText: { color: COLORS.navy, fontSize: 17, fontWeight: '800' },
+  doneText: { ...TYPE.subhead, color: COLORS.navy, fontWeight: '800' },
 });

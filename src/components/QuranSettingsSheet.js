@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import DraggableSheet from './DraggableSheet';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
@@ -133,28 +133,28 @@ export default function QuranSettingsSheet({ visible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  title: { color: COLORS.text, fontSize: 24, fontWeight: '800', marginBottom: SPACING.sm },
-  section: { color: COLORS.accentSoft, fontSize: 13, letterSpacing: 1, textTransform: 'uppercase', marginTop: SPACING.lg, marginBottom: SPACING.sm },
+  title: { ...TYPE.heading, color: COLORS.text, fontWeight: '800', marginBottom: SPACING.sm },
+  section: { ...TYPE.overline, color: COLORS.accentSoft, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, borderRadius: RADIUS.md,
-    marginBottom: SPACING.sm, backgroundColor: 'rgba(255,255,255,0.06)' },
-  toggleLabel: { color: COLORS.text, fontSize: 16 },
-  switch: { width: 48, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', padding: 3, justifyContent: 'center' },
+    marginBottom: SPACING.sm, backgroundColor: COLORS.surface },
+  toggleLabel: { ...TYPE.body, color: COLORS.text },
+  switch: { width: 48, height: 28, borderRadius: 14, backgroundColor: COLORS.hairline, padding: 3, justifyContent: 'center' },
   switchOn: { backgroundColor: COLORS.accent },
   knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: COLORS.white },
   knobOn: { alignSelf: 'flex-end' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, marginBottom: SPACING.sm, backgroundColor: 'rgba(255,255,255,0.06)' },
-  rowActive: { backgroundColor: 'rgba(180,215,230,0.16)' },
-  rowText: { color: COLORS.text, fontSize: 16 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, marginBottom: SPACING.sm, backgroundColor: COLORS.surface },
+  rowActive: { backgroundColor: COLORS.surfaceActive },
+  rowText: { ...TYPE.body, color: COLORS.text },
   rowTextActive: { color: COLORS.white, fontWeight: '700' },
-  check: { color: COLORS.white, fontSize: 18, fontWeight: '900' },
-  dlBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.10)' },
-  dlText: { color: COLORS.accentSoft, fontSize: 12, fontWeight: '600' },
+  check: { ...TYPE.subhead, color: COLORS.white, fontWeight: '900' },
+  dlBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill, backgroundColor: COLORS.surfaceStrong },
+  dlText: { ...TYPE.caption, color: COLORS.accentSoft, fontWeight: '600' },
   goalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.sm },
-  goalChip: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  goalChip: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface },
   goalChipActive: { backgroundColor: COLORS.accent },
-  goalText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
+  goalText: { ...TYPE.body, color: COLORS.text, fontWeight: '700' },
   goalTextActive: { color: COLORS.navy },
   doneBtn: { backgroundColor: COLORS.accent, borderRadius: RADIUS.pill, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.xl },
-  doneText: { color: COLORS.navy, fontSize: 17, fontWeight: '800' },
+  doneText: { ...TYPE.subhead, color: COLORS.navy, fontWeight: '800' },
 });

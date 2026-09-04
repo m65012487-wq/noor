@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DraggableSheet from './DraggableSheet';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { useAppearance, THEMES } from '../utils/AppearanceContext';
@@ -168,52 +168,78 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
 }
 
 const styles = StyleSheet.create({
-  title: { color: COLORS.text, fontSize: 26, fontWeight: '800', marginBottom: SPACING.md },
-  section: { marginBottom: SPACING.sm, borderRadius: RADIUS.md, backgroundColor: 'rgba(255,255,255,0.04)', overflow: 'hidden' },
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md },
-  sectionTitle: { color: COLORS.white, fontSize: 17, fontWeight: '700' },
+  title: { ...TYPE.title, color: COLORS.text, fontWeight: '800', marginBottom: SPACING.md },
+  section: { marginBottom: SPACING.sm, borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.04)', overflow: 'hidden' },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: SPACING.md },
+  sectionTitle: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700' },
   sectionBody: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md },
-  label: { color: COLORS.accentSoft, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', marginTop: SPACING.md, marginBottom: SPACING.sm },
-  segment: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: RADIUS.pill, padding: 3, marginBottom: SPACING.sm },
+  label: { ...TYPE.overline, color: COLORS.accentSoft,
+    marginTop: SPACING.md, marginBottom: SPACING.sm },
+
+  segment: { flexDirection: 'row', backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.pill, padding: 3, marginBottom: SPACING.sm },
   segBtn: { flex: 1, paddingVertical: SPACING.sm, alignItems: 'center', borderRadius: RADIUS.pill },
-  segBtnActive: { backgroundColor: 'rgba(180,215,230,0.22)' },
-  segText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  segBtnActive: { backgroundColor: COLORS.surfaceActive },
+  segText: { ...TYPE.caption, color: COLORS.textMuted, fontWeight: '600' },
   segTextActive: { color: COLORS.white, fontWeight: '700' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, marginBottom: SPACING.sm, backgroundColor: 'rgba(255,255,255,0.06)' },
-  rowActive: { backgroundColor: 'rgba(180,215,230,0.16)' },
-  rowText: { color: COLORS.text, fontSize: 16 },
+
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: SPACING.md, borderRadius: RADIUS.md, marginBottom: SPACING.sm,
+    backgroundColor: COLORS.surface },
+  rowActive: { backgroundColor: COLORS.surfaceActive },
+  rowText: { ...TYPE.body, color: COLORS.text },
   rowTextActive: { color: COLORS.white, fontWeight: '700' },
-  check: { color: COLORS.white, fontSize: 18, fontWeight: '900', marginLeft: SPACING.sm },
-  previewBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.10)' },
-  previewText: { color: COLORS.accentSoft, fontSize: 13, fontWeight: '600' },
+  check: { ...TYPE.subhead, color: COLORS.white, fontWeight: '900', marginLeft: SPACING.sm },
+
+  previewBtn: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill, backgroundColor: COLORS.surfaceStrong },
+  previewText: { ...TYPE.caption, color: COLORS.accentSoft, fontWeight: '600' },
+
   goalRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  goalChip: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  goalChip: { width: 50, height: 50, borderRadius: 25, alignItems: 'center',
+    justifyContent: 'center', backgroundColor: COLORS.surface },
   goalChipActive: { backgroundColor: COLORS.accent },
-  goalText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
+  goalText: { ...TYPE.body, color: COLORS.text, fontWeight: '700' },
   goalTextActive: { color: COLORS.navy },
-  tuneRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING.xs },
-  tuneName: { color: COLORS.text, fontSize: 16 },
+
+  tuneRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: SPACING.xs },
+  tuneName: { ...TYPE.body, color: COLORS.text },
   tuneCtrl: { flexDirection: 'row', alignItems: 'center' },
-  tuneBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
-  tuneBtnText: { color: COLORS.white, fontSize: 20, fontWeight: '700' },
-  tuneVal: { color: COLORS.white, fontSize: 16, width: 44, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  tuneBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surfaceStrong,
+    alignItems: 'center', justifyContent: 'center' },
+  tuneBtnText: { ...TYPE.heading, color: COLORS.white, fontWeight: '700' },
+  tuneVal: { ...TYPE.body, ...TYPE.mono, color: COLORS.white, width: 44, textAlign: 'center' },
+
   themeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md },
-  themeChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'transparent' },
-  themeChipActive: { backgroundColor: 'rgba(180,215,230,0.18)', borderColor: COLORS.glassBorder },
-  themeText: { color: COLORS.text, fontSize: 14 },
+  themeChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill, backgroundColor: COLORS.surface,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'transparent' },
+  themeChipActive: { backgroundColor: COLORS.surfaceActive, borderColor: COLORS.glassBorder },
+  themeText: { ...TYPE.callout, color: COLORS.text },
   themeTextActive: { color: COLORS.white, fontWeight: '700' },
+
   opacityRow: { flexDirection: 'row', gap: SPACING.sm },
-  opacityDot: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
+  opacityDot: { width: 46, height: 46, borderRadius: 23, alignItems: 'center',
+    justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
   opacityDotActive: { borderColor: COLORS.white, borderWidth: 2 },
-  opacityNum: { color: COLORS.text, fontSize: 13, fontWeight: '700' },
-  doneBtn: { backgroundColor: COLORS.accent, borderRadius: RADIUS.pill, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.lg },
-  doneText: { color: COLORS.navy, fontSize: 17, fontWeight: '800' },
-  subhead: { color: COLORS.textMuted, fontSize: 13, fontWeight: '700', marginTop: 14, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  hintText: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  intervalRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 6, marginBottom: 4 },
-  intChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  opacityNum: { ...TYPE.caption, color: COLORS.text, fontWeight: '700' },
+
+  doneBtn: { backgroundColor: COLORS.accent, borderRadius: RADIUS.pill,
+    paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.lg },
+  doneText: { ...TYPE.subhead, color: COLORS.navy, fontWeight: '800' },
+
+  subhead: { ...TYPE.overline, color: COLORS.textMuted,
+    marginTop: SPACING.md, marginBottom: SPACING.xs },
+  hintText: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },
+
+  intervalRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
+    gap: SPACING.sm, marginTop: SPACING.xs, marginBottom: SPACING.xs },
+  intChip: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: 14,
+    backgroundColor: COLORS.surfaceStrong, borderWidth: 1, borderColor: COLORS.hairline },
   intChipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.5)' },
-  intText: { color: COLORS.textMuted, fontSize: 13 },
+  intText: { ...TYPE.caption, color: COLORS.textMuted },
   intTextActive: { color: COLORS.white, fontWeight: '700' },
 });

@@ -4,7 +4,7 @@ import { Modal, View, Text, Animated, PanResponder, StyleSheet, Dimensions,
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SPACING, FONTS } from '../constants/theme';
+import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useAppearance } from '../utils/AppearanceContext';
 
 const SCREEN_H = Dimensions.get('window').height;
@@ -128,16 +128,19 @@ export default function DraggableSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 998, elevation: 23 },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)',
+    zIndex: 998, elevation: 23 },
   anchor: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 999, elevation: 24 },
   sheetWrap: {
     borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg,
     overflow: 'hidden',
   },
   clip: { borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg, overflow: 'hidden' },
-  rim: { borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(255,255,255,0.28)', borderBottomWidth: 0 },
-  grab: { paddingTop: 12, paddingBottom: SPACING.sm, paddingHorizontal: SPACING.lg },
-  handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)', alignSelf: 'center' },
-  title: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginTop: SPACING.md },
+  rim: { borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: 'rgba(255,255,255,0.28)', borderBottomWidth: 0 },
+  grab: { paddingTop: SPACING.sm, paddingBottom: SPACING.sm, paddingHorizontal: SPACING.lg },
+  handle: { width: 44, height: 5, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.35)', alignSelf: 'center' },
+  title: { ...TYPE.heading, color: COLORS.text, fontWeight: '800', marginTop: SPACING.md },
   content: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg, paddingTop: SPACING.xs },
 });

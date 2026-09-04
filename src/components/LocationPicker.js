@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DraggableSheet from './DraggableSheet';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useLocation, searchCity } from '../utils/LocationContext';
 
@@ -71,22 +71,22 @@ export default function LocationPicker({ visible, onClose }) {
 const styles = StyleSheet.create({
   searchRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
   inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surfaceStrong, borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)' },
   inputIcon: { marginRight: SPACING.sm },
-  input: { flex: 1, paddingVertical: SPACING.md, color: COLORS.text, fontSize: 16 },
+  input: { flex: 1, paddingVertical: SPACING.md, ...TYPE.body, color: COLORS.text },
   searchBtn: { width: 50, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: COLORS.surfaceStrong,
     borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
   gpsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     padding: SPACING.md, borderRadius: RADIUS.md, marginTop: SPACING.md,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.surfaceStrong,
     borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
-  gpsText: { color: COLORS.text, fontSize: 16 },
+  gpsText: { ...TYPE.body, color: COLORS.text },
   empty: { color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.lg },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.md,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  rowText: { color: COLORS.text, fontSize: 16, flex: 1 },
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.surfaceStrong },
+  rowText: { ...TYPE.body, color: COLORS.text, flex: 1 },
   close: { marginTop: SPACING.md, padding: SPACING.md, alignItems: 'center' },
-  closeText: { color: COLORS.textMuted, fontSize: 16 },
+  closeText: { ...TYPE.body, color: COLORS.textMuted },
 });
