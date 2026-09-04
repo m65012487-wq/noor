@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator, Animated, Easing, TouchableOpacity, Modal } from 'react-native';
 import * as Location from 'expo-location';
 import { Magnetometer } from 'expo-sensors';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import { SectionTitle, Subtitle } from '../components/ui';
@@ -10,6 +10,7 @@ import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { getQiblaBearing } from '../utils/helpers';
 import { useLang } from '../i18n/LanguageContext';
 import { useLocation } from '../utils/LocationContext';
+import { useAppearance } from '../utils/AppearanceContext';
 import { useTabSwipe } from '../utils/useTabSwipe';
 import { hapticSuccess } from '../utils/haptics';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,6 +21,7 @@ const NEEDLE_LEN = DISC / 2 - 34;
 export default function QiblaScreen() {
   const { t } = useLang();
   const { coords } = useLocation();
+  const { accent } = useAppearance();
   const swipe = useTabSwipe('Qibla');
   const [heading, setHeading] = useState(0);
   const [qibla, setQibla] = useState(null);
@@ -123,6 +125,13 @@ export default function QiblaScreen() {
   const dialSpin = dialRotate.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
   const needleSpin = needleRotate.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
 
+  // Насечки циферблата: 24 штуки через 15°, каждая шестая — крупная.
+  // Раньше по кругу стояли только четыре буквы, и понять поворот было нельзя.
+  const ticks = React.useMemo(
+    () => Array.from({ length: 24 }, (_, i) => ({ angle: i * 15, major: i % 6 === 0 })),
+    []
+  );
+
   return (
     <ScreenWrapper swipeHandlers={swipe}>
       <SectionTitle>{t('qibla_title')}</SectionTitle>
@@ -133,40 +142,52 @@ export default function QiblaScreen() {
       ) : (
         <View style={styles.center}>
           <View style={styles.compassArea}>
-            {/* STATIC glass disc — its sheen stays put (doesn't rotate) */}
-            <GlassView blur clip radius={DISC / 2} azure intensity={42}
-              style={[styles.disc, aligned && styles.discAligned]}>
+            {/* Диск неподвижен: блик стекла не должен вращаться вместе с циферблатом */}
+            <GlassView clip radius={DISC / 2} azure intensity={42}
+              style={[styles.disc, aligned && { borderColor: accent, borderWidth: 2 }]}>
               <View style={styles.discInner}>
-                {/* Rotating dial layer: only the N marker + ticks spin */}
+
+                {/* Вращается только циферблат: насечки и буквы сторон света */}
                 <Animated.View style={[styles.dialLayer, { transform: [{ rotate: dialSpin }] }]}>
+                  {ticks.map((tick) => (
+                    <View key={tick.angle}
+                      style={[styles.tickWrap, { transform: [{ rotate: `${tick.angle}deg` }] }]}>
+                      <View style={[styles.tickMark, tick.major && styles.tickMajor]} />
+                    </View>
+                  ))}
+
                   <View style={styles.northMark}>
                     <View style={styles.northTri} />
-                    <Text style={styles.northLetter}>N</Text>
                   </View>
-                  {/* small ticks at S/E/W */}
-                  <Text style={[styles.tick, styles.tickS]}>S</Text>
-                  <Text style={[styles.tick, styles.tickE]}>E</Text>
-                  <Text style={[styles.tick, styles.tickW]}>W</Text>
+                  <Text style={[styles.card, styles.cardN]}>N</Text>
+                  <Text style={[styles.card, styles.cardS]}>S</Text>
+                  <Text style={[styles.card, styles.cardE]}>E</Text>
+                  <Text style={[styles.card, styles.cardW]}>W</Text>
                 </Animated.View>
 
-                {/* Qibla needle — glass, points along the radius */}
+                {/* Стрелка на Каабу: узкий луч и точка на ободе */}
                 <Animated.View style={[styles.needleLayer, { transform: [{ rotate: needleSpin }] }]}>
-                  <View style={styles.needleStem}>
-                    <View style={styles.needleHead} />
+                  <View style={[styles.rimDot, { backgroundColor: aligned ? accent : COLORS.white }]} />
+                  <View style={[styles.needleStem,
+                    { backgroundColor: aligned ? accent : 'rgba(255,255,255,0.55)' }]}>
+                    <View style={[styles.needleHead,
+                      { borderBottomColor: aligned ? accent : 'rgba(255,255,255,0.95)' }]} />
                   </View>
                 </Animated.View>
 
-                <View style={styles.hub} />
+                <View style={[styles.hub, aligned && { borderColor: accent }]} />
               </View>
             </GlassView>
           </View>
 
           <Text style={styles.deg}>{Math.round(qibla)}°</Text>
           <Text style={styles.degLabel}>{t('qibla_bearing')}</Text>
-          {aligned && <Text style={styles.aligned}>{t('qibla_aligned')}</Text>}
+          {aligned
+            ? <Text style={[styles.aligned, { color: accent }]}>{t('qibla_aligned')}</Text>
+            : <Text style={styles.heading}>{Math.round(heading)}°</Text>}
 
           <TouchableOpacity onPress={() => setCalibrateOpen(true)} style={styles.calibrateBtn}>
-            <Ionicons name="sync" size={15} color={COLORS.accentSoft} />
+            <Icon name="refresh" size={15} color={COLORS.accentSoft} />
             <Text style={styles.calibrateText}>  {t('calibrate')}</Text>
           </TouchableOpacity>
         </View>
@@ -175,7 +196,7 @@ export default function QiblaScreen() {
       <Modal visible={calibrateOpen} animationType="fade" transparent onRequestClose={() => setCalibrateOpen(false)}>
         <View style={styles.calBackdrop}>
           <View style={styles.calCard}>
-            <Ionicons name="sync" size={48} color={COLORS.accentSoft} style={{ marginBottom: SPACING.md }} />
+            <Icon name="refresh" size={48} color={COLORS.accentSoft} style={{ marginBottom: SPACING.md }} />
             <Text style={styles.calTitle}>{t('calibrate')}</Text>
             <Text style={styles.calHint}>{t('calibrate_hint')}</Text>
             <TouchableOpacity style={styles.calBtn} onPress={() => setCalibrateOpen(false)}>
@@ -192,35 +213,44 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', marginTop: SPACING.xl },
   compassArea: { width: DISC, height: DISC, alignItems: 'center', justifyContent: 'center' },
   disc: { width: DISC, height: DISC, alignItems: 'center', justifyContent: 'center' },
-  discAligned: { borderColor: COLORS.white, borderWidth: 2 },
   discInner: { width: DISC, height: DISC, alignItems: 'center', justifyContent: 'center' },
   dialLayer: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
 
-  northMark: { position: 'absolute', top: SPACING.sm, alignItems: 'center' },
-  northTri: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 14,
+  // Насечка рисуется как полоска у верхнего края обёртки во всю высоту диска,
+  // а сама обёртка поворачивается: так шкала расходится ровным веером.
+  tickWrap: { position: 'absolute', width: DISC, height: DISC, alignItems: 'center' },
+  tickMark: { width: 1.5, height: 8, marginTop: 10, borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.35)' },
+  tickMajor: { width: 2, height: 14, backgroundColor: 'rgba(255,255,255,0.65)' },
+
+  northMark: { position: 'absolute', top: 26, alignItems: 'center' },
+  northTri: { width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 12,
     borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: COLORS.danger },
-  northLetter: { ...TYPE.body, color: COLORS.white, fontWeight: '800', marginTop: SPACING.xxs },
-  tick: { ...TYPE.caption, position: 'absolute', color: COLORS.textMuted, fontWeight: '700' },
-  tickS: { bottom: 12 },
-  tickE: { right: 14 },
-  tickW: { left: 14 },
+
+  card: { ...TYPE.caption, position: 'absolute', color: COLORS.text, fontWeight: '700' },
+  cardN: { top: 42 },
+  cardS: { bottom: 26 },
+  cardE: { right: 24 },
+  cardW: { left: 24 },
 
   needleLayer: { position: 'absolute', width: DISC, height: DISC,
     alignItems: 'center', justifyContent: 'center' },
-  needleStem: { position: 'absolute', top: DISC / 2 - NEEDLE_LEN, height: NEEDLE_LEN, width: 6,
-    backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 3, alignItems: 'center' },
+  // Точка на ободе показывает точное направление, даже когда луч не виден целиком.
+  rimDot: { position: 'absolute', top: 6, width: 7, height: 7, borderRadius: 3.5 },
+  needleStem: { position: 'absolute', top: DISC / 2 - NEEDLE_LEN, height: NEEDLE_LEN, width: 5,
+    borderRadius: 2.5, alignItems: 'center' },
   needleHead: { position: 'absolute', top: -18, width: 0, height: 0,
-    borderLeftWidth: 14, borderRightWidth: 14, borderBottomWidth: 28,
-    borderLeftColor: 'transparent', borderRightColor: 'transparent',
-    borderBottomColor: 'rgba(255,255,255,0.95)' },
+    borderLeftWidth: 13, borderRightWidth: 13, borderBottomWidth: 26,
+    borderLeftColor: 'transparent', borderRightColor: 'transparent' },
   hub: { position: 'absolute', width: 18, height: 18, borderRadius: 9,
     backgroundColor: COLORS.white, borderWidth: 2, borderColor: COLORS.accentSoft },
 
-  // Градусы — главная цифра экрана: тонкое начертание крупным кеглем.
   deg: { ...TYPE.hero, ...TYPE.mono, color: COLORS.white, fontWeight: '200',
     marginTop: SPACING.xl, letterSpacing: 1 },
   degLabel: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },
-  aligned: { ...TYPE.body, color: COLORS.white, marginTop: SPACING.md, fontWeight: '600' },
+  aligned: { ...TYPE.body, marginTop: SPACING.md, fontWeight: '700' },
+  // Текущий курс: подсказка, насколько ещё поворачивать.
+  heading: { ...TYPE.callout, ...TYPE.mono, color: COLORS.textMuted, marginTop: SPACING.md },
 
   calibrateBtn: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.lg,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
@@ -231,8 +261,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
   calCard: { backgroundColor: COLORS.navy, borderRadius: RADIUS.lg, padding: SPACING.xl,
     alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
-  calTitle: { ...TYPE.heading, color: COLORS.white, fontWeight: '800',
-    marginBottom: SPACING.sm },
+  calTitle: { ...TYPE.heading, color: COLORS.white, fontWeight: '800', marginBottom: SPACING.sm },
   calHint: { ...TYPE.body, color: COLORS.text, textAlign: 'center',
     lineHeight: 22, marginBottom: SPACING.lg },
   calBtn: { backgroundColor: COLORS.accent, borderRadius: RADIUS.pill,
