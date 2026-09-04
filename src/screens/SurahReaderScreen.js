@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import GlassIconButton from '../components/GlassIconButton';
 import GlassView from '../components/GlassView';
-import { COLORS, SPACING, RADIUS, FONTS, TYPE } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, READER } from '../constants/theme';
 import { getSurah, getSurahAudio, getWordByWord, getSurahList } from '../utils/quranApi';
 import { getWordByWordRuLocal } from '../utils/quranLocalWbw';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
@@ -185,18 +185,18 @@ export default function SurahReaderScreen({ route, navigation }) {
                       <View style={styles.wbwWrap}>
                         {wbw[a.number].map((w, wi) => (
                           <View key={wi} style={styles.wbwCell}>
-                            <Text style={[styles.wbwAr, { fontSize: 24 * scale, lineHeight: 40 * scale }]}>{w.ar}</Text>
+                            <Text style={[styles.wbwAr, { fontSize: READER.word.fontSize * scale, lineHeight: READER.word.lineHeight * scale }]}>{w.ar}</Text>
                             {!!w.ru && <Text style={styles.wbwRu}>{w.ru}</Text>}
                           </View>
                         ))}
                       </View>
                     ) : showArabic ? (
-                      <Text style={[styles.ar, { fontSize: 28 * scale, lineHeight: 52 * scale }]}>{a.ar}</Text>
+                      <Text style={[styles.ar, { fontSize: READER.ayah.fontSize * scale, lineHeight: READER.ayah.lineHeight * scale }]}>{a.ar}</Text>
                     ) : null}
-                    {showTranslit && !!a.tr && <Text style={[styles.tr, { fontSize: 14 * scale }]}>{a.tr}</Text>}
+                    {showTranslit && !!a.tr && <Text style={[styles.tr, { fontSize: READER.translit.fontSize * scale }]}>{a.tr}</Text>}
                     {showTranslation && (
                       <View style={styles.transBlock}>
-                        <Text style={[styles.en, { fontSize: 16.5 * scale, lineHeight: 27 * scale }]}>{a.en}</Text>
+                        <Text style={[styles.en, { fontSize: READER.trans.fontSize * scale, lineHeight: READER.trans.lineHeight * scale }]}>{a.en}</Text>
                       </View>
                     )}
                   </GlassView>
@@ -234,7 +234,7 @@ export default function SurahReaderScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', padding: SPACING.sm, paddingHorizontal: SPACING.md },
   back: { width: 32, height: 40, justifyContent: 'center' },
-  title: { ...TYPE.heading, color: COLORS.text, fontSize: 20, fontWeight: '800' },
+  title: { ...TYPE.heading, color: COLORS.text, fontWeight: '800' },
   sub: { ...TYPE.caption, color: COLORS.textMuted },
   controls: { flexDirection: 'row', alignItems: 'center' },
   error: { ...TYPE.callout, color: COLORS.danger, textAlign: 'center', marginTop: SPACING.xxl },
@@ -273,5 +273,5 @@ const styles = StyleSheet.create({
   nextSurah: { marginTop: SPACING.sm, marginBottom: SPACING.xl },
   nextInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
   nextLabel: { ...TYPE.overline, color: COLORS.accentSoft },
-  nextName: { ...TYPE.subhead, color: COLORS.white, fontSize: 19, fontWeight: '700', marginTop: 3 },
+  nextName: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', marginTop: SPACING.xs },
 });

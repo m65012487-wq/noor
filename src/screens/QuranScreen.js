@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   num: { ...TYPE.callout, color: COLORS.accent, fontWeight: '700' },
   name: { ...TYPE.subhead, color: COLORS.text, fontWeight: '700' },
   meaning: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },
-  arName: { ...ARABIC.sm, fontSize: 22, lineHeight: 34, color: COLORS.accentSoft,
+  arName: { ...ARABIC.sm, color: COLORS.accentSoft,
     fontFamily: FONTS.arabic, marginLeft: SPACING.sm },
 
   lessonModal: { flex: 1, backgroundColor: COLORS.navyDeep },

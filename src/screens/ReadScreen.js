@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import ScreenWrapper from '../components/ScreenWrapper';
 import { Card, SectionTitle, Subtitle } from '../components/ui';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { VERSES_OF_THE_DAY } from '../constants/content';
 import { loadJSON, saveJSON, todayKey } from '../utils/helpers';
 import { useLang } from '../i18n/LanguageContext';
@@ -106,31 +106,37 @@ export default function ReadScreen({ onProgress }) {
 
 const styles = StyleSheet.create({
   verseCard: { alignItems: 'center', paddingVertical: SPACING.lg },
-  vodLabel: { color: COLORS.textMuted, fontSize: 12, marginBottom: SPACING.sm, letterSpacing: 1 },
-  ar: { color: COLORS.accent, fontSize: 30, textAlign: 'center', fontFamily: FONTS.arabic, lineHeight: 52 },
-  en: { color: COLORS.cream, fontSize: 16, textAlign: 'center', marginTop: SPACING.md, lineHeight: 24 },
-  ref: { color: COLORS.textMuted, fontSize: 13, marginTop: SPACING.sm },
-  goalLabel: { color: COLORS.accent, fontSize: 15, fontWeight: '700', marginBottom: SPACING.sm },
+  vodLabel: { ...TYPE.overline, color: COLORS.textMuted, marginBottom: SPACING.sm },
+  ar: { ...ARABIC.md, color: COLORS.accent, textAlign: 'center', fontFamily: FONTS.arabic },
+  en: { ...TYPE.body, color: COLORS.cream, textAlign: 'center',
+    marginTop: SPACING.md, lineHeight: 24 },
+  ref: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.sm },
+
+  goalLabel: { ...TYPE.body, color: COLORS.accent, fontWeight: '700', marginBottom: SPACING.sm },
   goalRow: { flexDirection: 'row', justifyContent: 'space-between' },
   goalChip: {
     width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.surface,
   },
   goalChipActive: { backgroundColor: COLORS.accent },
-  goalChipText: { color: COLORS.cream, fontSize: 16, fontWeight: '700' },
+  goalChipText: { ...TYPE.body, color: COLORS.cream, fontWeight: '700' },
   goalChipTextActive: { color: COLORS.navy },
-  counterBig: { color: COLORS.accent, fontSize: 44, fontWeight: '900' },
-  counterLabel: { color: COLORS.textMuted, fontSize: 14, marginBottom: SPACING.md },
+
+  counterBig: { ...TYPE.hero, ...TYPE.mono, color: COLORS.accent, fontWeight: '900' },
+  counterLabel: { ...TYPE.callout, color: COLORS.textMuted, marginBottom: SPACING.md },
   progressTrack: {
-    width: '100%', height: 12, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden',
+    width: '100%', height: 12, borderRadius: 6,
+    backgroundColor: COLORS.surfaceStrong, overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: COLORS.accent, borderRadius: 6 },
-  reached: { color: COLORS.accentSoft, fontSize: 14, marginTop: SPACING.md, textAlign: 'center', fontWeight: '700' },
+  reached: { ...TYPE.callout, color: COLORS.accentSoft, marginTop: SPACING.md,
+    textAlign: 'center', fontWeight: '700' },
+
   addBtn: {
     backgroundColor: COLORS.accent, paddingVertical: SPACING.md, borderRadius: RADIUS.pill,
     alignItems: 'center', marginTop: SPACING.md,
   },
-  addBtnText: { color: COLORS.navy, fontSize: 18, fontWeight: '800' },
+  addBtnText: { ...TYPE.subhead, color: COLORS.navy, fontWeight: '800' },
   resetBtn: { alignItems: 'center', marginTop: SPACING.md, padding: SPACING.sm },
-  resetText: { color: COLORS.textMuted, fontSize: 14 },
+  resetText: { ...TYPE.callout, color: COLORS.textMuted },
 });

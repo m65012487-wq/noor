@@ -73,3 +73,12 @@ export const ARABIC = {
 // Если положить Amiri-Regular.ttf и Amiri-Bold.ttf в assets/fonts и загрузить
 // их в App.js, достаточно вернуть сюда 'Amiri' — остальной код не изменится.
 export const FONTS = { arabic: undefined, arabicBold: undefined };
+
+// Базовые кегли читалки суры. Умножаются на пользовательский масштаб,
+// поэтому живут отдельно от TYPE — но не магическими числами в разметке.
+export const READER = {
+  ayah:     { fontSize: 28, lineHeight: 52 },
+  word:     { fontSize: 24, lineHeight: 40 },
+  translit: { fontSize: 14 },
+  trans:    { fontSize: 16.5, lineHeight: 27 },
+};

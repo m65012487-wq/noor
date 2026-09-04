@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, Image } from 'react-native';
 import ScreenWrapper from '../components/ScreenWrapper';
 import { Card, SectionTitle, Subtitle } from '../components/ui';
-import { COLORS, SPACING } from '../constants/theme';
+import { COLORS, SPACING, TYPE } from '../constants/theme';
 import { loadJSON, todayKey } from '../utils/helpers';
 import { useLang } from '../i18n/LanguageContext';
 
@@ -69,18 +69,19 @@ export default function StreakScreen({ refreshKey }) {
 const styles = StyleSheet.create({
   flameCard: { alignItems: 'center', paddingVertical: SPACING.xl },
   flame: { width: 72, height: 72, tintColor: COLORS.white, marginBottom: SPACING.sm },
-  count: { color: COLORS.accent, fontSize: 56, fontWeight: '900' },
-  label: { color: COLORS.cream, fontSize: 16 },
-  weekTitle: { color: COLORS.accent, fontSize: 16, fontWeight: '700', marginBottom: SPACING.md },
+  count: { ...TYPE.hero, ...TYPE.mono, color: COLORS.accent, fontWeight: '900' },
+  label: { ...TYPE.body, color: COLORS.cream },
+
+  weekTitle: { ...TYPE.body, color: COLORS.accent, fontWeight: '700', marginBottom: SPACING.md },
   week: { flexDirection: 'row', justifyContent: 'space-between' },
   dayCol: { alignItems: 'center' },
   dot: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.surfaceStrong,
     alignItems: 'center', justifyContent: 'center',
   },
   dotDone: { backgroundColor: COLORS.accent },
   dotToday: { borderWidth: 2, borderColor: COLORS.accent },
-  check: { color: COLORS.navy, fontWeight: '900' },
-  dayLabel: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
-  tip: { color: COLORS.cream, fontSize: 14, lineHeight: 20 },
+  check: { ...TYPE.callout, color: COLORS.navy, fontWeight: '900' },
+  dayLabel: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
+  tip: { ...TYPE.callout, color: COLORS.cream, lineHeight: 20 },
 });

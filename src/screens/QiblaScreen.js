@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
   calCard: { backgroundColor: COLORS.navy, borderRadius: RADIUS.lg, padding: SPACING.xl,
     alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
-  calTitle: { ...TYPE.heading, color: COLORS.white, fontSize: 20, fontWeight: '800',
+  calTitle: { ...TYPE.heading, color: COLORS.white, fontWeight: '800',
     marginBottom: SPACING.sm },
   calHint: { ...TYPE.body, color: COLORS.text, textAlign: 'center',
     lineHeight: 22, marginBottom: SPACING.lg },
