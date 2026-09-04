@@ -77,3 +77,23 @@ export function getPrayerTimes2({ lat, lng, sourceId = 'mwl_intl', school = 'sha
     .then((t) => applyTune(t, tune))
     .catch(() => applyTune(computePrayerTimes(lat, lng, 'mwl', school), tune));
 }
+
+// Локальные времена на произвольную дату — синхронно и без сети.
+//
+// getPrayerTimes2 считает только на сегодня и для части источников ходит
+// в Aladhan. Планировщику уведомлений это не подходит: расписание ставится
+// на несколько дней вперёд и должно работать в самолётном режиме.
+// Поэтому здесь всегда используется локальный расчёт adhan — тот же, что
+// служит запасным вариантом при отказе сети.
+const LOCAL_METHOD = {
+  mwl_intl: 'mwl', turkey: 'turkey', egypt: 'egypt', makkah: 'makkah',
+  karachi: 'karachi', isna: 'isna', local: 'mwl',
+};
+
+export function localTimesForDate({ lat, lng, sourceId = 'mwl_intl', school = 'shafi', tune = null, date = new Date() }) {
+  if (sourceId === 'russia') {
+    return applyTune(computeDumRussia(lat, lng, school, date), tune);
+  }
+  const methodId = LOCAL_METHOD[sourceId] || 'mwl';
+  return computePrayerTimes(lat, lng, methodId, school, date, tune);
+}

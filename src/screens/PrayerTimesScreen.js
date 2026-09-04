@@ -11,7 +11,8 @@ import PrayerReminderSheet from '../components/PrayerReminderSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useAppearance } from '../utils/AppearanceContext';
 import { getNextPrayer, saveJSON, loadJSON } from '../utils/helpers';
-import { getPrayerTimes2, TIME_SOURCES } from '../utils/prayerSource';
+import { getPrayerTimes2, TIME_SOURCES, localTimesForDate } from '../utils/prayerSource';
+import { schedulePrayerReminders } from '../utils/prayerNotifications';
 import { useLang } from '../i18n/LanguageContext';
 import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
@@ -85,6 +86,22 @@ export default function PrayerTimesScreen() {
     return () => sub.remove();
   }, []);
 
+
+  // Напоминания о намазе. Планировщик работает на локальном расчёте, поэтому
+  // расписание ставится на неделю вперёд и переживает отсутствие сети.
+  // Пересобираем при смене места, настроек напоминаний, источника и языка:
+  // тексты уведомлений уже лежат в очереди и сами не переведутся.
+  useEffect(() => {
+    if (!coords) return;
+    schedulePrayerReminders({
+      timesForDate: (date) => localTimesForDate({
+        lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool, date,
+      }),
+      reminders,
+      label: (p) => prayerName(p, lang),
+      body: (p, minutes) => (minutes === 0 ? t("at_adhan") : `${minutes} ${t("minutes_before")}`),
+    });
+  }, [coords, reminders, timeSourceId, asrSchool, lang, t]);
   async function load() {
     setLoading(true); setError(null); setTimings(null);
     try {
