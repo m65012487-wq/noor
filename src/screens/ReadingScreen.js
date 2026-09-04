@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import { SectionTitle } from '../components/ui';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { getSurahList, getSurah, getSurahAudio } from '../utils/quranApi';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
 import { useLang } from '../i18n/LanguageContext';
@@ -230,25 +230,34 @@ export default function ReadingScreen() {
 
 const styles = StyleSheet.create({
   refRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md },
-  refName: { color: COLORS.white, fontSize: 17, fontWeight: '700', flex: 1 },
-  refAyah: { color: COLORS.accentSoft, fontSize: 14, marginLeft: SPACING.sm },
+  refName: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', flex: 1 },
+  refAyah: { ...TYPE.callout, color: COLORS.accentSoft, marginLeft: SPACING.sm },
+
   topRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md },
   statBox: { flex: 1 },
-  statBoxGlow: { borderWidth: 1.5, borderColor: 'rgba(255,180,84,0.6)' },
+  statBoxGlow: { borderWidth: 1.5, borderColor: 'rgba(255,206,90,0.60)' },
   statInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
   streakIcon: { width: 32, height: 32, tintColor: COLORS.white, marginRight: SPACING.sm },
-  statBig: { color: COLORS.white, fontSize: 24, fontWeight: '800' },
-  statLabel: { color: COLORS.textMuted, fontSize: 12 },
+  statBig: { ...TYPE.heading, color: COLORS.white, fontWeight: '800' },
+  statLabel: { ...TYPE.caption, color: COLORS.textMuted },
+
   ayahScroll: { padding: SPACING.lg, flexGrow: 1, justifyContent: 'center' },
-  ar: { color: COLORS.white, fontSize: 34, textAlign: 'center', fontFamily: FONTS.arabic, lineHeight: 64, writingDirection: 'rtl' },
-  tr: { color: COLORS.accentSoft, fontSize: 15, fontStyle: 'italic', textAlign: 'center', marginTop: SPACING.md },
-  en: { color: COLORS.text, fontSize: 16, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 24 },
+  ar: { ...ARABIC.lg, color: COLORS.white, textAlign: 'center',
+    fontFamily: FONTS.arabic, writingDirection: 'rtl' },
+  tr: { ...TYPE.body, color: COLORS.accentSoft, fontStyle: 'italic',
+    textAlign: 'center', marginTop: SPACING.md },
+  en: { ...TYPE.body, color: COLORS.text, textAlign: 'center',
+    marginTop: SPACING.sm, lineHeight: 24 },
+
   listenBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: SPACING.lg,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.08)' },
-  listenText: { color: COLORS.text, fontSize: 14 },
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill, backgroundColor: COLORS.surfaceStrong },
+  listenText: { ...TYPE.callout, color: COLORS.text },
+
   nav: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.md },
   navBtn: { width: 54, height: 54, alignItems: 'center', justifyContent: 'center' },
   nextBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 54 },
-  nextText: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginRight: 4 },
-  todayHint: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center', marginTop: SPACING.sm, marginBottom: 110 },
+  nextText: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', marginRight: SPACING.xs },
+  todayHint: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center',
+    marginTop: SPACING.sm, marginBottom: 110 },
 });

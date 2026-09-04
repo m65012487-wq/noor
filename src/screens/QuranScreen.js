@@ -8,7 +8,7 @@ import { SectionTitle } from '../components/ui';
 import CoursePathScreen from './CoursePathScreen';
 import LessonPlayerScreen from './LessonPlayerScreen';
 import QuranSettingsSheet from '../components/QuranSettingsSheet';
-import { COLORS, SPACING, RADIUS, FONTS } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { getSurahList, searchAyahs } from '../utils/quranApi';
 import { getLastRead, getBookmarks } from '../utils/quranProgress';
 import { surahMeaning } from '../constants/surahNames';
@@ -203,36 +203,43 @@ export default function QuranScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
-  segment: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.06)',
+  segment: { flex: 1, flexDirection: 'row', backgroundColor: COLORS.surface,
     borderRadius: RADIUS.pill, padding: 3 },
   segBtn: { flex: 1, paddingVertical: SPACING.sm, alignItems: 'center', borderRadius: RADIUS.pill },
-  segActive: { backgroundColor: 'rgba(180,215,230,0.20)' },
-  segText: { color: COLORS.textMuted, fontWeight: '600' },
-  segTextActive: { color: COLORS.white, fontWeight: '700' },
-  gear: { padding: 8, marginLeft: SPACING.sm },
+  segActive: { backgroundColor: COLORS.surfaceActive },
+  segText: { ...TYPE.callout, color: COLORS.textMuted, fontWeight: '600' },
+  segTextActive: { ...TYPE.callout, color: COLORS.white, fontWeight: '700' },
+  gear: { padding: SPACING.sm, marginLeft: SPACING.sm },
+
   continueCard: { marginBottom: SPACING.md },
   continueInner: { padding: SPACING.md },
-  continueLabel: { color: COLORS.accentSoft, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' },
-  continueName: { color: COLORS.white, fontSize: 24, fontWeight: '700', marginTop: 4 },
-  continueAyah: { color: COLORS.textMuted, fontSize: 14, marginTop: 2 },
-  sectionLabel: { color: COLORS.text, fontSize: 15, fontWeight: '700', marginBottom: SPACING.sm, marginTop: SPACING.xs },
+  continueLabel: { ...TYPE.overline, color: COLORS.accentSoft },
+  continueName: { ...TYPE.heading, color: COLORS.white, marginTop: SPACING.xs },
+  continueAyah: { ...TYPE.callout, color: COLORS.textMuted, marginTop: SPACING.xxs },
+
+  sectionLabel: { ...TYPE.body, color: COLORS.text, fontWeight: '700',
+    marginBottom: SPACING.sm, marginTop: SPACING.xs },
   bmRow: { marginBottom: SPACING.sm },
   bmInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.sm },
-  bmText: { color: COLORS.text, fontSize: 15 },
-  search: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md, color: COLORS.text, fontSize: 16,
+  bmText: { ...TYPE.body, color: COLORS.text },
+
+  search: { ...TYPE.body, backgroundColor: COLORS.surfaceStrong, borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md, color: COLORS.text,
     marginBottom: SPACING.md, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorder },
-  error: { color: COLORS.danger, textAlign: 'center', marginTop: 20 },
+  error: { ...TYPE.callout, color: COLORS.danger, textAlign: 'center', marginTop: SPACING.lg },
+
   row: { marginBottom: SPACING.sm },
   rowInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
-  numBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(180,215,230,0.18)',
+  numBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.surfaceActive,
     alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
-  num: { color: COLORS.accent, fontWeight: '700' },
-  name: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
-  meaning: { color: COLORS.textMuted, fontSize: 13, marginTop: 2 },
-  arName: { color: COLORS.accentSoft, fontSize: 22, fontFamily: FONTS.arabic, marginLeft: SPACING.sm },
-  lessonModal: { flex: 1, backgroundColor: '#0e1a2a' },
+  num: { ...TYPE.callout, color: COLORS.accent, fontWeight: '700' },
+  name: { ...TYPE.subhead, color: COLORS.text, fontWeight: '700' },
+  meaning: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },
+  arName: { ...ARABIC.sm, fontSize: 22, lineHeight: 34, color: COLORS.accentSoft,
+    fontFamily: FONTS.arabic, marginLeft: SPACING.sm },
+
+  lessonModal: { flex: 1, backgroundColor: COLORS.navyDeep },
   ayahResult: { marginBottom: SPACING.sm },
-  ayahResultRef: { color: COLORS.accentSoft, fontSize: 12, marginBottom: 4 },
-  ayahResultText: { color: COLORS.text, fontSize: 14, lineHeight: 20 },
+  ayahResultRef: { ...TYPE.caption, color: COLORS.accentSoft, marginBottom: SPACING.xs },
+  ayahResultText: { ...TYPE.callout, color: COLORS.text, lineHeight: 20 },
 });
