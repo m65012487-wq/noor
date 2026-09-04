@@ -76,7 +76,7 @@ export default function CoursePathScreen({ onOpenLesson, refreshKey }) {
                           const earned = (starsMap[`${unit.id}:${li}`] || 0) > s;
                           return (
                             <Ionicons key={s} name={earned ? 'star' : 'star-outline'} size={11}
-                              color={earned ? '#ffce5a' : 'rgba(255,255,255,0.25)'} />
+                              color={earned ? COLORS.warning : 'rgba(255,255,255,0.25)'} />
                           );
                         })}
                       </View>

@@ -29,7 +29,7 @@ const LESSON_BACKGROUNDS = {
 function LessonBg({ children }) {
   const insets = useSafeAreaInsets();
   const appearance = useAppearance();
-  const accent = appearance?.accent || '#bcd3e0';
+  const accent = appearance?.accent || COLORS.accentSoft;
   const bgKey = wallpaperFor(appearance?.theme || 'main', 'lesson');
   const src = LESSON_BACKGROUNDS[bgKey] || LESSON_BACKGROUNDS.main;
   // Dynamic Island needs real clearance; modals sometimes report 0 inset,
@@ -48,7 +48,7 @@ function LessonBg({ children }) {
 export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
   const { t, lang } = useLang();
   const appearance = useAppearance();
-  const accent = appearance?.accent || '#bcd3e0';
+  const accent = appearance?.accent || COLORS.accentSoft;
   const unit = COURSE[unitIndex];
   const [exercises] = useState(() => buildLesson(unit, lessonIndex));
   const [step, setStep] = useState(0);
@@ -109,7 +109,7 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
           <View style={styles.starsRow}>
             {[0, 1, 2].map((i) => (
               <Ionicons key={i} name={i < stars ? 'star' : 'star-outline'} size={40}
-                color={i < stars ? '#ffce5a' : 'rgba(255,255,255,0.3)'} style={{ marginHorizontal: 4 }} />
+                color={i < stars ? COLORS.warning : 'rgba(255,255,255,0.3)'} style={{ marginHorizontal: 4 }} />
             ))}
           </View>
           <Text style={styles.doneScore}>{correctCount} / {exercises.length}</Text>

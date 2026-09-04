@@ -173,8 +173,8 @@ export default function ReadingScreen() {
         <GlassView azure radius={RADIUS.md} style={[styles.statBox, goalDone && styles.statBoxGlow]}>
           <View style={styles.statInner}>
             <Image source={require('../../assets/glyphs/streak.png')}
-              style={[styles.streakIcon, goalDone && { tintColor: '#ffb454' }]} />
-            <View><Text style={[styles.statBig, goalDone && { color: '#ffce8a' }]}>{streak}</Text>
+              style={[styles.streakIcon, goalDone && { tintColor: COLORS.ember }]} />
+            <View><Text style={[styles.statBig, goalDone && { color: COLORS.emberSoft }]}>{streak}</Text>
               <Text style={styles.statLabel}>{t('streak_days')}</Text></View>
           </View>
         </GlassView>
