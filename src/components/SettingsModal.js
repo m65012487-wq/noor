@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
@@ -11,6 +11,7 @@ import { ASR_SCHOOLS } from '../constants/calcMethods';
 import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm } from '../utils/fajrAlarm';
 import { TIME_SOURCES } from '../utils/prayerSource';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
+import { countScheduled, ensurePermission } from '../utils/prayerNotifications';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -22,17 +23,20 @@ function Opt({ label, active, onPress, activeBg }) {
   return (
     <TouchableOpacity style={[styles.row, active && styles.rowActive, active && activeBg]} onPress={onPress}>
       <Text style={[styles.rowText, active && styles.rowTextActive, { flex: 1 }]}>{label}</Text>
-      {active && <Text style={styles.check}>✓</Text>}
+      {active && <Icon name="check" size={17} color={COLORS.white} />}
     </TouchableOpacity>
   );
 }
 
-function Section({ id, title, open, onToggle, children }) {
+// Иконка в заголовке даёт разделу опознавательный знак: список из четырёх
+// одинаковых строк с шевроном справа читается заметно хуже.
+function Section({ id, icon, title, open, onToggle, children }) {
   return (
     <View style={styles.section}>
       <TouchableOpacity style={styles.sectionHead} onPress={() => onToggle(id)} activeOpacity={0.8}>
+        <Icon name={icon} size={19} color={COLORS.accentSoft} />
         <Text style={styles.sectionTitle}>{title}</Text>
-        <Icon name={open ? 'up' : 'down'} size={20} color={COLORS.accentSoft} />
+        <Icon name={open ? "up" : "down"} size={20} color={COLORS.accentSoft} />
       </TouchableOpacity>
       {open && <View style={styles.sectionBody}>{children}</View>}
     </View>
@@ -47,6 +51,18 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const tintRgb = tint || '180,215,230';
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
   const [previewing, setPreviewing] = useState(null);
+  // Счётчик поставленных напоминаний: сухая цифра честнее обещания
+  // «уведомления включены» — видно, что расписание действительно в очереди.
+  const [notifyCount, setNotifyCount] = useState(0);
+
+  useEffect(() => {
+    if (visible) countScheduled().then(setNotifyCount);
+  }, [visible]);
+
+  async function askNotifications() {
+    await ensurePermission();
+    setNotifyCount(await countScheduled());
+  }
   const [openSection, setOpenSection] = useState('prayer');
   const [alarmOn, setAlarmOn] = useState(false);
   const [alarmInt, setAlarmInt] = useState(5);
@@ -70,7 +86,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   return (
     <DraggableSheet visible={visible} onClose={close} title={t('general_settings')}>
       {/* ===== PRAYER ===== */}
-        <Section id="prayer" title={t('sec_prayer')} open={openSection === 'prayer'} onToggle={toggle}>
+        <Section id="prayer" icon="prayer" title={t("sec_prayer")} open={openSection === 'prayer'} onToggle={toggle}>
           <Text style={styles.label}>{t('time_source')}</Text>
           {TIME_SOURCES.map((s) => (
             <Opt key={s.id} label={lang === 'ru' ? s.label_ru : s.label_en}
@@ -93,10 +109,11 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               </TouchableOpacity>
               {a.url && (
                 <TouchableOpacity onPress={() => preview(a)} style={styles.previewBtn}>
-                  <Text style={styles.previewText}>{previewing === a.id ? '■' : '▶'} {t('preview')}</Text>
+                  <Icon name={previewing === a.id ? 'pause' : 'play'} size={12} color={COLORS.accentSoft} />
+                  <Text style={styles.previewText}>  {t('preview')}</Text>
                 </TouchableOpacity>
               )}
-              {adhanSound === a.id && !a.url && <Text style={styles.check}>✓</Text>}
+              {adhanSound === a.id && !a.url && <Icon name="check" size={17} color={COLORS.white} />}
             </View>
           ))}
 
@@ -109,10 +126,10 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
                 if (!v) await cancelFajrAlarm();
                 onFajrAlarmChange && onFajrAlarmChange();
               }}>
-              <Text style={styles.rowText}>{alarmOn ? '🔔 ' : '🔕 '}{t('fajr_alarm')}</Text>
+              <Text style={styles.rowText}>{t('fajr_alarm')}</Text>
               <Text style={styles.hintText}>{t('fajr_alarm_hint')}</Text>
             </TouchableOpacity>
-            {alarmOn && <Text style={styles.check}>✓</Text>}
+            {alarmOn && <Icon name="check" size={17} color={COLORS.white} />}
           </View>
           {alarmOn && (
             <View style={styles.intervalRow}>
@@ -129,7 +146,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
         </Section>
 
         {/* ===== APPEARANCE ===== */}
-        <Section id="appearance" title={t('sec_appearance')} open={openSection === 'appearance'} onToggle={toggle}>
+        <Section id="appearance" icon="options" title={t("sec_appearance")} open={openSection === 'appearance'} onToggle={toggle}>
           <Text style={styles.label}>{t('theme')}</Text>
           <View style={styles.themeRow}>
             {THEMES.map((th) => (
@@ -154,10 +171,27 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
         </Section>
 
         {/* ===== GENERAL ===== */}
-        <Section id="general" title={t('sec_general')} open={openSection === 'general'} onToggle={toggle}>
+        <Section id="general" icon="settings" title={t("sec_general")} open={openSection === 'general'} onToggle={toggle}>
           <Text style={styles.label}>{t('language')}</Text>
           <Opt label="English" active={lang === 'en'} onPress={() => setLang('en')} activeBg={activeBg} />
           <Opt label="Русский" active={lang === 'ru'} onPress={() => setLang('ru')} activeBg={activeBg} />
+        </Section>
+
+        {/* ===== NOTIFICATIONS ===== */}
+        <Section id="notify" icon="bell" title={t("sec_notify")} open={openSection === "notify"} onToggle={toggle}>
+          <View style={styles.tuneRow}>
+            <Text style={styles.tuneName}>
+              {notifyCount > 0 ? t("notify_scheduled") : t("notify_off")}
+            </Text>
+            {notifyCount > 0
+              ? <Text style={styles.tuneVal}>{notifyCount}</Text>
+              : (
+                <TouchableOpacity style={styles.previewBtn} onPress={askNotifications}>
+                  <Text style={styles.previewText}>{t("notify_allow")}</Text>
+                </TouchableOpacity>
+              )}
+          </View>
+          <Text style={styles.hintText}>{t("notify_hint")}</Text>
         </Section>
 
       <TouchableOpacity style={styles.doneBtn} onPress={close}>
@@ -171,9 +205,11 @@ const styles = StyleSheet.create({
   title: { ...TYPE.title, color: COLORS.text, fontWeight: '800', marginBottom: SPACING.md },
   section: { marginBottom: SPACING.sm, borderRadius: RADIUS.md,
     backgroundColor: 'rgba(255,255,255,0.04)', overflow: 'hidden' },
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: SPACING.md },
-  sectionTitle: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700' },
+  // gap разводит иконку, заголовок и шеврон; заголовок тянется и прижимает
+  // шеврон к правому краю без space-between, который ломался с тремя детьми.
+  sectionHead: { flexDirection: 'row', alignItems: 'center',
+    gap: SPACING.sm, padding: SPACING.md },
+  sectionTitle: { ...TYPE.subhead, color: COLORS.white, fontWeight: "700", flex: 1 },
   sectionBody: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.md },
   label: { ...TYPE.overline, color: COLORS.accentSoft,
     marginTop: SPACING.md, marginBottom: SPACING.sm },
