@@ -1,0 +1,114 @@
+name: Unsigned IPA
+
+# Неподписанный .ipa для подписи на устройстве (eSign, Sideloadly и т.п.).
+# Секреты не нужны: сертификат остаётся у владельца.
+#
+# Приложение на Expo, поэтому нативного проекта в репозитории нет —
+# он генерируется prebuild прямо на раннере из app.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: "Bundle ID (в eSign его ещё можно поменять при подписи)"
+        type: string
+        default: app.noor.mobile
+
+jobs:
+  ipa:
+    name: Неподписанная сборка
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Выбрать Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Установить зависимости
+        run: npm ci --no-audit --no-fund
+
+      - name: Подставить bundle ID
+        env:
+          BUNDLE_ID: ${{ inputs.bundle_id }}
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 - <<'PY'
+          import json, os
+
+          bundle_id = os.environ["BUNDLE_ID"]
+          with open("app.json", encoding="utf-8") as file:
+              config = json.load(file)
+
+          config["expo"]["ios"]["bundleIdentifier"] = bundle_id
+          config["expo"]["android"]["package"] = bundle_id
+
+          with open("app.json", "w", encoding="utf-8") as file:
+              json.dump(config, file, ensure_ascii=False, indent=2)
+
+          print("bundleIdentifier:", bundle_id)
+          PY
+
+      # prebuild разворачивает нативный проект из app.json и ставит поды.
+      - name: Сгенерировать нативный проект
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Собрать архив без подписи
+        run: |
+          set -euo pipefail
+          SCHEME=$(ls ios/*.xcworkspace | head -1 | xargs basename | sed 's/\.xcworkspace$//')
+          echo "Схема: $SCHEME"
+          xcodebuild archive \
+            -workspace "ios/$SCHEME.xcworkspace" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Noor.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | tail -40
+
+      # .ipa — обычный zip с приложением внутри каталога Payload.
+      - name: Упаковать .ipa
+        run: |
+          set -euo pipefail
+          APP=$(ls -d build/Noor.xcarchive/Products/Applications/*.app | head -1)
+          echo "Приложение: $APP"
+          mkdir -p build/Payload
+          cp -R "$APP" build/Payload/
+          cd build
+          zip -qry Noor-unsigned.ipa Payload
+          cd ..
+          ls -lh build/Noor-unsigned.ipa
+
+      - name: Проверить содержимое
+        run: |
+          set -euo pipefail
+          APP=$(ls -d build/Payload/*.app | head -1)
+          unzip -l build/Noor-unsigned.ipa | head -15
+          echo "=== Info.plist ==="
+          for key in CFBundleIdentifier CFBundleExecutable CFBundleShortVersionString MinimumOSVersion; do
+            printf '%s: ' "$key"
+            /usr/libexec/PlistBuddy -c "Print :$key" "$APP/Info.plist" || echo "—"
+          done
+          echo "=== JS-бандл на месте? ==="
+          ls "$APP" | grep -iE "main.jsbundle|\.hbc" || echo "ВНИМАНИЕ: бандл не найден"
+          echo "=== размер ==="
+          du -sh build/Noor-unsigned.ipa
+
+      - name: Выложить .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noor-unsigned-ipa
+          path: build/Noor-unsigned.ipa
+          retention-days: 30
+          if-no-files-found: error

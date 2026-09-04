@@ -14,14 +14,14 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.noor",
+      "bundleIdentifier": "app.noor.mobile",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to calculate accurate prayer times and the Qibla direction.",
         "NSMotionUsageDescription": "Motion access is used for the Qibla compass."
       }
     },
     "android": {
-      "package": "com.yourname.noor",
+      "package": "app.noor.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0e1a2a"
