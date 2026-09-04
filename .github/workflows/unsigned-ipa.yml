@@ -64,7 +64,7 @@ jobs:
       - name: Собрать архив без подписи
         run: |
           set -euo pipefail
-          SCHEME=$(ls ios/*.xcworkspace | head -1 | xargs basename | sed 's/\.xcworkspace$//')
+          SCHEME=$(basename "$(ls -d ios/*.xcworkspace | head -1)" .xcworkspace)
           echo "Схема: $SCHEME"
           xcodebuild archive \
             -workspace "ios/$SCHEME.xcworkspace" \
