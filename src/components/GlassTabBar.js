@@ -29,12 +29,25 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
   const ISLAND_W = Math.min(width - 32, 360);
   const SLOT = ISLAND_W / count;
   const slide = useRef(new Animated.Value(state.index)).current;
+  // Растяжение подсветки вдоль движения. Само по себе слияние стекла в
+  // GlassContainer перетекания не даёт: подсветка и остров перекрываются
+  // всегда, поэтому граница между ними неподвижна. Каплю создаёт то, что
+  // подсветка вытягивается в сторону движения и собирается обратно.
+  const stretch = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.spring(slide, {
       toValue: state.index, useNativeDriver: true, friction: 9, tension: 80,
     }).start();
-  }, [state.index, slide]);
+    Animated.sequence([
+      Animated.timing(stretch, {
+        toValue: 1.34, duration: 130, useNativeDriver: true,
+      }),
+      Animated.spring(stretch, {
+        toValue: 1, damping: 13, stiffness: 240, mass: 0.7, useNativeDriver: true,
+      }),
+    ]).start();
+  }, [state.index, slide, stretch]);
 
   // Скрываем панель внутри читалки суры — уже после всех хуков.
   const focusedRoute = state.routes[state.index];
@@ -87,7 +100,7 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
             style={[StyleSheet.absoluteFill, { borderRadius: 31 }]} />
           <Animated.View
             style={[styles.highlightWrap,
-              { width: SLOT - 12, transform: [{ translateX }] }]}
+              { width: SLOT - 12, transform: [{ translateX }, { scaleX: stretch }] }]}
             pointerEvents="none">
             <NativeGlass glassEffectStyle="clear" tintColor={`rgba(${rgb},0.30)`}
               style={styles.highlightGlass} />
@@ -114,7 +127,7 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
         <Animated.View
           style={[styles.highlight,
             { width: SLOT - 12, backgroundColor: `rgba(${rgb},0.20)`,
-              transform: [{ translateX }] }]}
+              transform: [{ translateX }, { scaleX: stretch }] }]}
           pointerEvents="none"
         />
         <View style={styles.row}>{tabItems}</View>
