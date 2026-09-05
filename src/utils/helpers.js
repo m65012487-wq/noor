@@ -113,3 +113,42 @@ export function dayDiff(aKey, bKey) {
   const b = new Date(bKey + 'T00:00:00');
   return Math.round((a - b) / 86400000);
 }
+
+// Доля пройденного промежутка между предыдущим и следующим намазом, 0..1.
+// Нужна кольцу на главном экране: голая надпись «через 1:20» не даёт
+// чувства масштаба — час до заката и час до рассвета выглядят одинаково.
+export function intervalProgress(timings, now = new Date()) {
+  if (!timings) return 0;
+  const order = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+  const at = (name, dayShift = 0) => {
+    const raw = timings[name];
+    if (typeof raw !== 'string') return null;
+    const [h, m] = raw.split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    const d = new Date(now);
+    d.setDate(d.getDate() + dayShift);
+    d.setHours(h, m, 0, 0);
+    return d;
+  };
+
+  const points = order.map((n) => ({ name: n, date: at(n) })).filter((p) => p.date);
+  if (points.length < 2) return 0;
+
+  let prev = null;
+  let next = null;
+  for (const p of points) {
+    if (p.date <= now) prev = p;
+    else if (!next) next = p;
+  }
+
+  // До первого намаза суток отсчёт идёт от вчерашней ночной молитвы,
+  // после последнего — до завтрашней утренней.
+  if (!prev) prev = { name: 'Isha', date: at('Isha', -1) };
+  if (!next) next = { name: 'Fajr', date: at('Fajr', 1) };
+  if (!prev.date || !next.date) return 0;
+
+  const span = next.date - prev.date;
+  if (span <= 0) return 0;
+  return Math.max(0, Math.min(1, (now - prev.date) / span));
+}

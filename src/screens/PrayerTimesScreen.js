@@ -10,7 +10,8 @@ import SettingsModal from '../components/SettingsModal';
 import PrayerReminderSheet from '../components/PrayerReminderSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useAppearance } from '../utils/AppearanceContext';
-import { getNextPrayer, saveJSON, loadJSON } from '../utils/helpers';
+import { getNextPrayer, intervalProgress, saveJSON, loadJSON } from '../utils/helpers';
+import ProgressRing from '../components/ProgressRing';
 import { getPrayerTimes2, TIME_SOURCES, localTimesForDate } from '../utils/prayerSource';
 import { schedulePrayerReminders } from '../utils/prayerNotifications';
 import { useLang } from '../i18n/LanguageContext';
@@ -36,6 +37,7 @@ export default function PrayerTimesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [countdown, setCountdown] = useState('');
+  const [progress, setProgress] = useState(0);
   const [nextName, setNextName] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -129,6 +131,7 @@ export default function PrayerTimesScreen() {
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setCountdown(`${h}h ${m}m ${s}s`);
+      setProgress(intervalProgress(timings));
     }, 1000);
     return () => clearInterval(timer.current);
   }, [timings]);
@@ -167,10 +170,17 @@ export default function PrayerTimesScreen() {
 
         {timings && !loading && (
           <>
+            {/* Кольцо показывает, сколько прошло от предыдущего намаза
+                до следующего: цифра обратного отсчёта этого не передаёт. */}
             <Card azure style={styles.nextCard}>
-              <Text style={styles.nextLabel}>{t('next_prayer')}</Text>
-              <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ''}</Text>
-              <Text style={styles.countdown}>{countdown}</Text>
+              <ProgressRing size={216} stroke={9} progress={progress} color={accent}>
+                <Text style={styles.nextLabel}>{t("next_prayer")}</Text>
+                <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
+                <Text style={styles.countdown}>{countdown}</Text>
+                {!!nextName && (
+                  <Text style={styles.nextAt}>{timings[nextName]}</Text>
+                )}
+              </ProgressRing>
             </Card>
 
             {/* Full schedule — collapsed into a spoiler */}
@@ -230,8 +240,12 @@ const styles = StyleSheet.create({
 
   nextCard: { alignItems: 'center', paddingVertical: SPACING.lg },
   nextLabel: { ...TYPE.overline, color: COLORS.accentSoft },
-  nextName: { ...TYPE.display, color: COLORS.white, marginVertical: SPACING.xs },
-  countdown: { ...TYPE.title, ...TYPE.mono, color: COLORS.text, fontWeight: '400', letterSpacing: 1 },
+  // Внутри кольца имя намаза набирается мельче: display на 36 пунктов
+  // упирался в дугу и ломал вертикальный ритм.
+  nextName: { ...TYPE.heading, color: COLORS.white, marginTop: SPACING.xs },
+  countdown: { ...TYPE.title, ...TYPE.mono, color: COLORS.text,
+    fontWeight: '400', letterSpacing: 0.5, marginTop: SPACING.xxs },
+  nextAt: { ...TYPE.callout, ...TYPE.mono, color: COLORS.textMuted, marginTop: SPACING.xxs },
 
   spoilerHead: { marginBottom: SPACING.sm },
   spoilerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
