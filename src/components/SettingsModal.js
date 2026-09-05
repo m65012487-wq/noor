@@ -47,7 +47,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan,
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
-  const { theme, chooseTheme, glassOpacity, chooseGlassOpacity, tint, accent } = useAppearance();
+  const { theme, chooseTheme, glassOpacity, chooseGlassOpacity, tint,
+    pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES } = useAppearance();
   const tintRgb = tint || '180,215,230';
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
   const [previewing, setPreviewing] = useState(null);
@@ -158,6 +159,39 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               </TouchableOpacity>
             ))}
           </View>
+
+          <Text style={styles.label}>{t("pattern")}</Text>
+          <View style={styles.themeRow}>
+            {PATTERNS.map((p) => (
+              <TouchableOpacity key={p.id} onPress={() => choosePattern(p.id)}
+                style={[styles.themeChip, pattern === p.id && styles.themeChipActive,
+                  pattern === p.id && activeBg]}>
+                <Text style={[styles.themeText, pattern === p.id && styles.themeTextActive]}>
+                  {lang === "ru" ? p.label_ru : p.label_en}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Схема имеет смысл только при выбранном узоре: на фотообоях
+              она ничего не меняет и висела бы мёртвой настройкой. */}
+          {pattern !== "none" && (
+            <>
+              <Text style={styles.label}>{t("color_scheme")}</Text>
+              <View style={styles.themeRow}>
+                {SCHEMES.map((s) => (
+                  <TouchableOpacity key={s.id} onPress={() => chooseScheme(s.id)}
+                    style={[styles.schemeChip, { backgroundColor: s.bg[0], borderColor: s.accent },
+                      scheme === s.id && styles.schemeChipActive]}>
+                    <View style={[styles.schemeDot, { backgroundColor: s.accent }]} />
+                    <Text style={[styles.themeText, scheme === s.id && styles.themeTextActive]}>
+                      {lang === "ru" ? s.label_ru : s.label_en}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
           <Text style={styles.label}>{t('glass_transparency')}</Text>
           <View style={styles.opacityRow}>
             {OPACITY_LEVELS.map((lv, i) => (
@@ -256,6 +290,12 @@ const styles = StyleSheet.create({
   themeChipActive: { backgroundColor: COLORS.surfaceActive, borderColor: COLORS.glassBorder },
   themeText: { ...TYPE.callout, color: COLORS.text },
   themeTextActive: { color: COLORS.white, fontWeight: '700' },
+  // Чип схемы показывает сам цвет: подпись без образца ничего не говорит.
+  schemeChip: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill, borderWidth: StyleSheet.hairlineWidth },
+  schemeChipActive: { borderWidth: 2 },
+  schemeDot: { width: 10, height: 10, borderRadius: 5 },
 
   opacityRow: { flexDirection: 'row', gap: SPACING.sm },
   opacityDot: { width: 46, height: 46, borderRadius: 23, alignItems: 'center',

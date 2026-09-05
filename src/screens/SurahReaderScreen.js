@@ -13,7 +13,7 @@ import { useLang } from '../i18n/LanguageContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
 import { setLastRead, getBookmarks, toggleBookmark, getFontScale, setFontScale } from '../utils/quranProgress';
 import { surahMeaning } from '../constants/surahNames';
-import { useAppearance, wallpaperFor } from '../utils/AppearanceContext';
+import { useAppearance, wallpaperFor, PATTERN_TILES } from '../utils/AppearanceContext';
 
 const READER_BG = {
   main: require('../../assets/backgrounds/main.png'),
@@ -222,9 +222,26 @@ export default function SurahReaderScreen({ route, navigation }) {
         </SafeAreaView>
   );
 
+  // Читалка тоже уважает узорную тему: иначе при выборе узора она одна
+  // оставалась бы с фотографией и выпадала из общего вида.
+  if (appearance?.patterned) {
+    const sc = appearance.schemeColors;
+    const tile = PATTERN_TILES[appearance.pattern];
+    return (
+      <LinearGradient colors={sc.bg} style={{ flex: 1 }}>
+        {tile ? (
+          <ImageBackground source={tile} resizeMode="repeat"
+            imageStyle={{ tintColor: `rgba(${sc.tint},0.10)` }} style={{ flex: 1 }}>
+            {body}
+          </ImageBackground>
+        ) : body}
+      </LinearGradient>
+    );
+  }
+
   return (
     <ImageBackground source={readerBg} style={{ flex: 1 }} resizeMode="cover">
-      <LinearGradient colors={['rgba(14,26,42,0.55)', 'rgba(14,26,42,0.80)']} style={{ flex: 1 }}>
+      <LinearGradient colors={["rgba(14,26,42,0.55)", "rgba(14,26,42,0.80)"]} style={{ flex: 1 }}>
         {body}
       </LinearGradient>
     </ImageBackground>

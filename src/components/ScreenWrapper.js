@@ -3,7 +3,7 @@ import { StyleSheet, View, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SPACING } from '../constants/theme';
-import { useAppearance, wallpaperFor } from '../utils/AppearanceContext';
+import { useAppearance, wallpaperFor, PATTERN_TILES } from '../utils/AppearanceContext';
 
 // All wallpaper images, keyed by name.
 const BACKGROUNDS = {
@@ -21,27 +21,55 @@ const BACKGROUNDS = {
 };
 
 // `slot` picks which wallpaper from the current theme pack: 'main' | 'reader' | 'lesson'.
-// `bg` can still force a specific image directly.
+// `slot` выбирает обои темы: 'main' | 'reader' | 'lesson'.
+// `bg` по-прежнему может задать картинку напрямую.
 export default function ScreenWrapper({ children, edges = ['top'], bg, slot = 'main', swipeHandlers }) {
   // Хук вызывается безусловно. Раньше он стоял внутри try/catch — то есть
   // условно, что нарушает правила хуков и ломает порядок между рендерами.
   // Контекст и так отдаёт значения по умолчанию, если провайдера нет.
   const appearance = useAppearance();
-  const key = bg || (appearance?.theme ? wallpaperFor(appearance.theme, slot) : undefined);
 
+  const body = (
+    <SafeAreaView style={styles.safe} edges={edges}>
+      <View style={styles.inner} {...(swipeHandlers || {})}>{children}</View>
+    </SafeAreaView>
+  );
+
+  // Узорная тема: градиент схемы, поверх — бесшовная плитка, покрашенная
+  // тем же тоном. Плитка повторяется, а не растягивается, поэтому её вес
+  // не зависит от размера экрана: 256×256 на любой диагонали.
+  if (appearance?.patterned) {
+    const sc = appearance.schemeColors;
+    const tile = PATTERN_TILES[appearance.pattern];
+    return (
+      <LinearGradient colors={sc.bg} style={styles.flex}>
+        {tile && (
+          <ImageBackground
+            source={tile}
+            resizeMode="repeat"
+            imageStyle={{ tintColor: `rgba(${sc.tint},0.14)` }}
+            style={styles.flex}
+          >
+            {body}
+          </ImageBackground>
+        )}
+        {!tile && body}
+      </LinearGradient>
+    );
+  }
+
+  const key = bg || (appearance?.theme ? wallpaperFor(appearance.theme, slot) : undefined);
   const source = BACKGROUNDS[key] || BACKGROUNDS.main;
   return (
     <ImageBackground source={source} style={styles.flex} resizeMode="cover">
-      {/* Gentle scrim so frosted glass + light text stay readable on any image.
-          Slightly stronger at the bottom where the floating tab bar sits. */}
+      {/* Затемнение, чтобы матовое стекло и светлый текст читались на любой
+          фотографии. Внизу плотнее — там висит плавающая панель вкладок. */}
       <LinearGradient
         colors={['rgba(14,26,42,0.28)', 'rgba(14,26,42,0.42)', 'rgba(14,26,42,0.66)']}
         locations={[0, 0.55, 1]}
         style={styles.flex}
       >
-        <SafeAreaView style={styles.safe} edges={edges}>
-          <View style={styles.inner} {...(swipeHandlers || {})}>{children}</View>
-        </SafeAreaView>
+        {body}
       </LinearGradient>
     </ImageBackground>
   );
