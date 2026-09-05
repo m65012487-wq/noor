@@ -26,6 +26,9 @@ export default function QiblaScreen() {
   const [heading, setHeading] = useState(0);
   const [qibla, setQibla] = useState(null);
   const [calibrateOpen, setCalibrateOpen] = useState(false);
+  // Датчик сбит — рядом магнит или прибор не откалиброван. Раньше об этом
+  // нельзя было узнать: компас просто врал, и причина оставалась неясной.
+  const [needsCalibration, setNeedsCalibration] = useState(false);
   const dialRotate = useRef(new Animated.Value(0)).current;
   const needleRotate = useRef(new Animated.Value(0)).current;
   const dialCont = useRef(0);   // continuous (unwrapped) dial angle
@@ -54,8 +57,13 @@ export default function QiblaScreen() {
         if (status === 'granted') {
           headingSub = await Location.watchHeadingAsync((h) => {
             if (!mounted) return;
-            // trueHeading is best; fall back to magHeading.
+            // trueHeading учитывает магнитное склонение, поэтому он точнее;
+            // отрицательное значение означает, что система его ещё не знает.
             const deg = h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
+            if (typeof deg !== "number" || Number.isNaN(deg)) return;
+            // accuracy на iOS — погрешность в градусах. Больше 25 означает,
+            // что датчик сбит: рядом магнит или прибор не откалиброван.
+            setNeedsCalibration(typeof h.accuracy === "number" && h.accuracy > 25);
             setHeading(smooth(deg));
           });
           return;
@@ -82,9 +90,12 @@ export default function QiblaScreen() {
     let diff = target - prev;
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
-    // Ignore tiny jitter; smooth the rest gently to avoid the "jumping".
-    if (Math.abs(diff) < 0.8) return prev;
-    let next = (prev + diff * 0.12 + 360) % 360;
+    // Мёртвая зона гасит дрожание датчика, коэффициент задаёт скорость
+    // догона. При 0.12 стрелка сдвигалась на восьмую часть отставания за
+    // обновление: разворот телефона она отрабатывала полторы секунды и
+    // выглядела залипшей. 0.32 держит компас за рукой, дрожь глушит зона.
+    if (Math.abs(diff) < 0.5) return prev;
+    let next = (prev + diff * 0.32 + 360) % 360;
     smoothed.current = next;
     return next;
   }
@@ -115,11 +126,11 @@ export default function QiblaScreen() {
 
   useEffect(() => {
     dialCont.current = unwrap(dialCont.current, dialAngle);
-    Animated.timing(dialRotate, { toValue: dialCont.current, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    Animated.timing(dialRotate, { toValue: dialCont.current, duration: 90, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
   }, [dialAngle]);
   useEffect(() => {
     needleCont.current = unwrap(needleCont.current, needleAngle);
-    Animated.timing(needleRotate, { toValue: needleCont.current, duration: 140, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    Animated.timing(needleRotate, { toValue: needleCont.current, duration: 90, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
   }, [needleAngle]);
 
   const dialSpin = dialRotate.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
@@ -186,9 +197,12 @@ export default function QiblaScreen() {
             ? <Text style={[styles.aligned, { color: accent }]}>{t('qibla_aligned')}</Text>
             : <Text style={styles.heading}>{Math.round(heading)}°</Text>}
 
-          <TouchableOpacity onPress={() => setCalibrateOpen(true)} style={styles.calibrateBtn}>
-            <Icon name="refresh" size={15} color={COLORS.accentSoft} />
-            <Text style={styles.calibrateText}>  {t('calibrate')}</Text>
+          <TouchableOpacity onPress={() => setCalibrateOpen(true)}
+            style={[styles.calibrateBtn, needsCalibration && styles.calibrateWarn]}>
+            <Icon name="refresh" size={15}
+              color={needsCalibration ? COLORS.warning : COLORS.accentSoft} />
+            <Text style={[styles.calibrateText,
+              needsCalibration && { color: COLORS.warning }]}>  {t("calibrate")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -256,6 +270,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill, backgroundColor: COLORS.surfaceStrong },
   calibrateText: { ...TYPE.callout, color: COLORS.accentSoft },
+  // Датчик сбит — кнопка перестаёт быть незаметной подписью.
+  calibrateWarn: { borderWidth: 1, borderColor: COLORS.warning,
+    backgroundColor: 'rgba(255,206,90,0.12)' },
 
   calBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center', justifyContent: 'center', padding: SPACING.lg },
