@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import GlassIconButton from '../components/GlassIconButton';
 import GlassView from '../components/GlassView';
+import { ThemedBackground } from '../components/ScreenWrapper';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, READER } from '../constants/theme';
 import { getSurah, getSurahAudio, getWordByWord, getSurahList } from '../utils/quranApi';
 import { getWordByWordRuLocal } from '../utils/quranLocalWbw';
@@ -168,7 +169,11 @@ export default function SurahReaderScreen({ route, navigation }) {
               {data.ayahs.map((a) => (
                 <View key={a.number}
                   onLayout={(e) => { ayahYs.current[a.number] = e.nativeEvent.layout.y; }}>
-                  <GlassView flat radius={RADIUS.md}
+                  {/* Без стеклянной плитки: при длинном чтении подложка
+                      под каждым аятом дробит текст на карточки и мешает
+                      вести взгляд по странице. Активный аят выделяется
+                      тонкой линией слева, а не рамкой вокруг. */}
+                  <View
                     style={[styles.ayahCard, playingAyah === a.number && styles.ayahActive]}>
                     <View style={styles.ayahHead}>
                       <View style={[styles.ayahNum, { backgroundColor: `rgba(${appearance?.tint || '180,215,230'},0.2)` }]}><Text style={styles.ayahNumText}>{a.number}</Text></View>
@@ -199,7 +204,7 @@ export default function SurahReaderScreen({ route, navigation }) {
                         <Text style={[styles.en, { fontSize: READER.trans.fontSize * scale, lineHeight: READER.trans.lineHeight * scale }]}>{a.en}</Text>
                       </View>
                     )}
-                  </GlassView>
+                  </View>
                 </View>
               ))}
 
@@ -222,32 +227,12 @@ export default function SurahReaderScreen({ route, navigation }) {
         </SafeAreaView>
   );
 
-  // Читалка тоже уважает узорную тему: иначе при выборе узора она одна
-  // оставалась бы с фотографией и выпадала из общего вида.
-  if (appearance?.patterned) {
-    const sc = appearance.schemeColors;
-    const tile = PATTERN_TILES[appearance.pattern];
-    return (
-      <LinearGradient colors={sc.bg} style={{ flex: 1 }}>
-        {tile ? (
-          <ImageBackground source={tile} resizeMode="repeat"
-            imageStyle={{ tintColor: `rgba(${sc.tint},0.10)` }} style={{ flex: 1 }}>
-            {body}
-          </ImageBackground>
-        ) : body}
-      </LinearGradient>
-    );
-  }
+  // Чтение суры идёт на спокойном фоне без узора и фотографии: длинный
+  // арабский текст плохо уживается с любым рисунком под ним — узор
+  // просвечивает между строк, фотография тянет внимание на себя.
+  return <ThemedBackground plain>{body}</ThemedBackground>;
 
-  return (
-    <ImageBackground source={readerBg} style={{ flex: 1 }} resizeMode="cover">
-      <LinearGradient colors={["rgba(14,26,42,0.55)", "rgba(14,26,42,0.80)"]} style={{ flex: 1 }}>
-        {body}
-      </LinearGradient>
-    </ImageBackground>
-  );
 }
-
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', padding: SPACING.sm, paddingHorizontal: SPACING.md },
   back: { width: 32, height: 40, justifyContent: 'center' },
@@ -256,8 +241,10 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', alignItems: 'center' },
   error: { ...TYPE.callout, color: COLORS.danger, textAlign: 'center', marginTop: SPACING.xxl },
 
-  ayahCard: { padding: SPACING.md, marginBottom: SPACING.md },
-  ayahActive: { borderColor: COLORS.glassBorder },
+  ayahCard: { paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
+    marginBottom: SPACING.lg, borderLeftWidth: 2, borderLeftColor: 'transparent' },
+  // Звучащий аят помечается линией слева: рамка вокруг вернула бы карточку.
+  ayahActive: { borderLeftColor: COLORS.accentSoft },
   ayahHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: SPACING.sm },
   ayahNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.surfaceActive,

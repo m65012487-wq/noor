@@ -156,7 +156,7 @@ export default function ReadingScreen() {
   const pct = ((globalRead / TOTAL_AYAHS) * 100).toFixed(1);
 
   return (
-    <ScreenWrapper slot="main" swipeHandlers={tabSwipe}>
+    <ScreenWrapper plain swipeHandlers={tabSwipe}>
       <SectionTitle>{t('reading_title')}</SectionTitle>
 
       {/* Surah name + ayah ref — always visible at top */}

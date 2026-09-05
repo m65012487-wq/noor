@@ -64,7 +64,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
     await ensurePermission();
     setNotifyCount(await countScheduled());
   }
-  const [openSection, setOpenSection] = useState('prayer');
+  // Все разделы свёрнуты при открытии: развёрнутый первый занимал экран
+  // и прятал остальные за прокруткой.
+  const [openSection, setOpenSection] = useState(null);
   const [alarmOn, setAlarmOn] = useState(false);
   const [alarmInt, setAlarmInt] = useState(5);
   React.useEffect(() => { (async () => {

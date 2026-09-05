@@ -20,48 +20,48 @@ const BACKGROUNDS = {
   cosmos_lesson: require('../../assets/backgrounds/cosmos_lesson.png'),
 };
 
-// `slot` picks which wallpaper from the current theme pack: 'main' | 'reader' | 'lesson'.
-// `slot` выбирает обои темы: 'main' | 'reader' | 'lesson'.
-// `bg` по-прежнему может задать картинку напрямую.
-export default function ScreenWrapper({ children, edges = ['top'], bg, slot = 'main', swipeHandlers }) {
-  // Хук вызывается безусловно. Раньше он стоял внутри try/catch — то есть
-  // условно, что нарушает правила хуков и ломает порядок между рендерами.
-  // Контекст и так отдаёт значения по умолчанию, если провайдера нет.
+// Фон по текущей теме. Раньше эта логика лежала в трёх местах: обёртке
+// экранов, читалке суры и плеере уроков — из-за чего обучение осталось
+// с фотографией, когда появились узорные темы.
+//
+// `plain` — спокойный градиент без узора и фотографии. Для длинного чтения
+// любой фон под текстом мешает: узор просвечивает между строк, фотография
+// тянет внимание на себя.
+export function ThemedBackground({ children, slot = 'main', plain = false, style }) {
   const appearance = useAppearance();
+  const patterned = !!appearance?.patterned;
+  const sc = appearance?.schemeColors;
 
-  const body = (
-    <SafeAreaView style={styles.safe} edges={edges}>
-      <View style={styles.inner} {...(swipeHandlers || {})}>{children}</View>
-    </SafeAreaView>
-  );
-
-  // Узорная тема: градиент схемы, поверх — бесшовная плитка, покрашенная
-  // тем же тоном. Плитка повторяется, а не растягивается, поэтому её вес
-  // не зависит от размера экрана: 256×256 на любой диагонали.
-  if (appearance?.patterned) {
-    const sc = appearance.schemeColors;
-    const tile = PATTERN_TILES[appearance.pattern];
+  if (plain) {
+    const colors = patterned && sc
+      ? sc.bg
+      : ['#16263b', '#101d2e', '#0b1522'];
     return (
-      <LinearGradient colors={sc.bg} style={styles.flex}>
-        {tile && (
-          <ImageBackground
-            source={tile}
-            resizeMode="repeat"
-            imageStyle={{ tintColor: `rgba(${sc.tint},0.14)` }}
-            style={styles.flex}
-          >
-            {body}
-          </ImageBackground>
-        )}
-        {!tile && body}
+      <LinearGradient colors={colors} locations={patterned ? undefined : [0, 0.5, 1]}
+        style={[styles.flex, style]}>
+        {children}
       </LinearGradient>
     );
   }
 
-  const key = bg || (appearance?.theme ? wallpaperFor(appearance.theme, slot) : undefined);
+  if (patterned && sc) {
+    const tile = PATTERN_TILES[appearance.pattern];
+    return (
+      <LinearGradient colors={sc.bg} style={[styles.flex, style]}>
+        {tile ? (
+          <ImageBackground source={tile} resizeMode="repeat"
+            imageStyle={{ tintColor: `rgba(${sc.tint},0.14)` }} style={styles.flex}>
+            {children}
+          </ImageBackground>
+        ) : children}
+      </LinearGradient>
+    );
+  }
+
+  const key = appearance?.theme ? wallpaperFor(appearance.theme, slot) : undefined;
   const source = BACKGROUNDS[key] || BACKGROUNDS.main;
   return (
-    <ImageBackground source={source} style={styles.flex} resizeMode="cover">
+    <ImageBackground source={source} style={[styles.flex, style]} resizeMode="cover">
       {/* Затемнение, чтобы матовое стекло и светлый текст читались на любой
           фотографии. Внизу плотнее — там висит плавающая панель вкладок. */}
       <LinearGradient
@@ -69,9 +69,23 @@ export default function ScreenWrapper({ children, edges = ['top'], bg, slot = 'm
         locations={[0, 0.55, 1]}
         style={styles.flex}
       >
-        {body}
+        {children}
       </LinearGradient>
     </ImageBackground>
+  );
+}
+
+// `slot` выбирает обои темы: 'main' | 'reader' | 'lesson'.
+// `plain` включает спокойный фон без узора — для экранов чтения.
+export default function ScreenWrapper({
+  children, edges = ['top'], slot = 'main', plain = false, swipeHandlers,
+}) {
+  return (
+    <ThemedBackground slot={slot} plain={plain}>
+      <SafeAreaView style={styles.safe} edges={edges}>
+        <View style={styles.inner} {...(swipeHandlers || {})}>{children}</View>
+      </SafeAreaView>
+    </ThemedBackground>
   );
 }
 

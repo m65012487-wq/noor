@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, ImageBackground } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
@@ -7,41 +7,25 @@ import GlassView from '../components/GlassView';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { COURSE } from '../constants/course';
 import { buildLesson, completeLesson, starsFor } from '../utils/courseEngine';
-import { useAppearance, wallpaperFor } from '../utils/AppearanceContext';
+import { useAppearance } from '../utils/AppearanceContext';
 import { speakArabic, stopSpeech } from '../utils/speech';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
-
-const LESSON_BACKGROUNDS = {
-  main: require('../../assets/backgrounds/main.png'),
-  alt1: require('../../assets/backgrounds/alt1.png'),
-  alt2: require('../../assets/backgrounds/alt2.png'),
-  dawn: require('../../assets/backgrounds/dawn.png'),
-  clouds: require('../../assets/backgrounds/clouds.png'),
-  garden_main: require('../../assets/backgrounds/garden_main.png'),
-  garden_reader: require('../../assets/backgrounds/garden_reader.png'),
-  garden_lesson: require('../../assets/backgrounds/garden_lesson.png'),
-  cosmos_main: require('../../assets/backgrounds/cosmos_main.png'),
-  cosmos_reader: require('../../assets/backgrounds/cosmos_reader.png'),
-  cosmos_lesson: require('../../assets/backgrounds/cosmos_lesson.png'),
-};
+import { ThemedBackground } from '../components/ScreenWrapper';
 
 function LessonBg({ children }) {
   const insets = useSafeAreaInsets();
   const appearance = useAppearance();
   const accent = appearance?.accent || COLORS.accentSoft;
-  const bgKey = wallpaperFor(appearance?.theme || 'main', 'lesson');
-  const src = LESSON_BACKGROUNDS[bgKey] || LESSON_BACKGROUNDS.main;
   // Dynamic Island needs real clearance; modals sometimes report 0 inset,
   // so guarantee a generous minimum.
   const topPad = Math.max(insets.top, 56);
   return (
-    <ImageBackground source={src} style={{ flex: 1 }} resizeMode="cover">
-      <LinearGradient colors={['rgba(14,26,42,0.30)', 'rgba(14,26,42,0.52)', 'rgba(14,26,42,0.68)']}
-        locations={[0, 0.5, 1]} style={{ flex: 1 }}>
-        <View style={[styles.container, { paddingTop: topPad }]}>{children}</View>
-      </LinearGradient>
-    </ImageBackground>
+    // Общий фон вместо собственного: раньше плеер уроков рисовал обои сам
+    // и оставался с фотографией, когда выбрана узорная тема.
+    <ThemedBackground slot="lesson">
+      <View style={[styles.container, { paddingTop: topPad }]}>{children}</View>
+    </ThemedBackground>
   );
 }
 

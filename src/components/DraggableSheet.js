@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Modal, View, Text, Animated, PanResponder, StyleSheet, Dimensions,  TouchableWithoutFeedback, Keyboard, LayoutAnimation, Platform, UIManager } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { Modal, View, Text, Animated, PanResponder, StyleSheet, Dimensions,  TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,10 @@ import { GlassView as NativeGlass } from 'expo-glass-effect';
 import { LIQUID_GLASS } from './GlassView';
 
 const SCREEN_H = Dimensions.get('window').height;
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {  UIManager.setLayoutAnimationEnabledExperimental(true);}
+
+// Насколько стекло продлевается ниже края экрана. Клавиатуры на всех
+// актуальных iPhone ниже этого значения, включая панель автодополнения.
+const KEYBOARD_EXTRA = 420;
 
 // Матовая нижняя шторка. Неподвижная верхняя зона (полоска и заголовок) —
 // область перетаскивания: она вынесена из списка, поэтому PanResponder
@@ -25,36 +28,34 @@ export default function DraggableSheet({
   const translateY = useRef(new Animated.Value(SCREEN_H)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const dragStart = useRef(0);
-
-  // Высота клавиатуры. Раньше шторку поднимал KeyboardAvoidingView, но она
-  // прижата к низу экрана: при подъёме под ней открывалась полоса без фона
-  // и без скругления — тот самый обрезанный кусочек. Теперь шторка остаётся
-  // на месте, а её нижний отступ вырастает на высоту клавиатуры: содержимое
-  // выходит наверх, а стекло продолжает закрывать всё до края экрана.
-  const [keyboardH, setKeyboardH] = useState(0);
+  // Подъём над клавиатурой. Первая попытка прибавляла высоту клавиатуры
+  // к нижнему отступу — и шторка пропадала: у неё overflow hidden, коробка
+  // становилась выше экрана, а содержимое прижато к её верху и уезжало
+  // за верхнюю границу. Видимой оставалась одна пустая набивка.
+  //
+  // Правильно не растить коробку, а поднимать её целиком. Чтобы под ней
+  // не открывалась полоса без фона, стекло продлено на EXTRA вниз:
+  // отрицательный marginBottom опускает коробку, равный ему paddingBottom
+  // возвращает содержимое на место.
+  const kbLift = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!keyboardAvoiding) return undefined;
-    // willShow/willHide на iOS приходят до начала анимации клавиатуры,
-    // поэтому отступ меняется синхронно с ней, а не догоняет её.
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    // willShow на iOS приходит до начала анимации клавиатуры, поэтому
+    // подъём идёт синхронно с ней, а не догоняет её.
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const lift = (to, duration) => {
+      Animated.timing(kbLift, {
+        toValue: to, duration: duration || 250, useNativeDriver: true,
+      }).start();
+    };
     const show = Keyboard.addListener(showEvent, (e) => {
-      LayoutAnimation.configureNext({
-        duration: e.duration || 250,
-        update: { type: LayoutAnimation.Types.keyboard },
-      });
-      setKeyboardH(e.endCoordinates?.height || 0);
+      lift(-(e.endCoordinates?.height || 0), e.duration);
     });
-    const hide = Keyboard.addListener(hideEvent, (e) => {
-      LayoutAnimation.configureNext({
-        duration: e?.duration || 250,
-        update: { type: LayoutAnimation.Types.keyboard },
-      });
-      setKeyboardH(0);
-    });
+    const hide = Keyboard.addListener(hideEvent, (e) => lift(0, e?.duration));
     return () => { show.remove(); hide.remove(); };
-  }, [keyboardAvoiding]);
+  }, [keyboardAvoiding, kbLift]);
   useEffect(() => {
     if (visible) {
       Animated.parallel([
@@ -106,12 +107,13 @@ export default function DraggableSheet({
   const sheet = (
     <Animated.View
       style={[styles.sheetWrap,
-        // Клавиатура прибавляется к высоте и к нижнему отступу: содержимое
-        // уходит наверх, а стекло по-прежнему доходит до края экрана.
-        { maxHeight: SHEET_MAX + keyboardH,
-          paddingBottom: (keyboardH > 0 ? SPACING.md : insets.bottom + SPACING.md) + keyboardH,
-          transform: [{ translateY }] }]}>
-
+        // Коробка опущена на EXTRA и на столько же добита отступом: стекло
+        // уходит ниже края экрана, поэтому при подъёме над клавиатурой под
+        // шторкой не открывается полоса без фона и без скругления.
+        { maxHeight: SHEET_MAX + KEYBOARD_EXTRA,
+          marginBottom: -KEYBOARD_EXTRA,
+          paddingBottom: KEYBOARD_EXTRA + insets.bottom + SPACING.md,
+          transform: [{ translateY: Animated.add(translateY, kbLift) }] }]}>
       {LIQUID_GLASS ? (
         <NativeGlass glassEffectStyle="regular"
           style={[StyleSheet.absoluteFill, styles.clip]} pointerEvents="none" />
