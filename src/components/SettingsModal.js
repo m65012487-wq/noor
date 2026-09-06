@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet,
+  LayoutAnimation, Platform, UIManager } from 'react-native';
 import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
@@ -51,6 +52,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const tintRgb = tint || '180,215,230';
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
   const [previewing, setPreviewing] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
   // Все разделы свёрнуты при открытии: развёрнутый первый занимал экран
   // и прятал остальные за прокруткой.
   const [openSection, setOpenSection] = useState(null);
@@ -65,13 +67,23 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
     setOpenSection((cur) => (cur === id ? null : id));
   }
 
+  // Три состояния вместо двух: удалённый файл сначала грузится, и раньше
+  // кнопка сразу показывала «пауза», хотя ничего ещё не звучало. При сбое
+  // сети состояние залипало навсегда — ошибка глушилась молча.
   async function preview(item) {
     if (!item.url) return;
-    if (previewing === item.id) { await stopAudio(); setPreviewing(null); return; }
-    setPreviewing(item.id);
-    await playUrl(item.url, () => setPreviewing(null));
+    if (previewing === item.id || loadingId === item.id) {
+      await stopAudio();
+      setPreviewing(null);
+      setLoadingId(null);
+      return;
+    }
+    setLoadingId(item.id);
+    const ok = await playUrl(item.url, () => setPreviewing(null));
+    setLoadingId(null);
+    setPreviewing(ok ? item.id : null);
   }
-  function close() { stopAudio(); setPreviewing(null); onClose(); }
+  function close() { stopAudio(); setPreviewing(null); setLoadingId(null); onClose(); }
 
   return (
     <DraggableSheet visible={visible} onClose={close} title={t('general_settings')}>
@@ -98,9 +110,12 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
                 </Text>
               </TouchableOpacity>
               {a.url && (
-                <TouchableOpacity onPress={() => preview(a)} style={styles.previewBtn}>
-                  <Icon name={previewing === a.id ? 'pause' : 'play'} size={12} color={COLORS.accentSoft} />
-                  <Text style={styles.previewText}>  {t('preview')}</Text>
+                <TouchableOpacity onPress={() => preview(a)} style={styles.previewBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  {loadingId === a.id
+                    ? <ActivityIndicator size="small" color={COLORS.accentSoft} />
+                    : <Icon name={previewing === a.id ? 'pause' : 'play'}
+                        size={16} color={COLORS.accentSoft} />}
                 </TouchableOpacity>
               )}
               {adhanSound === a.id && !a.url && <Icon name="check" size={17} color={COLORS.white} />}
@@ -226,8 +241,11 @@ const styles = StyleSheet.create({
   rowTextActive: { color: COLORS.white, fontWeight: '700' },
   check: { ...TYPE.subhead, color: COLORS.white, fontWeight: '900', marginLeft: SPACING.sm },
 
-  previewBtn: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.pill, backgroundColor: COLORS.surfaceStrong },
+  // Круглая кнопка вместо подписи «Прослушать»: значка достаточно,
+  // а квадрат 34 точки удобнее попадается пальцем, чем текстовая плашка.
+  previewBtn: { width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.surfaceStrong },
   previewText: { ...TYPE.caption, color: COLORS.accentSoft, fontWeight: '600' },
 
   goalRow: { flexDirection: 'row', justifyContent: 'space-between' },

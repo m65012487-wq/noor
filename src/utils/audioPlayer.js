@@ -16,7 +16,7 @@ export async function playUrl(url, onFinish) {
     // If a newer play started while we were loading, discard this one.
     if (myToken !== playToken) {
       try { await s.unloadAsync(); } catch {}
-      return;
+      return false;
     }
     sound = s;
     s.setOnPlaybackStatusUpdate((status) => {
@@ -27,8 +27,11 @@ export async function playUrl(url, onFinish) {
         try { s.unloadAsync(); } catch {}
       }
     });
-  } catch (e) {
-    // playback failed silently
+    return true;
+  } catch {
+    // Возвращаем неудачу вместо молчания: вызывающий код иначе оставлял
+    // кнопку в состоянии «играет», хотя ничего не началось.
+    return false;
   }
 }
 
