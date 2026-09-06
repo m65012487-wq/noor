@@ -36,7 +36,16 @@
     },
     "plugins": [
       "expo-location",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/chime.wav",
+            "./assets/sounds/bell.wav",
+            "./assets/sounds/soft.wav"
+          ]
+        }
+      ],
       "expo-font",
       [
         "expo-splash-screen",

@@ -5,7 +5,7 @@ import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
-import { useAppSettings } from '../utils/AppSettingsContext';
+import { useAppSettings, NOTIF_SOUNDS } from '../utils/AppSettingsContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
@@ -45,7 +45,7 @@ function Section({ id, icon, title, open, onToggle, children }) {
 
 export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
-  const { adhanSound, chooseAdhan,
+  const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
     fontSet, chooseFontSet, FONT_SETS,
@@ -100,6 +100,15 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
           {ASR_SCHOOLS.map((m) => (
             <Opt key={m.id} label={lang === 'ru' ? m.label_ru : m.label_en}
               active={asrSchool === m.id} onPress={() => chooseAsrSchool(m.id)} activeBg={activeBg} />
+          ))}
+
+          {/* Звук уведомления и азан — разные вещи: азан звучит в приложении,
+              а в уведомление iOS пускает только короткий файл из бандла. */}
+          <Text style={styles.label}>{t('notif_sound')}</Text>
+          {NOTIF_SOUNDS.map((sn) => (
+            <Opt key={sn.id} label={lang === 'ru' ? sn.label_ru : sn.label_en}
+              active={notifSound === sn.id} onPress={() => chooseNotifSound(sn.id)}
+              activeBg={activeBg} />
           ))}
 
           <Text style={styles.label}>{t('adhan_sound')}</Text>

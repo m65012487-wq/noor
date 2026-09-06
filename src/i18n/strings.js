@@ -42,6 +42,13 @@ export const STRINGS = {
     minutes_before: 'min before',
     no_reminder: 'Off',
     at_adhan: 'At adhan time',
+    // Тексты уведомлений отдельно от подписей кнопок: «В момент азана»
+    // и «мин до» — это варианты выбора в настройках, а в самом уведомлении
+    // они читались как обрывок фразы.
+    notif_sound: 'Notification sound',
+    notif_now: 'Time to pray',
+    notif_in: 'In {n} min',
+    notif_sunrise: 'Fajr time is over',
     customize: 'Customize',
     sound: 'Sound',
     preview: 'Preview',
@@ -212,6 +219,10 @@ export const STRINGS = {
     minutes_before: 'мин до',
     no_reminder: 'Выкл',
     at_adhan: 'В момент азана',
+    notif_sound: 'Звук уведомления',
+    notif_now: 'Время намаза',
+    notif_in: 'Через {n} мин',
+    notif_sunrise: 'Время фаджра вышло',
     customize: 'Настроить',
     sound: 'Звук',
     preview: 'Прослушать',

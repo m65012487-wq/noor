@@ -15,7 +15,11 @@ export const PATTERNS = [
   { id: 'stars',  label_en: 'Khatam',  label_ru: 'Хатам' },
   { id: 'bloom',  label_en: 'Bloom',   label_ru: 'Цветок' },
   { id: 'girih',  label_en: 'Girih',   label_ru: 'Гирих' },
-  { id: 'scales', label_en: 'Domes',   label_ru: 'Купола' },
+  { id: 'scales', label_en: 'Domes',    label_ru: 'Купола' },
+  { id: 'dunes',    label_en: 'Dunes',    label_ru: 'Барханы' },
+  { id: 'arches',   label_en: 'Arches',   label_ru: 'Арки' },
+  { id: 'lanterns', label_en: 'Lanterns', label_ru: 'Фонари' },
+  { id: 'swords',   label_en: 'Sabres',   label_ru: 'Сабли' },
 ];
 
 export const PATTERN_TILES = {
@@ -23,6 +27,10 @@ export const PATTERN_TILES = {
   bloom: require('../../assets/patterns/bloom.png'),
   girih: require('../../assets/patterns/girih.png'),
   scales: require('../../assets/patterns/scales.png'),
+  dunes: require('../../assets/patterns/dunes.png'),
+  arches: require('../../assets/patterns/arches.png'),
+  lanterns: require('../../assets/patterns/lanterns.png'),
+  swords: require('../../assets/patterns/swords.png'),
 };
 
 // Монохромные схемы: каждая держится одного тона, меняется только светлота.

@@ -19,7 +19,7 @@ import { useLang } from '../i18n/LanguageContext';
 import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
 import { useLocation } from '../utils/LocationContext';
-import { useAppSettings } from '../utils/AppSettingsContext';
+import { useAppSettings, notifSoundFile } from '../utils/AppSettingsContext';
 import { scheduleFajrAlarm, markAwake, isInAlarmWindow, getFajrAlarmSettings } from '../utils/fajrAlarm';
 
 // Восход стоит между фаджром и зухром: он завершает время утренней молитвы,
@@ -35,7 +35,7 @@ export default function PrayerTimesScreen() {
   const swipe = useTabSwipe('Prayer');
   const { accent } = useAppearance();
   const { coords } = useLocation();
-  const { reminders, timeSourceId, asrSchool } = useAppSettings();
+  const { reminders, timeSourceId, asrSchool, notifSound } = useAppSettings();
   const [timings, setTimings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -103,15 +103,18 @@ export default function PrayerTimesScreen() {
         lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool, date,
       }),
       reminders,
+      sound: notifSoundFile(notifSound),
       label: (p) => prayerName(p, lang),
-      // Название намаза добавляется в текст: заголовок уведомления на
-      // заблокированном экране часто урезается, и оставалось голое
-      // «10 мин до» без указания, до чего именно.
-      body: (p, minutes) => (minutes === 0
-        ? (p === "Sunrise" ? t("sunrise_now") : t("at_adhan"))
-        : `${minutes} ${t("minutes_before")} ${prayerName(p, lang)}`),
+      // Заголовок — имя намаза, тело — что происходит. Раньше в тело
+      // попадали подписи кнопок настроек («В момент азана», «мин до»),
+      // и уведомление читалось как обрывок фразы из другого места.
+      body: (p, minutes) => {
+        if (p === "Sunrise") return t("notif_sunrise");
+        if (minutes === 0) return t("notif_now");
+        return t("notif_in").replace("{n}", String(minutes));
+      },
     });
-  }, [coords, reminders, timeSourceId, asrSchool, lang, t]);
+  }, [coords, reminders, timeSourceId, asrSchool, lang, t, notifSound]);
   async function load() {
     setLoading(true); setError(null); setTimings(null);
     try {

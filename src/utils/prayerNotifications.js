@@ -69,7 +69,7 @@ function timeToDate(hhmm, day) {
  * @returns {Promise<number>} сколько уведомлений поставлено
  */
 export async function schedulePrayerReminders({
-  timesForDate, reminders, label, body, days = 4,
+  timesForDate, reminders, label, body, sound, days = 4,
 }) {
   await cancelPrayerReminders();
 
@@ -122,7 +122,9 @@ export async function schedulePrayerReminders({
         content: {
           title: label(item.prayer),
           body: body(item.prayer, item.minutesBefore),
-          sound: true,
+          // Имя файла вместо true: iOS проигрывает звук из бандла,
+          // а true даёт системный по умолчанию.
+          sound: sound || true,
           data: { tag: TAG, prayer: item.prayer },
         },
         trigger: { type: SchedulableTriggerInputTypes.DATE, date: item.fireAt },

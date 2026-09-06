@@ -65,50 +65,59 @@ func upcoming(in day: PrayerDay, now: Date = Date()) -> PrayerEntryData? {
     return day.times.first { $0.key != "Sunrise" }
 }
 
+// Ближайшие несколько молитв подряд, с переходом на завтра.
+// Без переноса вечером список обрывался: после ночной молитвы в сутках
+// ничего не остаётся, и виджет показывал одну строку.
+func upcomingList(in day: PrayerDay, count: Int, now: Date = Date()) -> [PrayerEntryData] {
+    let prayers = day.times.filter { $0.key != "Sunrise" }
+    guard !prayers.isEmpty else { return [] }
+
+    let formatter = DateFormatter()
+    formatter.dateFormat = "HH:mm"
+    let calendar = Calendar.current
+
+    var startIndex = 0
+    for (index, item) in prayers.enumerated() {
+        guard let parsed = formatter.date(from: item.time) else { continue }
+        let parts = calendar.dateComponents([.hour, .minute], from: parsed)
+        guard let at = calendar.date(
+            bySettingHour: parts.hour ?? 0, minute: parts.minute ?? 0, second: 0, of: now
+        ) else { continue }
+        if at > now { startIndex = index; break }
+        startIndex = (index + 1) % prayers.count
+    }
+
+    return (0..<min(count, prayers.count)).map { prayers[(startIndex + $0) % prayers.count] }
+}
+
 // MARK: - Экран блокировки
 
 // accessoryRectangular — единственное семейство на locked-экране, где помещается
-// связный текст: примерно три строки. Показываем ближайший намаз и две
-// соседние строки расписания, чтобы виджет отвечал на вопрос «когда»,
-// а не просто называл время.
+// связный текст: примерно три строки. Показываем три ближайшие молитвы, первую
+// выделяя: виджет должен отвечать на вопрос «когда», а не просто называть время.
 struct LockView: View {
     let day: PrayerDay
 
     var body: some View {
-        let next = upcoming(in: day)
-        VStack(alignment: .leading, spacing: 1) {
-            HStack(spacing: 4) {
-                Image(systemName: "moon.stars")
-                    .font(.caption2)
-                Text(next?.name ?? "—")
-                    .font(.headline)
-                Spacer(minLength: 0)
-                Text(next?.time ?? "--:--")
-                    .font(.headline)
-                    .monospacedDigit()
-            }
-            ForEach(rest(), id: \.key) { item in
+        let items = upcomingList(in: day, count: 3)
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                 HStack(spacing: 4) {
+                    if index == 0 {
+                        Image(systemName: "moon.stars")
+                            .font(.caption2)
+                    }
                     Text(item.name)
-                        .font(.caption2)
-                    Spacer(minLength: 0)
+                        .font(index == 0 ? .headline : .caption)
+                    Spacer(minLength: 2)
                     Text(item.time)
-                        .font(.caption2)
+                        .font(index == 0 ? .headline : .caption)
                         .monospacedDigit()
                 }
+                .opacity(index == 0 ? 1 : 0.7)
             }
         }
         .widgetURL(URL(string: "noor://prayer"))
-    }
-
-    // Две ближайшие строки после текущей: больше на экране блокировки
-    // не помещается, а обрезанный список читается как сбой.
-    private func rest() -> [PrayerEntryData] {
-        guard let next = upcoming(in: day),
-              let index = day.times.firstIndex(where: { $0.key == next.key })
-        else { return [] }
-        let tail = day.times.dropFirst(index + 1)
-        return Array(tail.prefix(2))
     }
 }
 
@@ -121,42 +130,42 @@ struct HomeView: View {
     var body: some View {
         let next = upcoming(in: day)
 
-        if family == .systemSmall {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(next?.name ?? "—")
-                    .font(.system(.headline, design: .rounded))
-                Text(next?.time ?? "--:--")
-                    .font(.system(size: 34, weight: .light, design: .rounded))
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Text(day.city)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            // Средний и большой размеры показывают весь день целиком:
-            // ради этого виджет и ставят на домашний экран.
-            VStack(spacing: 3) {
-                ForEach(day.times, id: \.key) { item in
-                    let isNext = item.key == next?.key
-                    HStack {
-                        Text(item.name)
-                            .font(.system(.subheadline, design: .rounded))
-                            .fontWeight(isNext ? .bold : .regular)
-                        Spacer(minLength: 8)
-                        Text(item.time)
-                            .font(.system(.subheadline, design: .rounded))
-                            .fontWeight(isNext ? .bold : .regular)
-                            .monospacedDigit()
-                    }
-                    // Восход приглушён: он в списке для ориентира,
-                    // а не как время молитвы.
-                    .foregroundStyle(item.key == "Sunrise" ? .secondary : .primary)
+        // Все времена помещаются и в малый квадрат: шесть строк мелким
+        // кеглем читаются, а виджет с одним намазом заставляет открывать
+        // приложение ради остальных — то есть не выполняет свою работу.
+        VStack(spacing: family == .systemSmall ? 1 : 3) {
+            if family != .systemSmall {
+                HStack {
+                    Text(day.city)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
                 }
+                .padding(.bottom, 2)
+            }
+
+            ForEach(day.times, id: \.key) { item in
+                let isNext = item.key == next?.key
+                HStack(spacing: 4) {
+                    Text(item.name)
+                        .font(family == .systemSmall
+                              ? .system(size: 12, design: .rounded)
+                              : .system(.subheadline, design: .rounded))
+                        .fontWeight(isNext ? .bold : .regular)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Spacer(minLength: 4)
+                    Text(item.time)
+                        .font(family == .systemSmall
+                              ? .system(size: 12, design: .rounded)
+                              : .system(.subheadline, design: .rounded))
+                        .fontWeight(isNext ? .bold : .regular)
+                        .monospacedDigit()
+                }
+                // Восход приглушён: он в списке для ориентира,
+                // а не как время молитвы.
+                .foregroundStyle(item.key == "Sunrise" ? .secondary : .primary)
             }
         }
     }
