@@ -19,6 +19,22 @@ import { useFocusEffect } from '@react-navigation/native';
 const DISC = 300;
 const NEEDLE_LEN = DISC / 2 - 34;
 
+// Буквы сторон света ставятся тем же приёмом, что и насечки: обёртка во весь
+// диск поворачивается на нужный угол, а буква лежит у её верхнего края. Так
+// каждая буква разворачивается по своему радиусу, как на картушке настоящего
+// компаса.
+//
+// Раньше они были расставлены абсолютными отступами и оставались стоять прямо:
+// «E» и «W» ложились поперёк своего радиуса, а отступы у всех четырёх были
+// разные (42, 26, 24, 24), поэтому буквы сидели на разном удалении от обода.
+const CARDINALS = [
+  { label: 'N', angle: 0 },
+  { label: 'E', angle: 90 },
+  { label: 'S', angle: 180 },
+  { label: 'W', angle: 270 },
+];
+
+
 export default function QiblaScreen() {
   const { t } = useLang();
   const { coords } = useLocation();
@@ -177,10 +193,12 @@ export default function QiblaScreen() {
                   <View style={styles.northMark}>
                     <View style={styles.northTri} />
                   </View>
-                  <Text style={[styles.card, styles.cardN]}>N</Text>
-                  <Text style={[styles.card, styles.cardS]}>S</Text>
-                  <Text style={[styles.card, styles.cardE]}>E</Text>
-                  <Text style={[styles.card, styles.cardW]}>W</Text>
+                  {CARDINALS.map((c) => (
+                    <View key={c.label}
+                      style={[styles.cardWrap, { transform: [{ rotate: `${c.angle}deg` }] }]}>
+                      <Text style={styles.card}>{c.label}</Text>
+                    </View>
+                  ))}
                 </Animated.View>
 
                 {/* Стрелка на Каабу: узкий луч и точка на ободе */}
@@ -260,11 +278,11 @@ const styles = StyleSheet.create({
   northTri: { width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderBottomWidth: 12,
     borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: COLORS.danger },
 
-  card: { ...TYPE.caption, position: 'absolute', color: COLORS.text, fontWeight: '700' },
-  cardN: { top: 42 },
-  cardS: { bottom: 26 },
-  cardE: { right: 24 },
-  cardW: { left: 24 },
+  // Обёртка во весь диск: буква прижата к её верхнему краю и уезжает вместе
+  // с поворотом. Отступ 40 разводит букву с треугольником севера (он занимает
+  // 26–38) и оставляет её внутри насечек.
+  cardWrap: { position: 'absolute', width: DISC, height: DISC, alignItems: 'center' },
+  card: { ...TYPE.caption, color: COLORS.text, fontWeight: '700', marginTop: 40 },
 
   needleLayer: { position: 'absolute', width: DISC, height: DISC,
     alignItems: 'center', justifyContent: 'center' },
