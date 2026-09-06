@@ -23,7 +23,7 @@ export default function DraggableSheet({
   contentContainerStyle, keyboardAvoiding = false,
 }) {
   const insets = useSafeAreaInsets();
-  const { tint, glassOpacity } = useAppearance();
+  const { tint } = useAppearance();
   const SHEET_MAX = SCREEN_H * maxHeightPct;
   const translateY = useRef(new Animated.Value(SCREEN_H)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -100,7 +100,7 @@ export default function DraggableSheet({
     })
   ).current;
 
-  const base = glassOpacity != null ? glassOpacity : 0.07;
+  const base = 0.08;
   const rgb = tint || '150,200,225';
   const blurI = Math.round(34 + base * 120);
 

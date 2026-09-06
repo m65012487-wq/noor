@@ -22,9 +22,9 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
   // менял их число между рендерами и ронял приложение с «Rendered more hooks
   // than during the previous render» при входе в чтение суры.
   const insets = useSafeAreaInsets();
-  const { glassOpacity, tint, accent } = useAppearance();
+  const { tint, accent } = useAppearance();
   const rgb = tint || '150,200,225';
-  const base = glassOpacity != null ? glassOpacity : 0.07;
+  const base = 0.08;
   const count = state.routes.length;
   const ISLAND_W = Math.min(width - 32, 360);
   const SLOT = ISLAND_W / count;

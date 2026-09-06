@@ -10,12 +10,16 @@ import { useAppearance } from '../utils/AppearanceContext';
 // а не на каждый рендер каждой карточки.
 export const LIQUID_GLASS = isLiquidGlassAvailable();
 
+// Плотность стекла раньше настраивалась ползунком «Прозрачность». Настройка
+// убрана: она меняла вид всех экранов сразу и на краях диапазона делала
+// интерфейс либо нечитаемым, либо мутным. Значение зафиксировано.
+const BASE = 0.08;
+
 // Стеклянная поверхность приложения.
 //
 // На iOS 26 и новее используется системный Liquid Glass: он сам преломляет
 // и подсвечивает то, что под ним, и реагирует на движение устройства.
-// На более старых системах остаётся прежняя ручная сборка из блюра и двух
-// градиентов — она выглядит близко, но не умеет ни преломления, ни бликов.
+// На более старых системах остаётся ручная сборка из блюра и двух градиентов.
 //
 // Слои фона никогда не перехватывают касания. `flat` пропускает блюр:
 // в длинных списках десяток BlurView заметно роняет прокрутку.
@@ -24,18 +28,14 @@ export default function GlassView({
   azure = false, noBorder = false, clip = false, flat = false,
   interactive = false,
 }) {
-  const { glassOpacity, tint } = useAppearance();
-  const base = glassOpacity != null ? glassOpacity : 0.07;
-  const rgb = tint || '150,200,225';
+  const { tint } = useAppearance();
+  const rgb = tint || '190,205,220';
 
   if (LIQUID_GLASS) {
-    // Прозрачность из настроек управляет плотностью подложки: на «clear»
-    // стекло почти невидимо, на «regular» заметно матовое.
-    const dense = base >= 0.10;
     return (
       <NativeGlass
-        glassEffectStyle={dense ? 'regular' : 'clear'}
-        tintColor={azure ? `rgba(${rgb},${(base + 0.06).toFixed(3)})` : undefined}
+        glassEffectStyle="regular"
+        tintColor={azure ? `rgba(${rgb},0.14)` : undefined}
         isInteractive={interactive}
         style={[styles.wrap, { borderRadius: radius }, style]}
       >
@@ -45,12 +45,12 @@ export default function GlassView({
   }
 
   const fillTop = azure
-    ? `rgba(${rgb},${Math.min(0.34, base + 0.10).toFixed(3)})`
-    : `rgba(255,255,255,${Math.min(0.26, base + 0.06).toFixed(3)})`;
+    ? `rgba(${rgb},0.18)`
+    : `rgba(255,255,255,${(BASE + 0.06).toFixed(3)})`;
   const fillBottom = azure
-    ? `rgba(${rgb},${Math.min(0.22, base + 0.02).toFixed(3)})`
-    : `rgba(255,255,255,${base.toFixed(3)})`;
-  const blurI = intensity != null ? intensity : Math.round(28 + base * 120);
+    ? `rgba(${rgb},0.10)`
+    : `rgba(255,255,255,${BASE.toFixed(3)})`;
+  const blurI = intensity != null ? intensity : 38;
 
   return (
     <View style={[styles.wrap, { borderRadius: radius }, clip && { overflow: 'hidden' }, style]}>

@@ -5,8 +5,10 @@ import { Card, SectionTitle, Subtitle } from '../components/ui';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { VERSES_OF_THE_DAY } from '../constants/content';
 import { loadJSON, saveJSON, todayKey } from '../utils/helpers';
+import { useAppearance } from '../utils/AppearanceContext';
 
 export default function VerseScreen({ onRead }) {
+  const { fonts } = useAppearance();
   const [readToday, setReadToday] = useState(false);
 
   // Pick a verse deterministically by day so it stays the same all day.
@@ -34,7 +36,7 @@ export default function VerseScreen({ onRead }) {
 
       <Card style={styles.verseCard}>
         <Text style={styles.ar}>{verse.ar}</Text>
-        <Text style={styles.en}>{verse.en}</Text>
+        <Text style={[styles.en, { fontFamily: fonts?.reading }]}>{verse.en}</Text>
         <Text style={styles.ref}>{verse.ref}</Text>
       </Card>
 

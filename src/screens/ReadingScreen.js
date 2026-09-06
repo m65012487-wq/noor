@@ -8,6 +8,7 @@ import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme
 import { getSurahList, getSurah, getSurahAudio } from '../utils/quranApi';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
 import { useLang } from '../i18n/LanguageContext';
+import { useAppearance } from '../utils/AppearanceContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
 import { loadJSON, saveJSON, todayKey, dayDiff } from '../utils/helpers';
 import { surahMeaning } from '../constants/surahNames';
@@ -18,6 +19,7 @@ import { useTabSwipe } from '../utils/useTabSwipe';
 const TOTAL_AYAHS = 6236;
 
 export default function ReadingScreen() {
+  const { fonts } = useAppearance();
   const { t, lang } = useLang();
   const { translationId, reciterId, showArabic, showTranslit, showTranslation } = useQuranPrefs();
   const { dailyGoal } = useAppSettings();
@@ -197,8 +199,12 @@ export default function ReadingScreen() {
             <GlassView radius={RADIUS.lg} style={{ flex: 1 }}>
               <ScrollView contentContainerStyle={styles.ayahScroll} showsVerticalScrollIndicator={false}>
                 {showArabic && <Text style={styles.ar}>{ayah.ar}</Text>}
-                {showTranslit && !!ayah.tr && <Text style={styles.tr}>{ayah.tr}</Text>}
-                {showTranslation && <Text style={styles.en}>{ayah.en}</Text>}
+                {showTranslit && !!ayah.tr && (
+                  <Text style={[styles.tr, { fontFamily: fonts?.reading }]}>{ayah.tr}</Text>
+                )}
+                {showTranslation && (
+                  <Text style={[styles.en, { fontFamily: fonts?.reading }]}>{ayah.en}</Text>
+                )}
                 <TouchableOpacity style={styles.listenBtn} onPress={listen}>
                   <Icon name={playing ? 'pause' : 'play'} size={16} color={COLORS.text} />
                   <Text style={styles.listenText}>  {playing ? t('stop') : t('preview')}</Text>

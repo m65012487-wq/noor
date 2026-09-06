@@ -14,28 +14,15 @@ import { useLang } from '../i18n/LanguageContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
 import { setLastRead, getBookmarks, toggleBookmark, getFontScale, setFontScale } from '../utils/quranProgress';
 import { surahMeaning } from '../constants/surahNames';
-import { useAppearance, wallpaperFor, PATTERN_TILES } from '../utils/AppearanceContext';
+import { useAppearance } from '../utils/AppearanceContext';
 
-const READER_BG = {
-  main: require('../../assets/backgrounds/main.png'),
-  alt1: require('../../assets/backgrounds/alt1.png'),
-  alt2: require('../../assets/backgrounds/alt2.png'),
-  dawn: require('../../assets/backgrounds/dawn.png'),
-  clouds: require('../../assets/backgrounds/clouds.png'),
-  garden_main: require('../../assets/backgrounds/garden_main.png'),
-  garden_reader: require('../../assets/backgrounds/garden_reader.png'),
-  garden_lesson: require('../../assets/backgrounds/garden_lesson.png'),
-  cosmos_main: require('../../assets/backgrounds/cosmos_main.png'),
-  cosmos_reader: require('../../assets/backgrounds/cosmos_reader.png'),
-  cosmos_lesson: require('../../assets/backgrounds/cosmos_lesson.png'),
-};
 
 export default function SurahReaderScreen({ route, navigation }) {
   const { surah, jumpToAyah } = route.params;
   const { t, lang } = useLang();
   const { translationId, reciterId, showArabic, showTranslit, showTranslation, wordByWord } = useQuranPrefs();
   const appearance = useAppearance();
-  const readerBg = READER_BG[wallpaperFor(appearance?.theme || 'main', 'reader')] || READER_BG.main;
+  const fonts = appearance?.fonts;
   const [data, setData] = useState(null);
   const [audioMap, setAudioMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -198,10 +185,10 @@ export default function SurahReaderScreen({ route, navigation }) {
                     ) : showArabic ? (
                       <Text style={[styles.ar, { fontSize: READER.ayah.fontSize * scale, lineHeight: READER.ayah.lineHeight * scale }]}>{a.ar}</Text>
                     ) : null}
-                    {showTranslit && !!a.tr && <Text style={[styles.tr, { fontSize: READER.translit.fontSize * scale }]}>{a.tr}</Text>}
+                    {showTranslit && !!a.tr && <Text style={[styles.tr, { fontSize: READER.translit.fontSize * scale, fontFamily: fonts?.reading }]}>{a.tr}</Text>}
                     {showTranslation && (
                       <View style={styles.transBlock}>
-                        <Text style={[styles.en, { fontSize: READER.trans.fontSize * scale, lineHeight: READER.trans.lineHeight * scale }]}>{a.en}</Text>
+                        <Text style={[styles.en, { fontSize: READER.trans.fontSize * scale, lineHeight: READER.trans.lineHeight * scale, fontFamily: fonts?.reading }]}>{a.en}</Text>
                       </View>
                     )}
                   </View>

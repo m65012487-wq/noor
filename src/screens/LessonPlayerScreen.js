@@ -23,7 +23,7 @@ function LessonBg({ children }) {
   return (
     // Общий фон вместо собственного: раньше плеер уроков рисовал обои сам
     // и оставался с фотографией, когда выбрана узорная тема.
-    <ThemedBackground slot="lesson">
+    <ThemedBackground>
       <View style={[styles.container, { paddingTop: topPad }]}>{children}</View>
     </ThemedBackground>
   );

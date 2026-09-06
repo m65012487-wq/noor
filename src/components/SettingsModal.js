@@ -5,13 +5,12 @@ import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
-import { useAppearance, THEMES } from '../utils/AppearanceContext';
+import { useAppearance } from '../utils/AppearanceContext';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
 import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm } from '../utils/fajrAlarm';
 import { TIME_SOURCES } from '../utils/prayerSource';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
-import { countScheduled, ensurePermission } from '../utils/prayerNotifications';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -47,23 +46,11 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan,
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
-  const { theme, chooseTheme, glassOpacity, chooseGlassOpacity, tint,
-    pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES } = useAppearance();
+  const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
+    fontSet, chooseFontSet, FONT_SETS, tint } = useAppearance();
   const tintRgb = tint || '180,215,230';
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
   const [previewing, setPreviewing] = useState(null);
-  // Счётчик поставленных напоминаний: сухая цифра честнее обещания
-  // «уведомления включены» — видно, что расписание действительно в очереди.
-  const [notifyCount, setNotifyCount] = useState(0);
-
-  useEffect(() => {
-    if (visible) countScheduled().then(setNotifyCount);
-  }, [visible]);
-
-  async function askNotifications() {
-    await ensurePermission();
-    setNotifyCount(await countScheduled());
-  }
   // Все разделы свёрнуты при открытии: развёрнутый первый занимал экран
   // и прятал остальные за прокруткой.
   const [openSection, setOpenSection] = useState(null);
@@ -149,18 +136,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
         </Section>
 
         {/* ===== APPEARANCE ===== */}
-        <Section id="appearance" icon="options" title={t("sec_appearance")} open={openSection === 'appearance'} onToggle={toggle}>
-          <Text style={styles.label}>{t('theme')}</Text>
-          <View style={styles.themeRow}>
-            {THEMES.map((th) => (
-              <TouchableOpacity key={th.id} onPress={() => chooseTheme(th.id)}
-                style={[styles.themeChip, theme === th.id && styles.themeChipActive, theme === th.id && activeBg]}>
-                <Text style={[styles.themeText, theme === th.id && styles.themeTextActive]}>
-                  {lang === 'ru' ? th.label_ru : th.label_en}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <Section id="appearance" icon="options" title={t("sec_appearance")}
+          open={openSection === 'appearance'} onToggle={toggle}>
 
           <Text style={styles.label}>{t("pattern")}</Text>
           <View style={styles.themeRow}>
@@ -175,59 +152,43 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
             ))}
           </View>
 
-          {/* Схема имеет смысл только при выбранном узоре: на фотообоях
-              она ничего не меняет и висела бы мёртвой настройкой. */}
-          {pattern !== "none" && (
-            <>
-              <Text style={styles.label}>{t("color_scheme")}</Text>
-              <View style={styles.themeRow}>
-                {SCHEMES.map((s) => (
-                  <TouchableOpacity key={s.id} onPress={() => chooseScheme(s.id)}
-                    style={[styles.schemeChip, { backgroundColor: s.bg[0], borderColor: s.accent },
-                      scheme === s.id && styles.schemeChipActive]}>
-                    <View style={[styles.schemeDot, { backgroundColor: s.accent }]} />
-                    <Text style={[styles.themeText, scheme === s.id && styles.themeTextActive]}>
-                      {lang === "ru" ? s.label_ru : s.label_en}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
-          <Text style={styles.label}>{t('glass_transparency')}</Text>
-          <View style={styles.opacityRow}>
-            {OPACITY_LEVELS.map((lv, i) => (
-              <TouchableOpacity key={i} onPress={() => chooseGlassOpacity(lv)}
-                style={[styles.opacityDot, glassOpacity === lv && styles.opacityDotActive,
-                  { backgroundColor: `rgba(255,255,255,${lv + 0.05})` }]}>
-                <Text style={styles.opacityNum}>{i + 1}</Text>
+          <Text style={styles.label}>{t("color_scheme")}</Text>
+          <View style={styles.themeRow}>
+            {SCHEMES.map((s) => (
+              <TouchableOpacity key={s.id} onPress={() => chooseScheme(s.id)}
+                style={[styles.schemeChip, { backgroundColor: s.bg[0], borderColor: s.accent },
+                  scheme === s.id && styles.schemeChipActive]}>
+                <View style={[styles.schemeDot, { backgroundColor: s.accent }]} />
+                <Text style={[styles.themeText, scheme === s.id && styles.themeTextActive]}>
+                  {lang === "ru" ? s.label_ru : s.label_en}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Образец набирается тем самым шрифтом: название семейства
+              ничего не говорит, пока не увидишь буквы. */}
+          <Text style={styles.label}>{t("font")}</Text>
+          <View style={styles.themeRow}>
+            {FONT_SETS.map((f) => (
+              <TouchableOpacity key={f.id} onPress={() => chooseFontSet(f.id)}
+                style={[styles.themeChip, fontSet === f.id && styles.themeChipActive,
+                  fontSet === f.id && activeBg]}>
+                <Text style={[styles.themeText, { fontFamily: f.reading },
+                  fontSet === f.id && styles.themeTextActive]}>
+                  {lang === "ru" ? f.label_ru : f.label_en}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
         </Section>
 
         {/* ===== GENERAL ===== */}
-        <Section id="general" icon="settings" title={t("sec_general")} open={openSection === 'general'} onToggle={toggle}>
+        <Section id="general" icon="settings" title={t("sec_general")}
+          open={openSection === 'general'} onToggle={toggle}>
           <Text style={styles.label}>{t('language')}</Text>
           <Opt label="English" active={lang === 'en'} onPress={() => setLang('en')} activeBg={activeBg} />
           <Opt label="Русский" active={lang === 'ru'} onPress={() => setLang('ru')} activeBg={activeBg} />
-        </Section>
-
-        {/* ===== NOTIFICATIONS ===== */}
-        <Section id="notify" icon="bell" title={t("sec_notify")} open={openSection === "notify"} onToggle={toggle}>
-          <View style={styles.tuneRow}>
-            <Text style={styles.tuneName}>
-              {notifyCount > 0 ? t("notify_scheduled") : t("notify_off")}
-            </Text>
-            {notifyCount > 0
-              ? <Text style={styles.tuneVal}>{notifyCount}</Text>
-              : (
-                <TouchableOpacity style={styles.previewBtn} onPress={askNotifications}>
-                  <Text style={styles.previewText}>{t("notify_allow")}</Text>
-                </TouchableOpacity>
-              )}
-          </View>
-          <Text style={styles.hintText}>{t("notify_hint")}</Text>
         </Section>
 
       <TouchableOpacity style={styles.doneBtn} onPress={close}>
