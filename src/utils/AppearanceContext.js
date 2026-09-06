@@ -20,6 +20,14 @@ export const PATTERNS = [
   { id: 'arches',   label_en: 'Arches',   label_ru: 'Арки' },
   { id: 'lanterns', label_en: 'Lanterns', label_ru: 'Фонари' },
   { id: 'swords',   label_en: 'Sabres',   label_ru: 'Сабли' },
+
+  // Сцены — не плитки: они не повторяются, а растягиваются на весь экран.
+  // Глубина в них держится на прозрачности слоёв, поэтому цвет по-прежнему
+  // задаётся схемой, и одна картинка работает со всеми пятью.
+  { id: 'city',     label_en: 'Skyline',  label_ru: 'Город',    kind: 'scene' },
+  { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
+  { id: 'arcade',   label_en: 'Arcade',   label_ru: 'Аркада',   kind: 'scene' },
+  { id: 'crescent', label_en: 'Crescent', label_ru: 'Полумесяц', kind: 'scene' },
 ];
 
 export const PATTERN_TILES = {
@@ -32,6 +40,17 @@ export const PATTERN_TILES = {
   lanterns: require('../../assets/patterns/lanterns.png'),
   swords: require('../../assets/patterns/swords.png'),
 };
+
+export const SCENE_IMAGES = {
+  city: require('../../assets/scenes/city.png'),
+  desert: require('../../assets/scenes/desert.png'),
+  arcade: require('../../assets/scenes/arcade.png'),
+  crescent: require('../../assets/scenes/crescent.png'),
+};
+
+export function patternKind(id) {
+  return PATTERNS.find((p) => p.id === id)?.kind || (id === 'none' ? 'none' : 'tile');
+}
 
 // Монохромные схемы: каждая держится одного тона, меняется только светлота.
 export const SCHEMES = [

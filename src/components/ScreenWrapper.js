@@ -3,7 +3,7 @@ import { StyleSheet, View, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SPACING } from '../constants/theme';
-import { useAppearance, PATTERN_TILES } from '../utils/AppearanceContext';
+import { useAppearance, PATTERN_TILES, SCENE_IMAGES, patternKind } from '../utils/AppearanceContext';
 
 // Фон по текущей теме. Логика лежит здесь одна на всё приложение: раньше
 // она была продублирована в обёртке экранов, читалке суры и плеере уроков,
@@ -15,8 +15,10 @@ export function ThemedBackground({ children, plain = false, style }) {
   const appearance = useAppearance();
   const sc = appearance?.schemeColors;
   const bg = sc ? sc.bg : ['#1b2430', '#0d131b'];
+  const kind = patternKind(appearance?.pattern);
 
-  if (plain || !appearance?.patterned) {
+  // Экраны чтения и вариант «без узора» получают чистый градиент.
+  if (plain || kind === 'none') {
     return (
       <LinearGradient colors={bg} style={[styles.flex, style]}>
         {children}
@@ -24,15 +26,30 @@ export function ThemedBackground({ children, plain = false, style }) {
     );
   }
 
-  const tile = PATTERN_TILES[appearance.pattern];
+  // Сцена растягивается на весь экран, плитка повторяется. Прозрачность
+  // у сцены выше: её слои уже приглушены при отрисовке, и слабый тон
+  // погасил бы глубину, ради которой она нарисована.
+  const isScene = kind === 'scene';
+  const source = isScene ? SCENE_IMAGES[appearance.pattern] : PATTERN_TILES[appearance.pattern];
+
+  if (!source) {
+    return (
+      <LinearGradient colors={bg} style={[styles.flex, style]}>
+        {children}
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient colors={bg} style={[styles.flex, style]}>
-      {tile ? (
-        <ImageBackground source={tile} resizeMode="repeat"
-          imageStyle={{ tintColor: `rgba(${sc.tint},0.14)` }} style={styles.flex}>
-          {children}
-        </ImageBackground>
-      ) : children}
+      <ImageBackground
+        source={source}
+        resizeMode={isScene ? 'cover' : 'repeat'}
+        imageStyle={{ tintColor: `rgba(${sc.tint},${isScene ? 0.85 : 0.14})` }}
+        style={styles.flex}
+      >
+        {children}
+      </ImageBackground>
     </LinearGradient>
   );
 }
