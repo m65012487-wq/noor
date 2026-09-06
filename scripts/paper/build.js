@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
+const { horse } = require('./horse');
 
 const OUT = path.join(__dirname, '..', '..', 'assets', 'paper');
 const W = 900;
@@ -80,6 +81,13 @@ function cloud(x0, baseY, r, n, fill, line, seed = 3) {
     lift: 9,
     texture: `<g fill="none" stroke="${line}" stroke-width="2" opacity="0.6">${tex}</g>`,
   });
+}
+
+// Высота гряды в точке x. Та же формула, что внутри ridgePath: нужна, чтобы
+// сажать фигуры на землю, а не на её среднюю линию.
+function ridgeY(baseY, amp, period, phase, x) {
+  return baseY - Math.sin((x / period + phase) * Math.PI * 2) * amp
+    - Math.sin((x / (period * 0.37) + phase) * Math.PI * 2) * amp * 0.28;
 }
 
 // Гряда: пологая синусоида, замкнутая до низа кадра.
@@ -313,7 +321,115 @@ function night() {
   return [far, mid2, near];
 }
 
-const SCENES = { night };
+// Палитра табуна: холодная ночь и низкое тёплое солнце у горизонта. Лошади
+// на каждом плане темнее своего фона — иначе силуэт пропадает.
+const HERD = {
+  sky: ['#161c26', '#334053'],
+  sun: '#d08b3c',
+  sunLine: '#b5742c',
+  haze: '#8a94a4',
+  groundFar: '#414c5c',
+  groundFarLine: '#333c49',
+  groundMid: '#2c3543',
+  groundMidLine: '#222935',
+  groundNear: '#1d2530',
+  groundNearLine: '#131922',
+  horseFar: '#2f3846',
+  horseMid: '#1b2029',
+  horseNear: '#05080c',
+  dust: '#6b788a',
+};
+
+// Табун. Лошади идут тремя планами, и весь эффект бега держится на том, что
+// планы разнесены по глубине: при наклоне телефона ближний ряд уезжает
+// втрое сильнее дальнего, и табун будто обгоняет фон.
+//
+// Внутри плана лошади различаются фазой галопа. Одна фаза на всех читается
+// шеренгой одинаковых фигур — движения не возникает, сколько их ни ставь.
+function herd() {
+  const sky = `<defs><linearGradient id="hsky" x1="0" y1="0" x2="0" y2="1">`
+    + `<stop offset="0" stop-color="${HERD.sky[0]}"/>`
+    + `<stop offset="0.62" stop-color="${HERD.sky[1]}"/>`
+    + `<stop offset="1" stop-color="${HERD.sky[1]}"/></linearGradient>`
+    + `<linearGradient id="hglow" x1="0" y1="0" x2="0" y2="1">`
+    + `<stop offset="0" stop-color="${HERD.sun}" stop-opacity="0"/>`
+    + `<stop offset="1" stop-color="${HERD.sun}" stop-opacity="0.34"/></linearGradient></defs>`
+    + `<rect width="${W}" height="${H}" fill="url(#hsky)"/>`
+    + `<rect x="0" y="${H * 0.34}" width="${W}" height="${H * 0.24}" fill="url(#hglow)"/>`;
+
+  // Низкое солнце: диск наполовину за грядой, лошади дальнего плана идут
+  // по нему силуэтами. Кольца внутри — та же нарезка, что у остальных слоёв.
+  const sx = W * 0.60;
+  const sy = H * 0.545;
+  const sr = W * 0.19;
+  const sid = nid();
+  let sun = `<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${HERD.sun}"/>`
+    + `<clipPath id="${sid}"><circle cx="${sx}" cy="${sy}" r="${sr}"/></clipPath>`
+    + `<g clip-path="url(#${sid})" fill="none" stroke="${HERD.sunLine}" stroke-width="7" opacity="0.45">`;
+  // Полосы, а не кольца: концентрические окружности внутри диска читаются
+  // спилом дерева. Горизонтальная нарезка — это садящееся сквозь дымку
+  // солнце, и она же перекликается с полосами гряды.
+  for (let k = -3; k <= 3; k += 1) {
+    const yy = (sy + k * sr * 0.27).toFixed(1);
+    sun += `<path d="M ${sx - sr} ${yy} h ${sr * 2}"/>`;
+  }
+  sun += `</g>`;
+
+  // Пыль: вытянутые клубы у самых копыт.
+  const dust = (x, y, w, h, op, fill) => {
+    let out = `<g fill="${fill}" opacity="${op}">`;
+    for (let i = 0; i < 9; i += 1) {
+      const t = i / 8;
+      out += `<ellipse cx="${(x + t * w).toFixed(1)}" cy="${(y - Math.sin(t * Math.PI) * h * 0.4).toFixed(1)}" `
+        + `rx="${(w * 0.09).toFixed(1)}" ry="${(h * (0.3 + Math.sin(t * Math.PI) * 0.5)).toFixed(1)}"/>`;
+    }
+    return `${out}</g>`;
+  };
+
+  // Ряд лошадей. Копыта сажаются на саму гряду, а не на её среднюю линию:
+  // земля волнистая, и лошадь, поставленная на среднюю, то висит в воздухе,
+  // то уходит в грунт по колено.
+  //
+  // Позиции, размеры и фазы разведены детерминированно, чтобы пересборка
+  // давала ту же картинку.
+  const row = (baseY, amp, period, phase, L, count, x0, step, fill, seed) => {
+    let out = '';
+    for (let i = 0; i < count; i += 1) {
+      const x = x0 + i * step + ((i * 37 + seed) % 11) * (L * 0.03);
+      const scale = L * (0.9 + ((i * 29 + seed) % 5) * 0.05);
+      const y = ridgeY(baseY, amp, period, phase, x) - scale * 0.72;
+      out += horse(x, y, scale, -1, i * 3 + seed, fill);
+    }
+    return out;
+  };
+
+  // Порядок внутри плана: земля, пыль, лошади. Гряда, положенная поверх,
+  // срезала ногам копыта и колени — лошади стояли по брюхо в земле.
+  const farD = ridgePath(H * 0.575, 10, 700, 0.3);
+  const far = [
+    sky, sun,
+    paper(farD, HERD.groundFar, { lift: 10, texture: contours(farD, HERD.groundFarLine, 9, 15) }),
+    row(H * 0.575, 10, 700, 0.3, 78, 7, W * 0.06, W * 0.145, HERD.horseFar, 1),
+  ].join('');
+
+  const midD = ridgePath(H * 0.745, 16, 520, 0.8);
+  const mid = [
+    paper(midD, HERD.groundMid, { lift: 12, texture: contours(midD, HERD.groundMidLine, 11, 17) }),
+    dust(W * 0.02, H * 0.754, W * 1.0, 40, 0.26, HERD.dust),
+    row(H * 0.745, 16, 520, 0.8, 150, 5, W * 0.02, W * 0.215, HERD.horseMid, 2),
+  ].join('');
+
+  const nearD = ridgePath(H * 0.905, 18, 420, 0.2);
+  const near = [
+    paper(nearD, HERD.groundNear, { lift: 14, texture: contours(nearD, HERD.groundNearLine, 12, 19) }),
+    dust(-W * 0.05, H * 0.918, W * 1.12, 72, 0.30, HERD.dust),
+    row(H * 0.905, 18, 420, 0.2, 250, 4, -W * 0.06, W * 0.315, HERD.horseNear, 3),
+  ].join('');
+
+  return [far, mid, near];
+}
+
+const SCENES = { night, herd };
 
 (async () => {
   for (const [name, make] of Object.entries(SCENES)) {
