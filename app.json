@@ -8,10 +8,12 @@
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#0e1a2a"
+      "resizeMode": "contain",
+      "backgroundColor": "#0d131b"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.noor.mobile",
@@ -26,8 +28,15 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0e1a2a"
       },
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
-    "plugins": ["expo-location", "expo-notifications", "expo-font"]
+    "plugins": [
+      "expo-location",
+      "expo-notifications",
+      "expo-font"
+    ]
   }
 }
