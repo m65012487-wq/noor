@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeviceMotion } from 'expo-sensors';
 import { SPACING } from '../constants/theme';
 import {
-  useAppearance, PATTERN_TILES, SCENE_LAYERS, patternKind,
+  useAppearance, PATTERN_TILES, SCENE_LAYERS, PAPER_LAYERS, patternKind,
 } from '../utils/AppearanceContext';
 
 // Насколько уезжает каждый план при полном наклоне, в точках: дальний почти
@@ -123,32 +123,33 @@ export function ThemedBackground({ children, plain = false, style }) {
   // Сцена разложена на три плана и собирается стопкой. Плитка остаётся одним
   // повторяющимся слоем: у неё нет переднего и заднего края, и разносить
   // по глубине там нечего — ей достаётся общий лёгкий снос.
-  if (kind === 'scene') {
-    const layers = SCENE_LAYERS[appearance.pattern];
-    if (layers) {
-      return (
-        <LinearGradient colors={bg} style={[styles.flex, style]}>
-          <View style={styles.flex} pointerEvents="box-none">
-            {layers.map((src, i) => (
-              <Animated.Image
-                key={i}
-                source={src}
-                resizeMode="cover"
-                pointerEvents="none"
-                style={[styles.plane, {
-                  tintColor: `rgba(${sc.tint},0.85)`,
-                  transform: [
-                    { translateX: shift(tx, DEPTH[i]) },
-                    { translateY: shift(ty, DEPTH[i], 0.6) },
-                  ],
-                }]}
-              />
-            ))}
-            {children}
-          </View>
-        </LinearGradient>
-      );
-    }
+  //
+  // Бумажные обои идут той же стопкой, но без тона схемы: цвет у них свой.
+  const paper = kind === 'paper';
+  const layers = paper ? PAPER_LAYERS[appearance.pattern] : SCENE_LAYERS[appearance.pattern];
+  if ((paper || kind === 'scene') && layers) {
+    return (
+      <LinearGradient colors={bg} style={[styles.flex, style]}>
+        <View style={styles.flex} pointerEvents="box-none">
+          {layers.map((src, i) => (
+            <Animated.Image
+              key={i}
+              source={src}
+              resizeMode="cover"
+              pointerEvents="none"
+              style={[styles.plane, {
+                tintColor: paper ? undefined : `rgba(${sc.tint},0.85)`,
+                transform: [
+                  { translateX: shift(tx, DEPTH[i]) },
+                  { translateY: shift(ty, DEPTH[i], 0.6) },
+                ],
+              }]}
+            />
+          ))}
+          {children}
+        </View>
+      </LinearGradient>
+    );
   }
 
   const tile = PATTERN_TILES[appearance.pattern];

@@ -25,7 +25,20 @@ export const PATTERNS = [
   { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
   { id: 'arcade',   label_en: 'Arcade',   label_ru: 'Аркада',   kind: 'scene' },
   { id: 'crescent', label_en: 'Crescent', label_ru: 'Полумесяц', kind: 'scene' },
+
+  // Резаная бумага — отдельный род обоев: они цветные и тону схемы не
+  // подчиняются. Иначе стиль не работает: он весь держится на разнице
+  // соседних тонов и на одном горячем акценте, а общий тинт их сравнивает.
+  { id: 'night', label_en: 'Night', label_ru: 'Ночь', kind: 'paper' },
 ];
+
+export const PAPER_LAYERS = {
+  night: [
+    require('../../assets/paper/night-1.png'),
+    require('../../assets/paper/night-2.png'),
+    require('../../assets/paper/night-3.png'),
+  ],
+};
 
 export const PATTERN_TILES = {
   bloom: require('../../assets/patterns/bloom.png'),
@@ -95,29 +108,30 @@ export const SCHEMES = [
     bg: ['#5f4749', '#2c2224'], tint: '244,220,220', accent: '#f3dcdc' },
 ];
 
-// Шрифты только системные: ничего не скачивается и не грузится при старте.
-// Каждое семейство есть в iOS с давних версий, поэтому подмены не случится.
+// Шрифты. Обязательное условие — кириллица: интерфейс русский, и семейство
+// без русских букв не ломает приложение, а тихо подменяется системным
+// посимвольно. Настройка при этом выглядит нерабочей.
 //
-// У каждого набора обязан быть свой `ui`. Раньше у «С засечками» его не было,
-// и выбор этого пункта не менял в интерфейсе ничего — настройка выглядела
-// сломанной, хотя работала ровно так, как была написана.
+// Проверено по таблице cmap каждого файла, а не по памяти. Из прошлого набора
+// выброшены Gill Sans (кириллицы нет вовсе), Avenir Next, Optima, Futura и
+// Iowan Old Style — латиница и всё.
+//
+// PT Sans и PT Serif лежат в assets/fonts и подключаются плагином expo-font
+// на этапе сборки: их рисовала ParaType под кириллицу, а не добавляла её
+// потом. Georgia и Verdana встроены в iOS и кириллицу содержат.
 export const FONT_SETS = [
-  { id: 'system',  label_en: 'System',   label_ru: 'Системный',
-    ui: undefined,          reading: undefined },
-  { id: 'rounded', label_en: 'Rounded',  label_ru: 'Округлый',
-    ui: 'SF Pro Rounded',   reading: 'SF Pro Rounded' },
-  { id: 'avenir',  label_en: 'Avenir',   label_ru: 'Авенир',
-    ui: 'Avenir Next',      reading: 'Avenir Next' },
-  { id: 'gill',    label_en: 'Gill Sans', label_ru: 'Гилл',
-    ui: 'Gill Sans',        reading: 'Gill Sans' },
-  { id: 'optima',  label_en: 'Optima',   label_ru: 'Оптима',
-    ui: 'Optima',           reading: 'Optima' },
-  { id: 'futura',  label_en: 'Futura',   label_ru: 'Футура',
-    ui: 'Futura',           reading: 'Futura' },
-  { id: 'serif',   label_en: 'Serif',    label_ru: 'С засечками',
-    ui: 'Georgia',          reading: 'Georgia' },
-  { id: 'iowan',   label_en: 'Book',     label_ru: 'Книжный',
-    ui: 'Iowan Old Style',  reading: 'Iowan Old Style' },
+  { id: 'system',  label_en: 'System',  label_ru: 'Системный',
+    ui: undefined,     reading: undefined },
+  { id: 'rounded', label_en: 'Rounded', label_ru: 'Округлый',
+    ui: 'SF Pro Rounded', reading: 'SF Pro Rounded' },
+  { id: 'ptsans',  label_en: 'Grotesk', label_ru: 'Гротеск',
+    ui: 'PT Sans',     reading: 'PT Sans' },
+  { id: 'verdana', label_en: 'Wide',    label_ru: 'Широкий',
+    ui: 'Verdana',     reading: 'Verdana' },
+  { id: 'georgia', label_en: 'Serif',   label_ru: 'С засечками',
+    ui: 'Georgia',     reading: 'Georgia' },
+  { id: 'ptserif', label_en: 'Book',    label_ru: 'Книжный',
+    ui: 'PT Serif',    reading: 'PT Serif' },
 ];
 
 // Арабские начертания. Все встроены в iOS, поэтому ничего не скачивается.

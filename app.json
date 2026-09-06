@@ -46,7 +46,17 @@
           ]
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PTSans-Regular.ttf",
+            "./assets/fonts/PTSans-Bold.ttf",
+            "./assets/fonts/PTSerif-Regular.ttf",
+            "./assets/fonts/PTSerif-Bold.ttf"
+          ]
+        }
+      ],
       [
         "expo-splash-screen",
         {
