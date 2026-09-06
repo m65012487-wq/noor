@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import Text from '../components/AppText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import GlassView from '../components/GlassView';
+import { GlassContainer } from 'expo-glass-effect';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { COURSE } from '../constants/course';
 import { buildLesson, completeLesson, starsFor } from '../utils/courseEngine';
@@ -156,7 +158,10 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
           ? <MatchPairs ex={ex} picks={matchPicks} setPicks={setMatchPicks}
               onComplete={() => { setCorrectCount((c) => c + 1); setChecked(true); hapticLight(); }} />
           : (
-            <View style={styles.options}>
+            // Варианты собраны в GlassContainer: соседние стёкла сливаются
+            // краями и список читается как одна поверхность, а не как стопка
+            // отдельных плиток.
+            <GlassContainer spacing={10} style={styles.options}>
               {ex.options.map((opt, i) => {
                 const isSel = selected?.ar === opt.ar;
                 const isCorrectOpt = opt.ar === ex.correct.ar;
@@ -193,7 +198,7 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </GlassContainer>
           )}
       </ScrollView>
 

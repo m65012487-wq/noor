@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ScrollView } from 'react-native';
+import Text from '../components/AppText';
 import ScreenWrapper from '../components/ScreenWrapper';
 import { Card, SectionTitle } from '../components/ui';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';

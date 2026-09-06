@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet,
-  LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
+import Text from './AppText';
 import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
@@ -48,7 +48,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { adhanSound, chooseAdhan,
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
-    fontSet, chooseFontSet, FONT_SETS, tint } = useAppearance();
+    fontSet, chooseFontSet, FONT_SETS,
+    tint } = useAppearance();
   const tintRgb = tint || '180,215,230';
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
   const [previewing, setPreviewing] = useState(null);
@@ -196,6 +197,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               </TouchableOpacity>
             ))}
           </View>
+
         </Section>
 
         {/* ===== GENERAL ===== */}

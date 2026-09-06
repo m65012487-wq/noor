@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import Text from './AppText';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';

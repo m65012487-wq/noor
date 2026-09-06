@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, Animated, Easing, TouchableOpacity, Modal } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Animated, Easing, TouchableOpacity, Modal } from 'react-native';
+import Text from '../components/AppText';
 import * as Location from 'expo-location';
 import { Magnetometer } from 'expo-sensors';
 import Icon from '../components/Icon';

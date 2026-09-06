@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image } from 'react-native';
+import Text from '../components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from '../components/Icon';
 import GlassView from '../components/GlassView';

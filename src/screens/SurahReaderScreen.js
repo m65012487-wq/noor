@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, ImageBackground } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, ImageBackground } from 'react-native';
+import Text from '../components/AppText';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';

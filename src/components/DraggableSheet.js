@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import { Modal, View, Text, Animated, PanResponder, StyleSheet, Dimensions,  TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import { Modal, View, Animated, PanResponder, StyleSheet, Dimensions, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
+import Text from './AppText';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

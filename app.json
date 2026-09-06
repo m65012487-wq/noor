@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0d131b"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -36,7 +31,16 @@
     "plugins": [
       "expo-location",
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0d131b"
+        }
+      ]
     ]
   }
 }

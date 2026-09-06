@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Animated, Image, PanResponder, ScrollView } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ActivityIndicator, Animated, Image, PanResponder, ScrollView } from 'react-native';
+import Text from '../components/AppText';
 import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';

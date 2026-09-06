@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import Text from './AppText';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
+import { useAppearance } from '../utils/AppearanceContext';
 import { TRANSLATIONS, RECITERS } from '../utils/quranApi';
 import { downloadTranslation, isTranslationDownloaded, removeDownload,
   downloadReciter, isReciterDownloaded, removeReciter } from '../utils/quranDownload';
@@ -33,6 +35,7 @@ function ToggleRow({ label, value, onToggle }) {
 }
 
 export default function QuranSettingsSheet({ visible, onClose }) {
+  const { arabicFont, chooseArabicFont, ARABIC_FONTS } = useAppearance();
   const { t, lang } = useLang();
   const { translationId, reciterId, chooseTranslation, chooseReciter,
     showArabic, showTranslit, showTranslation,
@@ -89,6 +92,26 @@ export default function QuranSettingsSheet({ visible, onClose }) {
         <ToggleRow label={t('show_translation')} value={showTranslation} onToggle={() => toggleTranslation(!showTranslation)} />
         <ToggleRow label={t('wbw')} value={wordByWord} onToggle={() => toggleWordByWord(!wordByWord)} />
 
+        {/* Шрифт чтения живёт здесь, а не в общих настройках: он относится
+            к тексту Корана, и менять его хочется на месте, не выходя из
+            читалки. Образец набирается самим начертанием — по названию
+            нельзя понять, насх это или куфи, а разница огромная. */}
+        <Text style={styles.section}>{t("arabic_font")}</Text>
+        <View style={styles.fontRow}>
+          {ARABIC_FONTS.map((f) => (
+            <TouchableOpacity key={f.id} onPress={() => chooseArabicFont(f.id)}
+              style={[styles.fontChip, arabicFont === f.id && styles.fontChipActive]}>
+              <Text style={[styles.fontSample,
+                { fontFamily: f.family === "System" ? undefined : f.family }]}>
+                بِسْمِ ٱللَّٰه
+              </Text>
+              <Text style={[styles.fontName, arabicFont === f.id && styles.fontNameActive]}>
+                {lang === "ru" ? f.label_ru : f.label_en}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <Text style={styles.section}>{t('translation')}</Text>
         {translations.map((tr) => (
           <Row key={tr.id} label={tr.label} active={translationId === tr.id}
@@ -134,6 +157,17 @@ export default function QuranSettingsSheet({ visible, onClose }) {
 
 const styles = StyleSheet.create({
   title: { ...TYPE.heading, color: COLORS.text, fontWeight: '800', marginBottom: SPACING.sm },
+  // Образец крупный: мелкий кегль скрывает разницу между начертаниями.
+  fontRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm,
+    marginBottom: SPACING.sm },
+  fontChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md, backgroundColor: COLORS.surface,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'transparent',
+    alignItems: 'center', minWidth: 96 },
+  fontChipActive: { backgroundColor: COLORS.surfaceActive, borderColor: COLORS.glassBorder },
+  fontSample: { fontSize: 22, color: COLORS.white, marginBottom: 2 },
+  fontName: { ...TYPE.caption, color: COLORS.textMuted },
+  fontNameActive: { color: COLORS.white, fontWeight: '700' },
   section: { ...TYPE.overline, color: COLORS.accentSoft, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, borderRadius: RADIUS.md,

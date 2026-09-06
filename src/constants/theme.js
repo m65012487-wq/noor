@@ -75,7 +75,10 @@ export const ARABIC = {
 // Арабский рисуется системным шрифтом: на iOS это SF Arabic.
 // Если положить Amiri-Regular.ttf и Amiri-Bold.ttf в assets/fonts и загрузить
 // их в App.js, достаточно вернуть сюда 'Amiri' — остальной код не изменится.
-export const FONTS = { arabic: undefined, arabicBold: undefined };
+// 'System' — явное имя, которое iOS отображает на системный шрифт.
+// Именно явность важна: она перебивает выбранный интерфейсный шрифт
+// в AppText, поэтому арабский всегда остаётся системным.
+export const FONTS = { arabic: 'System', arabicBold: 'System' };
 
 // Базовые кегли читалки суры. Умножаются на пользовательский масштаб,
 // поэтому живут отдельно от TYPE — но не магическими числами в разметке.

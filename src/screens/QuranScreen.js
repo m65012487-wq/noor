@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { StyleSheet, View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import Text from '../components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';

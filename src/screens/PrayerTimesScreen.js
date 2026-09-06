@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, ScrollView, TouchableOpacity, AppState,
-  LayoutAnimation, Platform, UIManager } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, ScrollView, TouchableOpacity, AppState, LayoutAnimation, Platform, UIManager } from 'react-native';
+import Text from '../components/AppText';
 import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
@@ -103,9 +103,12 @@ export default function PrayerTimesScreen() {
       }),
       reminders,
       label: (p) => prayerName(p, lang),
+      // Название намаза добавляется в текст: заголовок уведомления на
+      // заблокированном экране часто урезается, и оставалось голое
+      // «10 мин до» без указания, до чего именно.
       body: (p, minutes) => (minutes === 0
         ? (p === "Sunrise" ? t("sunrise_now") : t("at_adhan"))
-        : `${minutes} ${t("minutes_before")}`),
+        : `${minutes} ${t("minutes_before")} ${prayerName(p, lang)}`),
     });
   }, [coords, reminders, timeSourceId, asrSchool, lang, t]);
   async function load() {

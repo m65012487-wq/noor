@@ -52,6 +52,21 @@ export const FONT_SETS = [
     ui: 'Avenir Next',  reading: 'Avenir Next' },
 ];
 
+// Арабские начертания. Все встроены в iOS, поэтому ничего не скачивается.
+// Насх — привычная форма для мусхафа, куфи — угловатая, для заголовков.
+export const ARABIC_FONTS = [
+  { id: 'system',  label_en: 'System',    label_ru: 'Системный',  family: 'System' },
+  { id: 'geeza',   label_en: 'Geeza Pro', label_ru: 'Гиза',       family: 'Geeza Pro' },
+  { id: 'nile',    label_en: 'Al Nile',   label_ru: 'Ан-Ниль',    family: 'Al Nile' },
+  { id: 'damascus',label_en: 'Damascus',  label_ru: 'Дамаск',     family: 'Damascus' },
+  { id: 'mishafi', label_en: 'Mishafi',   label_ru: 'Мусхаф',     family: 'Mishafi' },
+  { id: 'baghdad', label_en: 'Baghdad',   label_ru: 'Багдад',     family: 'Baghdad' },
+];
+
+export function arabicFontFor(id) {
+  return ARABIC_FONTS.find((f) => f.id === id) || ARABIC_FONTS[0];
+}
+
 export function schemeFor(id) {
   return SCHEMES.find((s) => s.id === id) || SCHEMES[0];
 }
@@ -64,6 +79,7 @@ export function AppearanceProvider({ children }) {
   const [pattern, setPattern] = useState('stars');
   const [scheme, setScheme] = useState('ink');
   const [fontSet, setFontSet] = useState('system');
+  const [arabicFont, setArabicFont] = useState('system');
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -79,6 +95,9 @@ export function AppearanceProvider({ children }) {
       const savedFont = await loadJSON('fontSet', 'system');
       setFontSet(FONT_SETS.some((f) => f.id === savedFont) ? savedFont : 'system');
 
+      const savedArabic = await loadJSON('arabicFont', 'system');
+      setArabicFont(ARABIC_FONTS.some((f) => f.id === savedArabic) ? savedArabic : 'system');
+
       setReady(true);
     })();
   }, []);
@@ -86,6 +105,7 @@ export function AppearanceProvider({ children }) {
   const choosePattern = async (id) => { setPattern(id); await saveJSON('pattern', id); };
   const chooseScheme = async (id) => { setScheme(id); await saveJSON('scheme', id); };
   const chooseFontSet = async (id) => { setFontSet(id); await saveJSON('fontSet', id); };
+  const chooseArabicFont = async (id) => { setArabicFont(id); await saveJSON('arabicFont', id); };
 
   const sc = schemeFor(scheme);
   const fonts = fontSetFor(fontSet);
@@ -96,6 +116,8 @@ export function AppearanceProvider({ children }) {
       pattern, choosePattern, PATTERNS,
       scheme, chooseScheme, SCHEMES,
       fontSet, chooseFontSet, FONT_SETS,
+      arabicFont, chooseArabicFont, ARABIC_FONTS,
+      arabicFamily: arabicFontFor(arabicFont).family,
       patterned: pattern !== 'none',
       schemeColors: sc, fonts,
       accent: sc.accent, tint: sc.tint,
@@ -109,6 +131,8 @@ export const useAppearance = () => useContext(AppearanceContext) || {
   pattern: 'stars', choosePattern: () => {}, PATTERNS,
   scheme: 'ink', chooseScheme: () => {}, SCHEMES,
   fontSet: 'system', chooseFontSet: () => {}, FONT_SETS,
+  arabicFont: 'system', chooseArabicFont: () => {}, ARABIC_FONTS,
+  arabicFamily: 'System',
   patterned: true, schemeColors: SCHEMES[0], fonts: FONT_SETS[0],
   accent: SCHEMES[0].accent, tint: SCHEMES[0].tint,
 };
