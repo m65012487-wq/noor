@@ -7,7 +7,10 @@
 // в оба provisioning-профиля.
 module.exports = {
   type: 'widget',
-  name: 'Noor',
+  // Имя обязано отличаться от имени приложения: при совпадении Xcode
+  // получает две команды, порождающие один и тот же промежуточный файл,
+  // и сборка падает на «Multiple commands produce».
+  name: 'NoorWidget',
   entitlements: {
     'com.apple.security.application-groups': ['group.95233b59e7e45aab.1'],
   },
