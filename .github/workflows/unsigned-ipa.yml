@@ -9,6 +9,10 @@ name: Unsigned IPA
 on:
   workflow_dispatch:
     inputs:
+      include_widget:
+        description: "Собрать с виджетом (нужен профиль на <bundle>.widget)"
+        type: boolean
+        default: true
       bundle_id:
         description: "Bundle ID (в eSign его ещё можно поменять при подписи)"
         type: string
@@ -56,6 +60,30 @@ jobs:
 
           print("bundleIdentifier:", bundle_id)
           PY
+
+      # Путь отхода: расширению нужен собственный профиль подписи, и если
+      # подписать его нечем, приложение может вовсе перестать устанавливаться.
+      # Тогда сборку повторяют с выключенным флагом.
+      - name: Убрать виджет
+        if: ${{ !inputs.include_widget }}
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 - <<'PY'
+          import json
+
+          with open("app.json", encoding="utf-8") as file:
+              config = json.load(file)
+
+          expo = config["expo"]
+          expo["plugins"] = [p for p in expo.get("plugins", []) if p != "@bacons/apple-targets"]
+          expo.get("ios", {}).pop("entitlements", None)
+
+          with open("app.json", "w", encoding="utf-8") as file:
+              json.dump(config, file, ensure_ascii=False, indent=2)
+
+          print("виджет исключён из сборки")
+          PY
+          rm -rf targets
 
       # prebuild разворачивает нативный проект из app.json и ставит поды.
       - name: Сгенерировать нативный проект

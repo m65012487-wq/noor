@@ -15,7 +15,13 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to calculate accurate prayer times and the Qibla direction.",
         "NSMotionUsageDescription": "Motion access is used for the Qibla compass."
-      }
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.95233b59e7e45aab.1"
+        ]
+      },
+      "appleTeamId": "2DS87XDUW6"
     },
     "android": {
       "package": "app.noor.mobile",
@@ -40,7 +46,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#0d131b"
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ]
   }
 }

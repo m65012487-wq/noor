@@ -14,6 +14,7 @@ import { getNextPrayer, intervalProgress, saveJSON, loadJSON } from '../utils/he
 import ProgressRing from '../components/ProgressRing';
 import { getPrayerTimes2, TIME_SOURCES, localTimesForDate } from '../utils/prayerSource';
 import { schedulePrayerReminders } from '../utils/prayerNotifications';
+import { publishPrayerDay } from '../utils/widgetBridge';
 import { useLang } from '../i18n/LanguageContext';
 import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
@@ -118,6 +119,15 @@ export default function PrayerTimesScreen() {
         lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool,
       });
       setTimings(tt); saveJSON('lastTimings', tt);
+      // Виджет читает готовый срез: считать времена второй раз на Swift
+      // значило бы завести источник правды, который однажды разойдётся.
+      publishPrayerDay({
+        timings: tt,
+        order: PRAYERS,
+        label: (key) => prayerName(key, lang),
+        city: coords?.label || "",
+        nextKey: getNextPrayer(tt)?.name,
+      });
     } catch (e) {
       const cached = await loadJSON('lastTimings');
       if (cached) { setTimings(cached); setError(t('offline_times')); }
