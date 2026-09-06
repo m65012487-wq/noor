@@ -191,8 +191,13 @@ export default function PrayerTimesScreen() {
         {timings && !loading && (
           <>
             {/* Кольцо показывает, сколько прошло от предыдущего намаза
-                до следующего: цифра обратного отсчёта этого не передаёт. */}
-            <Card azure style={styles.nextCard}>
+                до следующего: цифра обратного отсчёта этого не передаёт.
+
+                Расписание намеренно лежит прямо на обоях, без стеклянных
+                плиток. Плитка под каждой строкой закрывала ровно ту часть
+                картинки, ради которой обои и выбирают, а читаемость держат
+                тень под текстом и тонкие разделители — их хватает. */}
+            <View style={styles.nextCard}>
               <ProgressRing size={216} stroke={9} progress={progress} color={accent}>
                 <Text style={styles.nextLabel}>{t("next_prayer")}</Text>
                 <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
@@ -201,25 +206,23 @@ export default function PrayerTimesScreen() {
                   <Text style={styles.nextAt}>{timings[nextName]}</Text>
                 )}
               </ProgressRing>
-            </Card>
+            </View>
 
             {/* Full schedule — collapsed into a spoiler */}
             <TouchableOpacity activeOpacity={0.85} onPress={toggleSchedule}>
-              <GlassView radius={RADIUS.md} style={styles.spoilerHead}>
-                <View style={styles.spoilerRow}>
-                  <Text style={styles.spoilerTitle}>{t('schedule')}</Text>
-                  <View style={styles.rowRight}>
-                    {!scheduleOpen && !!nextName && (
-                      <Text style={styles.spoilerNext}>{timings[nextName]}</Text>
-                    )}
-                    <Icon name={scheduleOpen ? 'up' : 'down'}
-                      size={18} color={COLORS.textMuted} style={{ marginLeft: 10 }} />
-                  </View>
+              <View style={[styles.spoilerRow, scheduleOpen && styles.spoilerOpen]}>
+                <Text style={styles.spoilerTitle}>{t('schedule')}</Text>
+                <View style={styles.rowRight}>
+                  {!scheduleOpen && !!nextName && (
+                    <Text style={styles.spoilerNext}>{timings[nextName]}</Text>
+                  )}
+                  <Icon name={scheduleOpen ? 'up' : 'down'}
+                    size={18} color={COLORS.textMuted} style={{ marginLeft: 10 }} />
                 </View>
-              </GlassView>
+              </View>
             </TouchableOpacity>
 
-            {scheduleOpen && PRAYERS.map((p) => {
+            {scheduleOpen && PRAYERS.map((p, i) => {
               const isNext = p === nextName;
               const isSunrise = p === "Sunrise";
               const r = reminders[p];
@@ -228,20 +231,17 @@ export default function PrayerTimesScreen() {
                 // до восхода» — не то напоминание, ради которого его показывают.
                 <TouchableOpacity key={p} activeOpacity={isSunrise ? 1 : 0.85}
                   onPress={() => !isSunrise && setReminderPrayer(p)}>
-                  <GlassView intensity={isNext ? 45 : 22} radius={RADIUS.md}
-                    style={styles.rowGlass} azure={isNext}>
-                    <View style={styles.row}>
-                      <Text style={[styles.prayer, isNext && styles.prayerActive,
-                        isSunrise && styles.sunrise]}>{prayerName(p, lang)}</Text>
-                      <View style={styles.rowRight}>
-                        {r?.enabled && !isSunrise && (
-                          <Icon name="bell" size={14} color={COLORS.accentSoft}
-                            style={{ marginRight: 8 }} />
-                        )}
-                        <Text style={[styles.time, isNext && styles.prayerActive]}>{timings[p]}</Text>
-                      </View>
+                  <View style={[styles.row, i > 0 && styles.rowDivider]}>
+                    <Text style={[styles.prayer, isNext && styles.prayerActive,
+                      isSunrise && styles.sunrise]}>{prayerName(p, lang)}</Text>
+                    <View style={styles.rowRight}>
+                      {r?.enabled && !isSunrise && (
+                        <Icon name="bell" size={14} color={COLORS.accentSoft}
+                          style={{ marginRight: 8 }} />
+                      )}
+                      <Text style={[styles.time, isNext && styles.prayerActive]}>{timings[p]}</Text>
                     </View>
-                  </GlassView>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -257,37 +257,49 @@ export default function PrayerTimesScreen() {
   );
 }
 
+// Текст лежит прямо на обоях, поэтому ему нужна собственная опора: мягкая
+// тень отделяет светлые буквы от светлых участков рисунка. Плитка делала
+// это раньше — ценой того, что закрывала сам рисунок.
+const SHADOW = {
+  textShadowColor: 'rgba(0,0,0,0.45)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 4,
+};
+
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   gear: { padding: SPACING.sm },
   locChip: { alignSelf: 'flex-start', marginBottom: SPACING.md },
   locText: { ...TYPE.callout, color: COLORS.text, paddingVertical: SPACING.sm, fontWeight: '500' },
 
-  nextCard: { alignItems: 'center', paddingVertical: SPACING.lg },
-  nextLabel: { ...TYPE.overline, color: COLORS.accentSoft },
+  nextCard: { alignItems: 'center', paddingVertical: SPACING.lg, marginBottom: SPACING.md },
+  nextLabel: { ...TYPE.overline, color: COLORS.accentSoft, ...SHADOW },
   // Внутри кольца имя намаза набирается мельче: display на 36 пунктов
   // упирался в дугу и ломал вертикальный ритм.
-  nextName: { ...TYPE.heading, color: COLORS.white, marginTop: SPACING.xs },
+  nextName: { ...TYPE.heading, color: COLORS.white, marginTop: SPACING.xs, ...SHADOW },
   countdown: { ...TYPE.title, ...TYPE.mono, color: COLORS.text,
-    fontWeight: '400', letterSpacing: 0.5, marginTop: SPACING.xxs },
-  nextAt: { ...TYPE.callout, ...TYPE.mono, color: COLORS.textMuted, marginTop: SPACING.xxs },
+    fontWeight: '400', letterSpacing: 0.5, marginTop: SPACING.xxs, ...SHADOW },
+  nextAt: { ...TYPE.callout, ...TYPE.mono, color: COLORS.textMuted, marginTop: SPACING.xxs, ...SHADOW },
 
-  spoilerHead: { marginBottom: SPACING.sm },
   spoilerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: SPACING.md, paddingHorizontal: SPACING.md },
-  spoilerTitle: { ...TYPE.overline, color: COLORS.text },
-  spoilerNext: { ...TYPE.subhead, ...TYPE.mono, color: COLORS.white, fontWeight: '700' },
+    paddingVertical: SPACING.md, paddingHorizontal: SPACING.xs },
+  spoilerOpen: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.hairline },
+  spoilerTitle: { ...TYPE.overline, color: COLORS.text, ...SHADOW },
+  spoilerNext: { ...TYPE.subhead, ...TYPE.mono, color: COLORS.white, fontWeight: '700', ...SHADOW },
 
-  rowGlass: { marginBottom: SPACING.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: SPACING.md, paddingHorizontal: SPACING.md },
+    paddingVertical: SPACING.md, paddingHorizontal: SPACING.xs },
+  // Разделитель вместо плитки: строка отделена от соседней, но обои под ней
+  // остаются целыми. Первой строке он не нужен — над ней уже заголовок.
+  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.hairline },
   rowRight: { flexDirection: 'row', alignItems: 'center' },
-  prayer: { ...TYPE.subhead, color: COLORS.text, fontWeight: '400' },
-  time: { ...TYPE.subhead, ...TYPE.mono, color: COLORS.text, fontWeight: '400' },
+  prayer: { ...TYPE.subhead, color: COLORS.text, fontWeight: '400', ...SHADOW },
+  time: { ...TYPE.subhead, ...TYPE.mono, color: COLORS.text, fontWeight: '400', ...SHADOW },
   prayerActive: { color: COLORS.white, fontWeight: '700' },
   // Восход приглушён: он в списке для ориентира, а не как время молитвы.
   sunrise: { color: COLORS.textMuted },
-  hint: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xs },
+  hint: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.md, ...SHADOW },
+
 
   alarmBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: SPACING.md, marginHorizontal: SPACING.md, marginBottom: SPACING.sm },

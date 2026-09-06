@@ -32,27 +32,39 @@ function dome(cx, baseY, r, spire = true) {
   return out;
 }
 
-// Минарет: ствол, широкий балкон и вытянутое навершие.
+// Минарет: сужающийся ствол, галерея и крупное луковичное навершие.
 //
-// Форма подбиралась дважды. Треугольный шатёр читался копьём, а купольный
-// верх шире балкона — грибом. Работает только такое сочетание: балкон шире
-// ствола, навершие уже балкона и выше своей ширины.
+// Форма подбиралась четырежды. Треугольный шатёр читался копьём; купольный
+// верх шире балкона — грибом; тонкий балкон с маленьким навершием на дальних
+// планах складывался в крест — в приложении про намаз это недопустимо.
+//
+// Против креста работают три вещи разом: у галереи есть высота, а не одна
+// линия; ниже неё идёт второй поясок, поэтому горизонталь не одна; навершие
+// крупное и явно луковичное, так что вертикаль заканчивается куполом.
 function minaret(x, baseY, h, w) {
   const topY = baseY - h;
-  const balconyW = w * 1.5;
-  const balconyH = h * 0.045;
-  const balconyY = topY + h * 0.22;
-  const capW = w * 0.78;
-  const capH = w * 1.5;
-  const capBase = balconyY;
+  const galW = w * 1.34;
+  const galH = h * 0.075;
+  const galY = topY + h * 0.30;
+  const beltY = galY + h * 0.13;
+  const capW = w * 0.98;
+  const capH = w * 2.2;
+  const capBase = galY - galH;
 
-  return `<rect x="${x - w / 2}" y="${balconyY}" width="${w}" height="${baseY - balconyY}"/>`
-    + `<rect x="${x - balconyW}" y="${balconyY - balconyH}" width="${balconyW * 2}" height="${balconyH}"/>`
-    + `<path d="M ${x - capW} ${capBase - balconyH} `
-    + `Q ${x - capW} ${capBase - balconyH - capH * 0.75} ${x} ${capBase - balconyH - capH} `
-    + `Q ${x + capW} ${capBase - balconyH - capH * 0.75} ${x + capW} ${capBase - balconyH} Z"/>`
-    + `<rect x="${x - w * 0.06}" y="${capBase - balconyH - capH - h * 0.05}" `
-    + `width="${w * 0.12}" height="${h * 0.05}"/>`;
+  // Ствол сужается кверху: прямая труба читается столбом, а не башней.
+  const shaft = `<path d="M ${x - w * 0.62} ${baseY} L ${x - w * 0.44} ${galY} `
+    + `L ${x + w * 0.44} ${galY} L ${x + w * 0.62} ${baseY} Z"/>`;
+  const gallery = `<rect x="${x - galW}" y="${galY - galH}" width="${galW * 2}" height="${galH}"/>`;
+  const belt = `<rect x="${x - w * 0.72}" y="${beltY}" width="${w * 1.44}" height="${h * 0.022}"/>`;
+  // Верхний ярус между галереей и куполом — он же цоколь навершия.
+  const drum = `<rect x="${x - capW * 0.62}" y="${capBase - capH * 0.16}" `
+    + `width="${capW * 1.24}" height="${capH * 0.16}"/>`;
+  const cap = `<path d="M ${x - capW} ${capBase - capH * 0.16} `
+    + `Q ${x - capW * 1.02} ${capBase - capH * 0.78} ${x} ${capBase - capH} `
+    + `Q ${x + capW * 1.02} ${capBase - capH * 0.78} ${x + capW} ${capBase - capH * 0.16} Z"/>`;
+  const finial = `<circle cx="${x}" cy="${capBase - capH - h * 0.028}" r="${w * 0.2}"/>`;
+
+  return shaft + belt + gallery + drum + cap + finial;
 }
 
 // Гряда холмов: пологая синусоида, замкнутая до низа кадра.
@@ -96,33 +108,40 @@ function strokeLayer(opacity, width, body) {
 // Плотность слоёв намеренно низкая: это фон под текстом, а не картинка
 // сама по себе. Верхний предел около трети — дальше содержимое начинает
 // спорить с обоями за внимание.
+//
+// Каждая сцена возвращает три плана — дальний, средний, ближний. Они
+// сохраняются отдельными файлами, потому что в приложении сдвигаются
+// с разной скоростью при наклоне телефона. Разбивка не косметическая:
+// параллакс работает ровно настолько, насколько разнесены планы по
+// глубине, поэтому в дальний план идёт небо и всё выше линии горизонта,
+// а в ближний — только то, что стоит у нижнего края кадра.
 const SCENES = {
   // Город: три ряда куполов и минаретов, уходящих в дымку.
   city: () => [
-    layer(0.07, stars(90, H * 0.45, 7)),
-    layer(0.08, `<circle cx="${W * 0.72}" cy="${H * 0.20}" r="${W * 0.12}"/>`),
-    layer(0.09, ridge(H * 0.62, 22, 520, 0.2)
-      + dome(W * 0.18, H * 0.64, 52) + minaret(W * 0.34, H * 0.64, 132, 14)
-      + dome(W * 0.54, H * 0.64, 44) + minaret(W * 0.70, H * 0.64, 116, 13)
-      + dome(W * 0.88, H * 0.64, 48)),
-    layer(0.15, ridge(H * 0.75, 26, 430, 0.7)
+    layer(0.07, stars(90, H * 0.45, 7))
+      + layer(0.08, `<circle cx="${W * 0.72}" cy="${H * 0.20}" r="${W * 0.12}"/>`)
+      + layer(0.09, ridge(H * 0.62, 22, 520, 0.2)
+        + dome(W * 0.18, H * 0.64, 52) + minaret(W * 0.34, H * 0.64, 132, 14)
+        + dome(W * 0.54, H * 0.64, 44) + minaret(W * 0.70, H * 0.64, 116, 13)
+        + dome(W * 0.88, H * 0.64, 48)),
+    layer(0.11, ridge(H * 0.75, 26, 430, 0.7)
       + dome(W * 0.28, H * 0.78, 84) + minaret(W * 0.08, H * 0.78, 190, 20)
       + minaret(W * 0.54, H * 0.78, 205, 21) + dome(W * 0.76, H * 0.78, 70)),
-    layer(0.24, ridge(H * 0.90, 28, 360, 0.1)
+    layer(0.17, ridge(H * 0.90, 28, 360, 0.1)
       + dome(W * 0.50, H * 0.94, 132) + minaret(W * 0.17, H * 0.94, 270, 30)
       + minaret(W * 0.83, H * 0.94, 255, 29)),
-  ].join(''),
+  ],
 
   // Барханы: гряды песка со сдвигом фазы и низкая луна.
   desert: () => [
-    layer(0.07, stars(60, H * 0.40, 21)),
-    layer(0.11, `<circle cx="${W * 0.30}" cy="${H * 0.24}" r="${W * 0.10}"/>`),
-    layer(0.07, ridge(H * 0.58, 34, 700, 0.0)),
-    layer(0.11, ridge(H * 0.68, 42, 560, 0.35)),
-    layer(0.16, ridge(H * 0.78, 48, 470, 0.8)),
-    layer(0.22, ridge(H * 0.88, 54, 390, 0.15)),
-    layer(0.30, ridge(H * 0.97, 44, 320, 0.6)),
-  ].join(''),
+    layer(0.07, stars(60, H * 0.40, 21))
+      + layer(0.11, `<circle cx="${W * 0.30}" cy="${H * 0.24}" r="${W * 0.10}"/>`)
+      + layer(0.07, ridge(H * 0.58, 34, 700, 0.0)),
+    layer(0.11, ridge(H * 0.68, 42, 560, 0.35))
+      + layer(0.16, ridge(H * 0.78, 48, 470, 0.8)),
+    layer(0.22, ridge(H * 0.88, 54, 390, 0.15))
+      + layer(0.30, ridge(H * 0.97, 44, 320, 0.6)),
+  ],
 
   // Аркада: ряды стрельчатых арок, уходящих вглубь.
   // Контуром, а не заливкой: сплошные арки читались надгробиями, потому что
@@ -135,12 +154,12 @@ const SCENES = {
       `<path d="${arch(((i + 0.5) * W) / n, baseY, w, h)}"/>`).join('')
       + `<path d="M 0 ${baseY} L ${W} ${baseY}"/>`;
     return [
-      layer(0.07, stars(70, H * 0.32, 5)),
-      strokeLayer(0.09, 2.5, row(H * 0.50, 92, 150, 5)),
-      strokeLayer(0.14, 3, row(H * 0.66, 128, 215, 4)),
-      strokeLayer(0.20, 3.5, row(H * 0.83, 186, 300, 3)),
+      layer(0.07, stars(70, H * 0.32, 5))
+        + strokeLayer(0.09, 2.5, row(H * 0.50, 92, 150, 5)),
+      strokeLayer(0.14, 3, row(H * 0.66, 128, 215, 4))
+        + strokeLayer(0.20, 3.5, row(H * 0.83, 186, 300, 3)),
       strokeLayer(0.28, 4, row(H * 1.02, 300, 430, 2)),
-    ].join('');
+    ];
   },
 
   // Полумесяц над барханами: минималистичная сцена с одним акцентом.
@@ -155,22 +174,26 @@ const SCENES = {
       + `<rect width="${W}" height="${H}" fill="#fff" mask="url(#m)"/>`;
     return [
       layer(0.07, stars(110, H * 0.55, 33)),
-      layer(0.34, moon),
-      strokeLayer(0.10, 2, `<circle cx="${cx}" cy="${cy}" r="${r * 1.7}"/>`
-        + `<circle cx="${cx}" cy="${cy}" r="${r * 2.4}"/>`),
-      layer(0.13, ridge(H * 0.76, 30, 600, 0.4)),
-      layer(0.21, ridge(H * 0.88, 40, 450, 0.9)),
-      layer(0.30, ridge(H * 0.98, 34, 340, 0.2)),
-    ].join('');
+      layer(0.34, moon)
+        + strokeLayer(0.10, 2, `<circle cx="${cx}" cy="${cy}" r="${r * 1.7}"/>`
+          + `<circle cx="${cx}" cy="${cy}" r="${r * 2.4}"/>`)
+        + layer(0.13, ridge(H * 0.76, 30, 600, 0.4)),
+      layer(0.21, ridge(H * 0.88, 40, 450, 0.9))
+        + layer(0.30, ridge(H * 0.98, 34, 340, 0.2)),
+    ];
   },
 };
 
-
 (async () => {
   for (const [name, make] of Object.entries(SCENES)) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${make()}</svg>`;
-    const file = path.join(OUT, `${name}.png`);
-    await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toFile(file);
-    console.log(name.padEnd(10), W + 'x' + H, (fs.statSync(file).size / 1024).toFixed(0) + ' КБ');
+    const planes = make();
+    for (let i = 0; i < planes.length; i += 1) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" `
+        + `viewBox="0 0 ${W} ${H}">${planes[i]}</svg>`;
+      const file = path.join(OUT, `${name}-${i + 1}.png`);
+      await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toFile(file);
+      console.log(`${name}-${i + 1}`.padEnd(12), W + 'x' + H,
+        (fs.statSync(file).size / 1024).toFixed(0) + ' КБ');
+    }
   }
 })();

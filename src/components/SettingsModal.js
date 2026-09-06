@@ -48,7 +48,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
-    fontSet, chooseFontSet, FONT_SETS,
+    fontSet, chooseFontSet, FONT_SETS, parallax, toggleParallax,
     tint } = useAppearance();
   const tintRgb = tint || '180,215,230';
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
@@ -177,6 +177,19 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
             ))}
           </View>
 
+          {/* Параллакс касается только сцен: у плитки нет переднего плана,
+              и сносить её целиком незачем. Выключатель нужен потому, что
+              движущийся фон переносят не все — и потому, что при включённом
+              «Уменьшении движения» в iOS он и так не работает. */}
+          <TouchableOpacity style={styles.row}
+            onPress={() => toggleParallax(!parallax)} activeOpacity={0.8}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowText}>{t('parallax')}</Text>
+              <Text style={styles.hintText}>{t('parallax_hint')}</Text>
+            </View>
+            {parallax && <Icon name="check" size={17} color={COLORS.white} />}
+          </TouchableOpacity>
+
           <Text style={styles.label}>{t("color_scheme")}</Text>
           <View style={styles.themeRow}>
             {SCHEMES.map((s) => (
@@ -199,7 +212,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               <TouchableOpacity key={f.id} onPress={() => chooseFontSet(f.id)}
                 style={[styles.themeChip, fontSet === f.id && styles.themeChipActive,
                   fontSet === f.id && activeBg]}>
-                <Text style={[styles.themeText, { fontFamily: f.reading },
+                <Text style={[styles.themeText, { fontFamily: f.ui },
                   fontSet === f.id && styles.themeTextActive]}>
                   {lang === "ru" ? f.label_ru : f.label_en}
                 </Text>

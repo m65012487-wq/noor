@@ -29,17 +29,6 @@ function star(cx, cy, r) {
 }
 
 const MOTIFS = {
-  // Сетка восьмиконечных звёзд — классический хатам.
-  stars: (u) => {
-    let out = '';
-    for (let i = -1; i <= 3; i += 1) {
-      for (let j = -1; j <= 3; j += 1) {
-        out += star(i * u, j * u, u * 0.30);
-        out += star((i + 0.5) * u, (j + 0.5) * u, u * 0.12);
-      }
-    }
-    return out;
-  },
   // Пересекающиеся окружности — «цветок жизни».
   bloom: (u) => {
     let out = '';
@@ -86,41 +75,6 @@ const MOTIFS = {
     return out;
   },
 
-  // Барханы: ряды пологих дуг со сдвигом через строку. Шаг кратен клетке,
-  // поэтому гребни продолжаются через стык без разрыва.
-  dunes: (u) => {
-    let out = '';
-    const rows = Math.ceil(TILE / (u * 0.5)) + 4;
-    const cols = Math.ceil(TILE / u) + 4;
-    for (let j = -2; j <= rows; j += 1) {
-      const y = j * u * 0.5;
-      const shift = j % 2 === 0 ? 0 : u * 0.5;
-      for (let i = -2; i <= cols; i += 1) {
-        const x = i * u + shift;
-        out += `<path d="M ${x} ${y} q ${u * 0.5} ${-u * 0.34} ${u} 0"/>`;
-      }
-    }
-    return out;
-  },
-
-  // Стрельчатые арки михраба: две дуги, сходящиеся в вершине, на подножках.
-  arches: (u) => {
-    let out = '';
-    const w = u * 0.72;
-    const h = u * 0.92;
-    const n = Math.ceil(TILE / u) + 2;
-    for (let j = -1; j <= n; j += 1) {
-      for (let i = -1; i <= n; i += 1) {
-        const x = i * u + (j % 2 === 0 ? 0 : u * 0.5);
-        const y = j * u;
-        const l = x - w / 2;
-        const r = x + w / 2;
-        out += `<path d="M ${l} ${y + h} L ${l} ${y + h * 0.45} Q ${x} ${y - h * 0.12} ${r} ${y + h * 0.45} L ${r} ${y + h}"/>`;
-      }
-    }
-    return out;
-  },
-
   // Фонари: шестигранник с дужкой сверху и кисточкой снизу.
   lanterns: (u) => {
     let out = '';
@@ -143,29 +97,6 @@ const MOTIFS = {
     return out;
   },
 
-  // Скрещённые сабли: изогнутый клинок, поперечная гарда и навершие.
-  // Без гарды и навершия пара дуг читается просто как крест из линий.
-  swords: (u) => {
-    let out = '';
-    const L = u * 0.34;
-    const n = Math.ceil(TILE / u) + 2;
-    for (let j = -1; j <= n; j += 1) {
-      for (let i = -1; i <= n; i += 1) {
-        const x = i * u + (j % 2 === 0 ? 0 : u * 0.5);
-        const y = j * u;
-        for (const dir of [-1, 1]) {
-          const tipX = x + dir * L;
-          const tipY = y - L * 0.85;
-          const hiltX = x - dir * L * 0.75;
-          const hiltY = y + L * 0.8;
-          out += `<path d="M ${hiltX} ${hiltY} Q ${x + dir * L * 0.15} ${y - L * 0.15} ${tipX} ${tipY}"/>`;
-          out += `<path d="M ${hiltX - dir * L * 0.18} ${hiltY - L * 0.18} l ${dir * L * 0.36} ${L * 0.36}"/>`;
-          out += `<circle cx="${hiltX - dir * L * 0.14}" cy="${hiltY + L * 0.14}" r="${L * 0.08}"/>`;
-        }
-      }
-    }
-    return out;
-  },
 };
 
 async function build(name, unit) {
@@ -186,15 +117,10 @@ async function build(name, unit) {
 }
 
 (async () => {
-  await build('stars', 2);
   await build('bloom', 2);
   await build('girih', 3);
   await build('scales', 3);
-  await build('dunes', 3);
   // Чётное число рядов на клетку обязательно: при нечётном сдвиг через
   // строку не повторяется на стыке и шов расходится.
-  await build('arches', 4);
   await build('lanterns', 4);
-  // Сабли крупнее прочих: на мелкой клетке они читались абстрактными дугами.
-  await build('swords', 2);
 })();
