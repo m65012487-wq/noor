@@ -113,8 +113,14 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
           <TouchableOpacity onPress={onExit} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Icon name="close" size={24} color={COLORS.white} />
           </TouchableOpacity>
+          {/* Сегменты вместо сплошной полосы: видно, сколько всего вопросов
+              и на каком идёшь. Заполненная доля этого не говорила. */}
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: accent }]} />
+            {exercises.map((_, i) => (
+              <View key={i} style={[styles.progressCell,
+                i < step && { backgroundColor: accent },
+                i === step && { backgroundColor: accent, opacity: 0.55 }]} />
+            ))}
           </View>
         </GlassView>
       </View>
@@ -172,9 +178,17 @@ export default function LessonPlayerScreen({ unitIndex, lessonIndex, onExit }) {
                     <GlassView radius={RADIUS.md}
                       style={[styles.opt, bgStyle]}>
                       <Text style={[showArabic ? styles.optAr : styles.optText,
-                        isSel && { fontWeight: '800', color: COLORS.white }]}>
+                        isSel && { fontWeight: "800", color: COLORS.white }]}>
                         {showArabic ? opt.ar : opt.latin}
                       </Text>
+                      {/* Значок исхода: одним цветом обходиться нельзя —
+                          при дальтонизме верный и неверный ответ сливаются. */}
+                      {checked && (showCorrect || showWrong) && (
+                        <View style={styles.optMark}>
+                          <Icon name={showCorrect ? "check" : "close"} size={18}
+                            color={showCorrect ? COLORS.success : COLORS.danger} />
+                        </View>
+                      )}
                     </GlassView>
                   </TouchableOpacity>
                 );
@@ -285,9 +299,9 @@ const styles = StyleSheet.create({
   topBarWrap: { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
   closeBtn: { padding: 6, marginRight: SPACING.sm },
-  progressTrack: { flex: 1, height: 12, borderRadius: 6, backgroundColor: COLORS.surfaceStrong,
-    marginLeft: SPACING.sm, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 6 },
+  progressTrack: { flex: 1, flexDirection: 'row', gap: 3, marginLeft: SPACING.sm },
+  progressCell: { flex: 1, height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.16)' },
   prompt: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', marginBottom: SPACING.lg, textAlign: 'center', letterSpacing: 0.2 },
   speaker: { width: 84, height: 84, borderRadius: 42, alignSelf: 'center',
     alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.lg, marginTop: SPACING.xs },
@@ -297,7 +311,10 @@ const styles = StyleSheet.create({
   tapHint: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.sm },
   tapHintRow: { flexDirection: 'row', alignItems: 'center', marginTop: SPACING.sm },
   options: { gap: SPACING.sm },
-  opt: { paddingVertical: SPACING.md, alignItems: 'center' },
+  opt: { paddingVertical: SPACING.md, alignItems: 'center', justifyContent: 'center' },
+  // Значок прижат к правому краю и не сдвигает текст с центра.
+  optMark: { position: 'absolute', right: SPACING.md, top: 0, bottom: 0,
+    justifyContent: 'center' },
   optSel: { borderColor: COLORS.white, borderWidth: 2.5, transform: [{ scale: 1.03 }] },
   optTextSel: { fontWeight: '800' },
   optCorrect: { backgroundColor: 'rgba(76,175,114,0.3)', borderColor: COLORS.success, borderWidth: 1.5 },
