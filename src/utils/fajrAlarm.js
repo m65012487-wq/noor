@@ -4,9 +4,12 @@
 // "I'm awake" cancels the remaining ring chain. If the person doesn't react,
 // it keeps ringing until sunrise.
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
+import { ensurePermission } from './prayerNotifications';
 import { loadJSON, saveJSON } from './helpers';
 
 const TAG = 'fajr-alarm';
+const MAX_RINGS = 12;
 
 export async function getFajrAlarmSettings() {
   return {
@@ -39,7 +42,10 @@ export async function scheduleFajrAlarm(fajrDate, sunriseDate, labels) {
   const now = Date.now();
   const step = Math.max(2, interval) * 60000;
   let n = 0;
-  for (let t = fajrDate.getTime(); t < sunriseDate.getTime() && n < 40; t += step) {
+  // Цепочка ограничена дюжиной звонков. Сорок штук вместе с напоминаниями
+  // о намазах перекрывали лимит iOS в 64 отложенных уведомления, и часть
+  // расписания отбрасывалась молча — включая сам будильник.
+  for (let t = fajrDate.getTime(); t < sunriseDate.getTime() && n < MAX_RINGS; t += step) {
     if (t <= now) continue; // don't schedule in the past
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -48,7 +54,9 @@ export async function scheduleFajrAlarm(fajrDate, sunriseDate, labels) {
         sound: true,
         data: { tag: TAG },
       },
-      trigger: { date: new Date(t) },
+      // Тип обязателен: нетипизированный { date } нынешняя версия
+      // expo-notifications не принимает, и будильник не ставился вовсе.
+      trigger: { type: SchedulableTriggerInputTypes.DATE, date: new Date(t) },
     });
     n++;
   }
