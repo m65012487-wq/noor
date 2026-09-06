@@ -11,10 +11,17 @@ import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 
 const TAG = 'prayer-reminder';
+// Восход тоже присылает уведомление: он завершает время утренней молитвы.
+// Напоминание «за N минут» к нему не относится — оно ставится только
+// перед началом намаза.
 const PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+const EXTRA = ['Sunrise'];
 
 // Запас: будильник на рассвет ставит собственную цепочку, ему тоже нужно место.
-const MAX_SCHEDULED = 45;
+// iOS держит не более 64 отложенных уведомлений. На каждый намаз теперь
+// приходится до двух (наступление и напоминание) плюс восход — около
+// одиннадцати в сутки, поэтому горизонт сокращён до четырёх дней.
+const MAX_SCHEDULED = 58;
 
 export async function ensurePermission() {
   const current = await Notifications.getPermissionsAsync();
@@ -61,12 +68,12 @@ function timeToDate(hhmm, day) {
  * @returns {Promise<number>} сколько уведомлений поставлено
  */
 export async function schedulePrayerReminders({
-  timesForDate, reminders, label, body, days = 7,
+  timesForDate, reminders, label, body, days = 4,
 }) {
   await cancelPrayerReminders();
 
   const enabled = PRAYERS.filter((p) => reminders?.[p]?.enabled);
-  if (!enabled.length) return 0;
+  if (!enabled.length && !EXTRA.length) return 0;
   if (!(await ensurePermission())) return 0;
 
   const now = Date.now();
@@ -85,16 +92,23 @@ export async function schedulePrayerReminders({
     }
     if (!times) continue;
 
-    for (const prayer of enabled) {
+    for (const prayer of [...enabled, ...EXTRA]) {
       const at = timeToDate(times[prayer], day);
       if (!at) continue;
 
-      const minutesBefore = reminders[prayer].minutesBefore || 0;
-      const fireAt = new Date(at.getTime() - minutesBefore * 60000);
-      // Прошедшее время iOS показал бы немедленно — это выглядит как сбой.
-      if (fireAt.getTime() <= now + 30000) continue;
+      // Само наступление времени: приходит всегда, для всех намазов
+      // и для восхода.
+      const push = (fireAt, minutesBefore) => {
+        // Прошедшее время iOS показал бы немедленно — это выглядит как сбой.
+        if (fireAt.getTime() <= now + 30000) return;
+        planned.push({ prayer, fireAt, minutesBefore });
+      };
+      push(at, 0);
 
-      planned.push({ prayer, fireAt, minutesBefore });
+      // Напоминание заранее — отдельное уведомление, а не замена первому.
+      // К восходу не относится: он не начало молитвы, а конец её времени.
+      const before = EXTRA.includes(prayer) ? 0 : (reminders[prayer]?.minutesBefore || 0);
+      if (before > 0) push(new Date(at.getTime() - before * 60000), before);
     }
   }
 

@@ -21,7 +21,9 @@ import { useLocation } from '../utils/LocationContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { scheduleFajrAlarm, markAwake, isInAlarmWindow, getFajrAlarmSettings } from '../utils/fajrAlarm';
 
-const PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+// Восход стоит между фаджром и зухром: он завершает время утренней молитвы,
+// и без него в расписании оставался необъяснимый разрыв.
+const PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -101,7 +103,9 @@ export default function PrayerTimesScreen() {
       }),
       reminders,
       label: (p) => prayerName(p, lang),
-      body: (p, minutes) => (minutes === 0 ? t("at_adhan") : `${minutes} ${t("minutes_before")}`),
+      body: (p, minutes) => (minutes === 0
+        ? (p === "Sunrise" ? t("sunrise_now") : t("at_adhan"))
+        : `${minutes} ${t("minutes_before")}`),
     });
   }, [coords, reminders, timeSourceId, asrSchool, lang, t]);
   async function load() {
@@ -201,15 +205,20 @@ export default function PrayerTimesScreen() {
 
             {scheduleOpen && PRAYERS.map((p) => {
               const isNext = p === nextName;
+              const isSunrise = p === "Sunrise";
               const r = reminders[p];
               return (
-                <TouchableOpacity key={p} activeOpacity={0.85} onPress={() => setReminderPrayer(p)}>
+                // Для восхода экран напоминаний не открывается: «за 10 минут
+                // до восхода» — не то напоминание, ради которого его показывают.
+                <TouchableOpacity key={p} activeOpacity={isSunrise ? 1 : 0.85}
+                  onPress={() => !isSunrise && setReminderPrayer(p)}>
                   <GlassView intensity={isNext ? 45 : 22} radius={RADIUS.md}
                     style={styles.rowGlass} azure={isNext}>
                     <View style={styles.row}>
-                      <Text style={[styles.prayer, isNext && styles.prayerActive]}>{prayerName(p, lang)}</Text>
+                      <Text style={[styles.prayer, isNext && styles.prayerActive,
+                        isSunrise && styles.sunrise]}>{prayerName(p, lang)}</Text>
                       <View style={styles.rowRight}>
-                        {r?.enabled && (
+                        {r?.enabled && !isSunrise && (
                           <Icon name="bell" size={14} color={COLORS.accentSoft}
                             style={{ marginRight: 8 }} />
                         )}
@@ -260,6 +269,8 @@ const styles = StyleSheet.create({
   prayer: { ...TYPE.subhead, color: COLORS.text, fontWeight: '400' },
   time: { ...TYPE.subhead, ...TYPE.mono, color: COLORS.text, fontWeight: '400' },
   prayerActive: { color: COLORS.white, fontWeight: '700' },
+  // Восход приглушён: он в списке для ориентира, а не как время молитвы.
+  sunrise: { color: COLORS.textMuted },
   hint: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xs },
 
   alarmBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
