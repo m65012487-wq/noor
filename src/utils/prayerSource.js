@@ -2,7 +2,8 @@
 // Sources: 'auto' (RU -> Russian method, else international via Aladhan),
 //          'aladhan' (international API), 'local' (offline adhan calc).
 // Always falls back to local offline calc if the network fails.
-import { computePrayerTimes, computeDumRussia } from './prayerCalc';
+import { computePrayerTimes } from './prayerCalc';
+import { computeDumKbr } from './dumCalc';
 
 const ALADHAN = 'https://api.aladhan.com/v1/timings';
 
@@ -53,7 +54,7 @@ function isRussia() {
 // Each maps to a fetcher. Russian sources use Aladhan's Russia method (14).
 export const TIME_SOURCES = [
   { id: 'mwl_intl', label_en: 'Muslim World League (Intl.)', label_ru: 'Лига исламского мира (межд.)', method: 3 },
-  { id: 'russia', label_en: 'Russia (Spiritual Admin.)', label_ru: 'Россия (ДУМ РФ)', method: 14 },
+  { id: 'russia', label_en: 'Caucasus (DUM KBR)', label_ru: 'Кавказ (ДУМ КБР)', method: 14 },
   { id: 'turkey', label_en: 'Turkey (Diyanet)', label_ru: 'Турция (Диянет)', method: 13 },
   { id: 'egypt', label_en: 'Egyptian Authority', label_ru: 'Египетская организация', method: 5 },
   { id: 'makkah', label_en: 'Umm al-Qura (Makkah)', label_ru: 'Умм аль-Кура (Мекка)', method: 4 },
@@ -64,10 +65,12 @@ export const TIME_SOURCES = [
 
 export function getPrayerTimes2({ lat, lng, sourceId = 'mwl_intl', school = 'shafi', tune = null }) {
   const src = TIME_SOURCES.find((s) => s.id === sourceId) || TIME_SOURCES[0];
-  // Russia / DUM: use the local DUM calculation (matches the official
-  // DUM schedule to the minute, instant and offline).
+  // ДУМ КБР: считаем на устройстве. Метод восстановлен по официальным
+  // графикам за три сезона; расхождение с ними — до трёх минут, чаще ноль.
+  // Aladhan с его методом 14 «ДУМ РФ» здесь не помощник: на 7 сентября 2026
+  // он даёт Ишу 19:52 против официальных 20:16.
   if (sourceId === 'russia') {
-    return Promise.resolve(applyTune(computeDumRussia(lat, lng, school), tune));
+    return Promise.resolve(applyTune(computeDumKbr(lat, lng), tune));
   }
   if (src.method == null) {
     // local offline
@@ -92,7 +95,7 @@ const LOCAL_METHOD = {
 
 export function localTimesForDate({ lat, lng, sourceId = 'mwl_intl', school = 'shafi', tune = null, date = new Date() }) {
   if (sourceId === 'russia') {
-    return applyTune(computeDumRussia(lat, lng, school, date), tune);
+    return applyTune(computeDumKbr(lat, lng, date), tune);
   }
   const methodId = LOCAL_METHOD[sourceId] || 'mwl';
   return computePrayerTimes(lat, lng, methodId, school, date, tune);
