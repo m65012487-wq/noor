@@ -16,15 +16,10 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
-const { horse } = require('./horse');
 
 const OUT = path.join(__dirname, '..', '..', 'assets', 'paper');
 const W = 900;
 const H = 1950;
-// Запас по краям: слои разъезжаются в параллаксе, и полоса яруса должна
-// доставать за кадр, иначе у края открывается пустота.
-const BAND_PAD = 80;
-
 let uid = 0;
 const nid = () => `c${(uid += 1)}`;
 
@@ -84,13 +79,6 @@ function cloud(x0, baseY, r, n, fill, line, seed = 3) {
     lift: 9,
     texture: `<g fill="none" stroke="${line}" stroke-width="2" opacity="0.6">${tex}</g>`,
   });
-}
-
-// Высота гряды в точке x. Та же формула, что внутри ridgePath: нужна, чтобы
-// сажать фигуры на землю, а не на её среднюю линию.
-function ridgeY(baseY, amp, period, phase, x) {
-  return baseY - Math.sin((x / period + phase) * Math.PI * 2) * amp
-    - Math.sin((x / (period * 0.37) + phase) * Math.PI * 2) * amp * 0.28;
 }
 
 // Гряда: пологая синусоида, замкнутая до низа кадра.
@@ -324,121 +312,7 @@ function night() {
   return [far, mid2, near];
 }
 
-// Палитра табуна: холодная ночь и низкое тёплое солнце у горизонта. Лошади
-// на каждом плане темнее своего фона — иначе силуэт пропадает.
-// Палитра табуна: холодная ночь, низкое тёплое солнце и лестница тонов от
-// дальнего яруса к ближнему. Ярусы обязаны различаться по светлоте — на
-// одинаковых тонах пять рядов слипаются в одно чёрное пятно.
-const HERD = {
-  sky: ['#161c26', '#334053'],
-  sun: '#d08b3c',
-  sunLine: '#b5742c',
-  // Ярус: [заливка, линия контура]. Сверху вниз — от дальнего к ближнему.
-  ranks: [
-    ['#4a5666', '#3b4553'],
-    ['#3b4655', '#2e3743'],
-    ['#2d3542', '#222933'],
-    ['#1f2530', '#161b24'],
-    ['#0f141b', '#070a0f'],
-  ],
-  shadow: 'rgba(0,0,0,0.45)',
-};
-
-// Табун ярусами, как гряды барханов: ряд лошадей идёт по верхнему краю своей
-// полосы, а всё, что ниже, залито сплошняком. Ряд впереди накрывает низ
-// предыдущего — ровно так же, как ближний бархан закрывает подошву дальнего.
-//
-// Решающая мелочь — ноги прячутся в полосу. Поставленные копытами на её край,
-// пять рядов давали чащу из ног и голов: силуэт распадался на палки. Когда
-// полоса срезает ноги по щётки, над ней остаются корпуса, шеи и головы —
-// они и читаются гребнем гряды.
-//
-// Полоса и лошади одного цвета и сливаются в одну фигуру, поэтому рисуются
-// подряд: сначала лошади, потом полоса поверх их ног.
-function frieze(baseY, L, fill, line, seed, phaseShift = 0, bury = 0.46) {
-  const step = L * 0.78;
-  const count = Math.ceil(W / step) + 3;
-  const cid = nid();
-  const bandY = baseY;
-  // Копыта уходят глубоко под край полосы. Мелкая посадка не спасала: при
-  // закопанных 0.30 длины над краем оставалось ещё полноги, и пять рядов
-  // давали ту же чащу из палок. Над полосой должен оставаться корпус и намёк
-  // на ноги под брюхом — не больше.
-  //
-  // Исключение — ближний ярус: там лошади крупные и стоят редко, ноги в чащу
-  // не сплетаются, а без них не видно самого галопа. Ему посадка мельче.
-  const feetY = baseY + L * bury;
-
-  const band = `<rect x="${-BAND_PAD}" y="${bandY.toFixed(1)}" `
-    + `width="${W + BAND_PAD * 2}" height="${(H - bandY + 80).toFixed(1)}"/>`;
-
-  const herdOf = (color) => {
-    let out = '';
-    for (let i = 0; i < count; i += 1) {
-      const x = -step * 1.5 + i * step + ((i * 37 + seed) % 9) * (L * 0.022);
-      const scale = L * (0.93 + ((i * 29 + seed) % 4) * 0.04);
-      const y = feetY - scale * 0.72 + ((i * 53 + seed) % 5) * (L * 0.006);
-      out += horse(x, y, scale, -1, i * 3 + seed + phaseShift, color);
-    }
-    return out;
-  };
-
-  // Тень отбрасывается вверх, на то, что позади: ближний ярус ниже по кадру,
-  // и его верхний срез ложится тенью на предыдущий.
-  let out = `<g transform="translate(0,-9)">${herdOf(HERD.shadow)}`
-    + `<g fill="${HERD.shadow}">${band}</g></g>`;
-
-  out += herdOf(fill) + `<g fill="${fill}">${band}</g>`;
-
-  // Нарезка внутри полосы — тот же след стопки, что у остальных слоёв.
-  out += `<clipPath id="${cid}">${band}</clipPath>`;
-  out += `<g clip-path="url(#${cid})" fill="none" stroke="${line}" stroke-width="2.2" opacity="0.7">`;
-  for (let k = 1; k <= 14; k += 1) {
-    out += `<path d="M 0 ${(bandY + k * 17).toFixed(1)} h ${W}"/>`;
-  }
-  return `${out}</g>`;
-}
-
-function herd() {
-  const sky = `<defs><linearGradient id="hsky" x1="0" y1="0" x2="0" y2="1">`
-    + `<stop offset="0" stop-color="${HERD.sky[0]}"/>`
-    + `<stop offset="0.62" stop-color="${HERD.sky[1]}"/>`
-    + `<stop offset="1" stop-color="${HERD.sky[1]}"/></linearGradient>`
-    + `<linearGradient id="hglow" x1="0" y1="0" x2="0" y2="1">`
-    + `<stop offset="0" stop-color="${HERD.sun}" stop-opacity="0"/>`
-    + `<stop offset="1" stop-color="${HERD.sun}" stop-opacity="0.32"/></linearGradient></defs>`
-    + `<rect width="${W}" height="${H}" fill="url(#hsky)"/>`
-    + `<rect x="0" y="${H * 0.32}" width="${W}" height="${H * 0.26}" fill="url(#hglow)"/>`;
-
-  // Низкое солнце: диск за первым ярусом, лошади идут по нему силуэтами.
-  const sx = W * 0.60;
-  const sy = H * 0.535;
-  const sr = W * 0.19;
-  const sid = nid();
-  let sun = `<circle cx="${sx}" cy="${sy}" r="${sr}" fill="${HERD.sun}"/>`
-    + `<clipPath id="${sid}"><circle cx="${sx}" cy="${sy}" r="${sr}"/></clipPath>`
-    + `<g clip-path="url(#${sid})" fill="none" stroke="${HERD.sunLine}" stroke-width="7" opacity="0.45">`;
-  // Полосы, а не кольца: концентрические окружности внутри диска читаются
-  // спилом дерева. Горизонтальная нарезка — это садящееся сквозь дымку
-  // солнце, и она же перекликается с нарезкой ярусов.
-  for (let k = -3; k <= 3; k += 1) {
-    const yy = (sy + k * sr * 0.27).toFixed(1);
-    sun += `<path d="M ${sx - sr} ${yy} h ${sr * 2}"/>`;
-  }
-  sun += `</g>`;
-
-  const R = HERD.ranks;
-  return [
-    sky + sun
-      + frieze(H * 0.615, 78, R[0][0], R[0][1], 1, 0)
-      + frieze(H * 0.700, 106, R[1][0], R[1][1], 5, 2),
-    frieze(H * 0.790, 144, R[2][0], R[2][1], 9, 1)
-      + frieze(H * 0.885, 190, R[3][0], R[3][1], 13, 3),
-    frieze(H * 0.952, 248, R[4][0], R[4][1], 17, 2, 0.16),
-  ];
-}
-
-const SCENES = { night, herd };
+const SCENES = { night };
 
 (async () => {
   for (const [name, make] of Object.entries(SCENES)) {
