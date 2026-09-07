@@ -32,26 +32,48 @@ export async function cancelFajrAlarm() {
   } catch {}
 }
 
+// Расписание звонков. Первые шесть идут раз в минуту подряд, дальше — с
+// выбранным интервалом. Ровный шаг в пять минут означал, что пропущенный
+// первый звонок давал пять минут тишины — за них человек успевает заснуть
+// обратно, что и произошло.
+function ringTimes(fajrMs, sunriseMs, intervalMin, max) {
+  const times = [];
+  for (let i = 0; i < 6; i += 1) times.push(fajrMs + i * 60000);
+  const step = Math.max(2, intervalMin) * 60000;
+  for (let t = fajrMs + 6 * 60000; t < sunriseMs && times.length < max; t += step) {
+    times.push(t);
+  }
+  return times.filter((t) => t < sunriseMs).slice(0, max);
+}
+
 // Schedule the ring chain for the given fajr/sunrise Date objects.
 // Call daily after prayer times are computed.
 export async function scheduleFajrAlarm(fajrDate, sunriseDate, labels) {
   const { enabled, interval } = await getFajrAlarmSettings();
   await cancelFajrAlarm();
   if (!enabled || !fajrDate || !sunriseDate) return 0;
+  if (!(await ensurePermission())) return 0;
 
   const now = Date.now();
-  const step = Math.max(2, interval) * 60000;
   let n = 0;
   // Цепочка ограничена дюжиной звонков. Сорок штук вместе с напоминаниями
   // о намазах перекрывали лимит iOS в 64 отложенных уведомления, и часть
   // расписания отбрасывалась молча — включая сам будильник.
-  for (let t = fajrDate.getTime(); t < sunriseDate.getTime() && n < MAX_RINGS; t += step) {
+  for (const t of ringTimes(fajrDate.getTime(), sunriseDate.getTime(), interval, MAX_RINGS)) {
     if (t <= now) continue; // don't schedule in the past
     await Notifications.scheduleNotificationAsync({
       content: {
         title: labels?.title || 'Фаджр! Пора вставать 🕌',
         body: labels?.body || 'Время утреннего намаза. Открой приложение, когда проснёшься — будильник остановится.',
-        sound: true,
+        // Свой звук на двадцать девять секунд вместо системного «дзынь»:
+        // iOS обрывает звук уведомления на тридцатой секунде, и это предел
+        // того, что приложению вообще доступно.
+        sound: 'alarm.wav',
+        // Сквозь режим сна обычное уведомление не проходит — оно приходит
+        // беззвучно и копится до утра. Time Sensitive пробивает «Фокус»;
+        // на бесшумный режим переключателем сбоку не влияет ничто, кроме
+        // Critical Alerts, а те требуют разрешения Apple.
+        interruptionLevel: 'timeSensitive',
         data: { tag: TAG },
       },
       // Тип обязателен: нетипизированный { date } нынешняя версия

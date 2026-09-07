@@ -19,7 +19,8 @@
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.95233b59e7e45aab.1"
-        ]
+        ],
+        "com.apple.developer.usernotifications.time-sensitive": true
       },
       "appleTeamId": "2DS87XDUW6"
     },
@@ -42,7 +43,8 @@
           "sounds": [
             "./assets/sounds/chime.wav",
             "./assets/sounds/bell.wav",
-            "./assets/sounds/soft.wav"
+            "./assets/sounds/soft.wav",
+            "./assets/sounds/alarm.wav"
           ]
         }
       ],

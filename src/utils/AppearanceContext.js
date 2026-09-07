@@ -30,15 +30,9 @@ export const PATTERNS = [
   // подчиняются. Иначе стиль не работает: он весь держится на разнице
   // соседних тонов и на одном горячем акценте, а общий тинт их сравнивает.
   { id: 'night', label_en: 'Night', label_ru: 'Ночь', kind: 'paper' },
-  { id: 'herd',  label_en: 'Herd',  label_ru: 'Табун', kind: 'paper' },
 ];
 
 export const PAPER_LAYERS = {
-  herd: [
-    require('../../assets/paper/herd-1.png'),
-    require('../../assets/paper/herd-2.png'),
-    require('../../assets/paper/herd-3.png'),
-  ],
   night: [
     require('../../assets/paper/night-1.png'),
     require('../../assets/paper/night-2.png'),

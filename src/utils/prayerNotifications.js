@@ -125,6 +125,10 @@ export async function schedulePrayerReminders({
           // Имя файла вместо true: iOS проигрывает звук из бандла,
           // а true даёт системный по умолчанию.
           sound: sound || true,
+          // Сквозь режим сна и «Фокус» обычное уведомление не проходит: оно
+          // приходит беззвучно и копится до утра. Время намаза привязано к
+          // моменту, а не к удобному случаю, поэтому уровень повышен.
+          interruptionLevel: 'timeSensitive',
           data: { tag: TAG, prayer: item.prayer },
         },
         trigger: { type: SchedulableTriggerInputTypes.DATE, date: item.fireAt },

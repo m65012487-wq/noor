@@ -13,7 +13,7 @@ const path = require('path');
 const RATE = 44100;
 const OUT = path.join(__dirname, '..', '..', 'assets', 'sounds');
 
-function wav(samples) {
+function wav(samples, rate = RATE) {
   const data = Buffer.alloc(samples.length * 2);
   samples.forEach((v, i) => {
     const clamped = Math.max(-1, Math.min(1, v));
@@ -28,8 +28,8 @@ function wav(samples) {
   header.writeUInt32LE(16, 16);
   header.writeUInt16LE(1, 20);   // PCM
   header.writeUInt16LE(1, 22);   // моно
-  header.writeUInt32LE(RATE, 24);
-  header.writeUInt32LE(RATE * 2, 28);
+  header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate * 2, 28);
   header.writeUInt16LE(2, 32);
   header.writeUInt16LE(16, 34);
   header.write('data', 36);
@@ -67,6 +67,38 @@ function bell(seconds, base, partials, decays, delay = 0) {
   return Array.from(out);
 }
 
+// Будильник. Не колокол, а настойчивый повтор: разбудить должен звук, который
+// не сливается с обычным уведомлением и не кончается через две секунды.
+//
+// iOS обрывает звук уведомления на тридцатой секунде, поэтому длина взята
+// впритык — 29 секунд. Частота дискретизации 22 050 вместо 44 100: для двух
+// синусоид этого хватает с запасом, а файл выходит вдвое легче.
+function alarm() {
+  const rate = 22050;
+  const seconds = 29;
+  const n = Math.floor(rate * seconds);
+  const out = new Float32Array(n);
+  const cycle = 1.4;      // период всей группы
+  const beep = 0.13;      // длительность одного писка
+  const gap = 0.09;       // пауза между писками в группе
+  const tones = [880, 1174.66, 880];
+
+  for (let i = 0; i < n; i += 1) {
+    const t = i / rate;
+    const inCycle = t % cycle;
+    const idx = Math.floor(inCycle / (beep + gap));
+    if (idx >= tones.length) continue;
+    const local = inCycle - idx * (beep + gap);
+    if (local > beep) continue;
+    // Скругление краёв: прямоугольная огибающая даёт щелчок на каждом писке.
+    const env = Math.min(1, local / 0.008, (beep - local) / 0.008);
+    const f = tones[idx];
+    out[i] = (Math.sin(2 * Math.PI * f * t) * 0.8
+      + Math.sin(2 * Math.PI * f * 2 * t) * 0.2) * env * 0.85;
+  }
+  return { samples: Array.from(out), rate };
+}
+
 const SOUNDS = {
   // Спокойный двойной удар — основной вариант.
   chime: () => bell(2.0, 880, [1, 2.01, 2.98, 4.12], [3.2, 4.4, 6.0, 8.5], 0.16),
@@ -81,4 +113,12 @@ for (const [name, make] of Object.entries(SOUNDS)) {
   fs.writeFileSync(file, wav(make()));
   const kb = (fs.statSync(file).size / 1024).toFixed(0);
   console.log(name.padEnd(8), kb + ' КБ');
+}
+
+// Будильник пишется отдельно: у него своя частота дискретизации.
+{
+  const { samples, rate } = alarm();
+  const file = path.join(OUT, 'alarm.wav');
+  fs.writeFileSync(file, wav(samples, rate));
+  console.log('alarm'.padEnd(8), (fs.statSync(file).size / 1024).toFixed(0) + ' КБ');
 }

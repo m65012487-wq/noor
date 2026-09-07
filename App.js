@@ -21,7 +21,10 @@ const Tab = createBottomTabNavigator();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false,
+    // shouldShowAlert устарел в expo-notifications 0.32 и молча игнорируется:
+    // баннер и строка в центре уведомлений включаются отдельными ключами.
+    shouldShowBanner: true, shouldShowList: true,
+    shouldPlaySound: true, shouldSetBadge: false,
   }),
 });
 
