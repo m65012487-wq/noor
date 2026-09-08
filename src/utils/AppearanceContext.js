@@ -23,22 +23,8 @@ export const PATTERNS = [
   // задаётся схемой, и одна картинка работает со всеми.
   { id: 'city',     label_en: 'Skyline',  label_ru: 'Город',    kind: 'scene' },
   { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
-  { id: 'arcade',   label_en: 'Arcade',   label_ru: 'Аркада',   kind: 'scene' },
   { id: 'crescent', label_en: 'Crescent', label_ru: 'Полумесяц', kind: 'scene' },
-
-  // Резаная бумага — отдельный род обоев: они цветные и тону схемы не
-  // подчиняются. Иначе стиль не работает: он весь держится на разнице
-  // соседних тонов и на одном горячем акценте, а общий тинт их сравнивает.
-  { id: 'night', label_en: 'Night', label_ru: 'Ночь', kind: 'paper' },
 ];
-
-export const PAPER_LAYERS = {
-  night: [
-    require('../../assets/paper/night-1.png'),
-    require('../../assets/paper/night-2.png'),
-    require('../../assets/paper/night-3.png'),
-  ],
-};
 
 export const PATTERN_TILES = {
   bloom: require('../../assets/patterns/bloom.png'),
@@ -60,11 +46,6 @@ export const SCENE_LAYERS = {
     require('../../assets/scenes/desert-1.png'),
     require('../../assets/scenes/desert-2.png'),
     require('../../assets/scenes/desert-3.png'),
-  ],
-  arcade: [
-    require('../../assets/scenes/arcade-1.png'),
-    require('../../assets/scenes/arcade-2.png'),
-    require('../../assets/scenes/arcade-3.png'),
   ],
   crescent: [
     require('../../assets/scenes/crescent-1.png'),

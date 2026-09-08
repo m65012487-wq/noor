@@ -44,7 +44,10 @@
             "./assets/sounds/chime.wav",
             "./assets/sounds/bell.wav",
             "./assets/sounds/soft.wav",
-            "./assets/sounds/alarm.wav"
+            "./assets/sounds/alarm.wav",
+            "./assets/sounds/balafon.wav",
+            "./assets/sounds/birds.wav",
+            "./assets/sounds/dawn.wav"
           ]
         }
       ],

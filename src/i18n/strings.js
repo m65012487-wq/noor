@@ -48,6 +48,11 @@ export const STRINGS = {
     // и «мин до» — это варианты выбора в настройках, а в самом уведомлении
     // они читались как обрывок фразы.
     notif_sound: 'Notification sound',
+    at_time_sound: 'Sound at prayer time',
+    at_time_sound_hint: 'Plays when the time comes, not for the reminder before it',
+    calendar: 'Calendar',
+    illumination: 'Illuminated',
+    hijri_offset: 'Hijri correction',
     notif_now: 'Time to pray',
     notif_in: 'In {n} min',
     notif_sunrise: 'Fajr time is over',
@@ -224,6 +229,11 @@ export const STRINGS = {
     no_reminder: 'Выкл',
     at_adhan: 'В момент азана',
     notif_sound: 'Звук уведомления',
+    at_time_sound: 'Звук в момент намаза',
+    at_time_sound_hint: 'Звучит при наступлении времени, а не для напоминания перед ним',
+    calendar: 'Календарь',
+    illumination: 'Освещённость',
+    hijri_offset: 'Поправка хиджры',
     notif_now: 'Время намаза',
     notif_in: 'Через {n} мин',
     notif_sunrise: 'Время фаджра вышло',

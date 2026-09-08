@@ -5,13 +5,13 @@ import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
-import { useAppSettings, NOTIF_SOUNDS } from '../utils/AppSettingsContext';
+import { useAppSettings, NOTIF_SOUNDS, ADHAN_NOTIF_SOUNDS, SOUND_ASSETS } from '../utils/AppSettingsContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
 import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm } from '../utils/fajrAlarm';
 import { TIME_SOURCES } from '../utils/prayerSource';
-import { playUrl, stopAudio } from '../utils/audioPlayer';
+import { playUrl, playAsset, stopAudio } from '../utils/audioPlayer';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -25,6 +25,28 @@ function Opt({ label, active, onPress, activeBg }) {
       <Text style={[styles.rowText, active && styles.rowTextActive, { flex: 1 }]}>{label}</Text>
       {active && <Icon name="check" size={17} color={COLORS.white} />}
     </TouchableOpacity>
+  );
+}
+
+// Строка звука: выбор слева, прослушивание справа. Без прослушивания выбор
+// вслепую — названия «Балафон» и «Рассвет» ничего не говорят, пока не
+// услышишь. У системного звука кнопки нет: его файла в приложении нет.
+function SoundRow({ item, lang, active, activeBg, playing, onPreview, onPick }) {
+  return (
+    <View style={[styles.row, active && styles.rowActive, active && activeBg]}>
+      <TouchableOpacity style={{ flex: 1 }} onPress={onPick}>
+        <Text style={[styles.rowText, active && styles.rowTextActive]}>
+          {lang === 'ru' ? item.label_ru : item.label_en}
+        </Text>
+      </TouchableOpacity>
+      {item.file ? (
+        <TouchableOpacity onPress={onPreview} style={styles.previewBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Icon name={playing ? 'pause' : 'play'} size={16} color={COLORS.accentSoft} />
+        </TouchableOpacity>
+      ) : null}
+      {active && <Icon name="check" size={17} color={COLORS.white} />}
+    </View>
   );
 }
 
@@ -46,6 +68,7 @@ function Section({ id, icon, title, open, onToggle, children }) {
 export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
+    adhanNotifSound, chooseAdhanNotifSound, hijriOffset, chooseHijriOffset,
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
     fontSet, chooseFontSet, FONT_SETS, parallax, toggleParallax,
@@ -84,6 +107,20 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
     setLoadingId(null);
     setPreviewing(ok ? item.id : null);
   }
+  // Звук из бандла грузить не нужно, поэтому и промежуточного состояния нет.
+  // Ключ с приставкой: один и тот же файл стоит в обоих списках, и без
+  // приставки нажатие в одном подсвечивало бы кнопку и в другом.
+  async function previewAsset(key, soundId) {
+    if (previewing === key) {
+      await stopAudio();
+      setPreviewing(null);
+      return;
+    }
+    const mod = SOUND_ASSETS[soundId];
+    if (!mod) return;
+    const ok = await playAsset(mod, () => setPreviewing(null));
+    setPreviewing(ok ? key : null);
+  }
   function close() { stopAudio(); setPreviewing(null); setLoadingId(null); onClose(); }
 
   return (
@@ -102,13 +139,25 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               active={asrSchool === m.id} onPress={() => chooseAsrSchool(m.id)} activeBg={activeBg} />
           ))}
 
-          {/* Звук уведомления и азан — разные вещи: азан звучит в приложении,
-              а в уведомление iOS пускает только короткий файл из бандла. */}
+          {/* Два набора звуков вместо одного: напоминание «за N минут» и само
+              наступление времени — разные события, и звучать они должны
+              по-разному. Азан здесь не участвует: в уведомление iOS пускает
+              только короткий файл из бандла, а записи азанов лежат в сети. */}
           <Text style={styles.label}>{t('notif_sound')}</Text>
           {NOTIF_SOUNDS.map((sn) => (
-            <Opt key={sn.id} label={lang === 'ru' ? sn.label_ru : sn.label_en}
-              active={notifSound === sn.id} onPress={() => chooseNotifSound(sn.id)}
-              activeBg={activeBg} />
+            <SoundRow key={sn.id} item={sn} lang={lang} activeBg={activeBg}
+              active={notifSound === sn.id} onPick={() => chooseNotifSound(sn.id)}
+              playing={previewing === 'n:' + sn.id}
+              onPreview={() => previewAsset('n:' + sn.id, sn.id)} />
+          ))}
+
+          <Text style={styles.label}>{t('at_time_sound')}</Text>
+          <Text style={styles.hintText}>{t('at_time_sound_hint')}</Text>
+          {ADHAN_NOTIF_SOUNDS.map((sn) => (
+            <SoundRow key={sn.id} item={sn} lang={lang} activeBg={activeBg}
+              active={adhanNotifSound === sn.id} onPick={() => chooseAdhanNotifSound(sn.id)}
+              playing={previewing === 'a:' + sn.id}
+              onPreview={() => previewAsset('a:' + sn.id, sn.id)} />
           ))}
 
           <Text style={styles.label}>{t('adhan_sound')}</Text>
@@ -228,6 +277,22 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
           <Text style={styles.label}>{t('language')}</Text>
           <Opt label="English" active={lang === 'en'} onPress={() => setLang('en')} activeBg={activeBg} />
           <Opt label="Русский" active={lang === 'ru'} onPress={() => setLang('ru')} activeBg={activeBg} />
+
+          {/* Поправка хиджры: месяц начинают по наблюдению молодого месяца,
+              а таблица считает арифметикой, поэтому расхождение в день-другой
+              — норма, а не сбой. Пусть человек выровняет по своей мечети. */}
+          <Text style={styles.label}>{t('hijri_offset')}</Text>
+          <View style={styles.intervalRow}>
+            {[-2, -1, 0, 1, 2].map((v) => (
+              <TouchableOpacity key={v}
+                style={[styles.intChip, hijriOffset === v && styles.intChipActive]}
+                onPress={() => chooseHijriOffset(v)}>
+                <Text style={[styles.intText, hijriOffset === v && styles.intTextActive]}>
+                  {v > 0 ? '+' + v : String(v)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </Section>
 
       <TouchableOpacity style={styles.doneBtn} onPress={close}>

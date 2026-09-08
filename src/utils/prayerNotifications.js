@@ -69,7 +69,7 @@ function timeToDate(hhmm, day) {
  * @returns {Promise<number>} сколько уведомлений поставлено
  */
 export async function schedulePrayerReminders({
-  timesForDate, reminders, label, body, sound, days = 4,
+  timesForDate, reminders, label, body, sound, atTimeSound, days = 4,
 }) {
   await cancelPrayerReminders();
 
@@ -124,7 +124,11 @@ export async function schedulePrayerReminders({
           body: body(item.prayer, item.minutesBefore),
           // Имя файла вместо true: iOS проигрывает звук из бандла,
           // а true даёт системный по умолчанию.
-          sound: sound || true,
+          //
+          // Наступление времени и напоминание перед ним звучат по-разному.
+          // Раньше это был один и тот же звук, и на слух события не
+          // различались — хотя это разные события.
+          sound: (item.minutesBefore === 0 ? atTimeSound : sound) || true,
           // Сквозь режим сна и «Фокус» обычное уведомление не проходит: оно
           // приходит беззвучно и копится до утра. Время намаза привязано к
           // моменту, а не к удобному случаю, поэтому уровень повышен.

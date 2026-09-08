@@ -18,8 +18,11 @@ import { publishPrayerDay } from '../utils/widgetBridge';
 import { useLang } from '../i18n/LanguageContext';
 import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
+import MoonPhase from '../components/MoonPhase';
+import CalendarSheet from '../components/CalendarSheet';
+import { formatGregorian, formatHijri } from '../utils/hijri';
 import { useLocation } from '../utils/LocationContext';
-import { useAppSettings, notifSoundFile } from '../utils/AppSettingsContext';
+import { useAppSettings, notifSoundFile, adhanNotifSoundFile } from '../utils/AppSettingsContext';
 import { scheduleFajrAlarm, markAwake, isInAlarmWindow, getFajrAlarmSettings } from '../utils/fajrAlarm';
 
 // Восход стоит между фаджром и зухром: он завершает время утренней молитвы,
@@ -35,7 +38,8 @@ export default function PrayerTimesScreen() {
   const swipe = useTabSwipe('Prayer');
   const { accent } = useAppearance();
   const { coords } = useLocation();
-  const { reminders, timeSourceId, asrSchool, notifSound } = useAppSettings();
+  const { reminders, timeSourceId, asrSchool, notifSound, adhanNotifSound, hijriOffset } = useAppSettings();
+  const today = new Date();
   const [timings, setTimings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,6 +50,7 @@ export default function PrayerTimesScreen() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [reminderPrayer, setReminderPrayer] = useState(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const timer = useRef(null);
 
   function toggleSchedule() {
@@ -104,6 +109,7 @@ export default function PrayerTimesScreen() {
       }),
       reminders,
       sound: notifSoundFile(notifSound),
+      atTimeSound: adhanNotifSoundFile(adhanNotifSound),
       label: (p) => prayerName(p, lang),
       // Заголовок — имя намаза, тело — что происходит. Раньше в тело
       // попадали подписи кнопок настроек («В момент азана», «мин до»),
@@ -114,7 +120,7 @@ export default function PrayerTimesScreen() {
         return t("notif_in").replace("{n}", String(minutes));
       },
     });
-  }, [coords, reminders, timeSourceId, asrSchool, lang, t, notifSound]);
+  }, [coords, reminders, timeSourceId, asrSchool, lang, t, notifSound, adhanNotifSound]);
   async function load() {
     setLoading(true); setError(null); setTimings(null);
     try {
@@ -174,11 +180,22 @@ export default function PrayerTimesScreen() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={() => setPickerOpen(true)} activeOpacity={0.8}>
-        <GlassView style={styles.locChip} radius={RADIUS.pill} intensity={28}>
-          <Text style={styles.locText}>  {coords?.label || t('change_location')}  </Text>
-        </GlassView>
-      </TouchableOpacity>
+      {/* Две даты рядом: григорианская привычна, по хиджре живёт всё
+          остальное в приложении — посты, месяцы, праздники. Держать в голове
+          перевод между ними неудобно, поэтому обе на виду. Нажатие открывает
+          календарь, где они сведены помесячно. */}
+      <View style={styles.topRow}>
+        <TouchableOpacity onPress={() => setPickerOpen(true)} activeOpacity={0.8}>
+          <GlassView style={styles.locChip} radius={RADIUS.pill} intensity={28}>
+            <Text style={styles.locText}>  {coords?.label || t('change_location')}  </Text>
+          </GlassView>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setCalendarOpen(true)} activeOpacity={0.8}
+          style={styles.dateBlock}>
+          <Text style={styles.dateGreg}>{formatGregorian(today, lang)}</Text>
+          <Text style={styles.dateHijri}>{formatHijri(today, hijriOffset, lang)}</Text>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {loading && <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />}
@@ -199,6 +216,10 @@ export default function PrayerTimesScreen() {
                 тень под текстом и тонкие разделители — их хватает. */}
             <View style={styles.nextCard}>
               <ProgressRing size={216} stroke={9} progress={progress} color={accent}>
+                {/* Луна за цифрами: дуга кольца отмеряет промежуток между
+                    намазами, а диск внутри — лунный месяц. Два разных счёта
+                    времени в одном месте, и ни один не мешает другому. */}
+                <MoonPhase size={168} color={accent} date={today} />
                 <Text style={styles.nextLabel}>{t("next_prayer")}</Text>
                 <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
                 <Text style={styles.countdown}>{countdown}</Text>
@@ -253,6 +274,7 @@ export default function PrayerTimesScreen() {
       <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setTimings((x) => (x ? { ...x } : x))} />
       <PrayerReminderSheet prayer={reminderPrayer} onClose={() => setReminderPrayer(null)} />
+      <CalendarSheet visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
     </ScreenWrapper>
   );
 }
@@ -269,7 +291,12 @@ const SHADOW = {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   gear: { padding: SPACING.sm },
-  locChip: { alignSelf: 'flex-start', marginBottom: SPACING.md },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: SPACING.md },
+  locChip: { alignSelf: 'flex-start' },
+  dateBlock: { alignItems: 'flex-end', paddingLeft: SPACING.sm },
+  dateGreg: { ...TYPE.caption, color: COLORS.text, fontWeight: '600', ...SHADOW },
+  dateHijri: { ...TYPE.caption, color: COLORS.accentSoft, marginTop: 1, ...SHADOW },
   locText: { ...TYPE.callout, color: COLORS.text, paddingVertical: SPACING.sm, fontWeight: '500' },
 
   nextCard: { alignItems: 'center', paddingVertical: SPACING.lg, marginBottom: SPACING.md },

@@ -48,3 +48,30 @@ export async function stopAudio() {
 export function isPlaying() {
   return sound != null;
 }
+
+// Прослушивание звука из бандла. Отдельно от playUrl: азаны лежат в сети и
+// приходят ссылкой, а звуки уведомлений — файлы в приложении, и им нужен
+// require-ресурс, а не адрес.
+export async function playAsset(mod, onFinish) {
+  await stopAudio();
+  const myToken = ++playToken;
+  try {
+    await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+    const { sound: s } = await Audio.Sound.createAsync(mod, { shouldPlay: true });
+    if (myToken !== playToken) {
+      try { await s.unloadAsync(); } catch {}
+      return false;
+    }
+    sound = s;
+    s.setOnPlaybackStatusUpdate((status) => {
+      if (status.didJustFinish && myToken === playToken) {
+        onFinish && onFinish();
+        if (sound === s) { sound = null; }
+        try { s.unloadAsync(); } catch {}
+      }
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
