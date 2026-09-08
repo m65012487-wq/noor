@@ -52,6 +52,12 @@ export default function PrayerTimesScreen() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const timer = useRef(null);
+  // Намаз через один после ближайшего: список замкнут в круг, поэтому после
+  // иши идёт фаджр следующих суток. Считается ниже nextName — выше он попадал
+  // в мёртвую зону объявления и падал на первом же рендере.
+  const afterNext = nextName
+    ? PRAYERS[(PRAYERS.indexOf(nextName) + 1) % PRAYERS.length]
+    : null;
 
   function toggleSchedule() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -229,13 +235,18 @@ export default function PrayerTimesScreen() {
               </ProgressRing>
             </View>
 
-            {/* Full schedule — collapsed into a spoiler */}
+            {/* Свёрнутое расписание показывает намаз ЧЕРЕЗ ОДИН, а не
+                ближайший: ближайший уже стоит в кольце над ним, и повторять
+                его во второй строке — тратить место на то же самое. */}
             <TouchableOpacity activeOpacity={0.85} onPress={toggleSchedule}>
               <View style={[styles.spoilerRow, scheduleOpen && styles.spoilerOpen]}>
                 <Text style={styles.spoilerTitle}>{t('schedule')}</Text>
                 <View style={styles.rowRight}>
-                  {!scheduleOpen && !!nextName && (
-                    <Text style={styles.spoilerNext}>{timings[nextName]}</Text>
+                  {!scheduleOpen && !!afterNext && (
+                    <>
+                      <Text style={styles.spoilerLabel}>{prayerName(afterNext, lang)}</Text>
+                      <Text style={styles.spoilerNext}>{timings[afterNext]}</Text>
+                    </>
                   )}
                   <Icon name={scheduleOpen ? 'up' : 'down'}
                     size={18} color={COLORS.textMuted} style={{ marginLeft: 10 }} />
@@ -266,7 +277,6 @@ export default function PrayerTimesScreen() {
                 </TouchableOpacity>
               );
             })}
-            {scheduleOpen && <Text style={styles.hint}>{t('customize')} →</Text>}
           </>
         )}
       </ScrollView>
@@ -312,6 +322,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md, paddingHorizontal: SPACING.xs },
   spoilerOpen: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.hairline },
   spoilerTitle: { ...TYPE.overline, color: COLORS.text, ...SHADOW },
+  spoilerLabel: { ...TYPE.callout, color: COLORS.textMuted, marginRight: SPACING.sm, ...SHADOW },
   spoilerNext: { ...TYPE.subhead, ...TYPE.mono, color: COLORS.white, fontWeight: '700', ...SHADOW },
 
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

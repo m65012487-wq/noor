@@ -5,7 +5,7 @@ import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
-import { useAppSettings, NOTIF_SOUNDS, ADHAN_NOTIF_SOUNDS, SOUND_ASSETS } from '../utils/AppSettingsContext';
+import { useAppSettings, NOTIF_SOUNDS, SOUND_ASSETS } from '../utils/AppSettingsContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
@@ -19,19 +19,30 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const OPACITY_LEVELS = [0.01, 0.04, 0.08, 0.13, 0.18];
 
-function Opt({ label, active, onPress, activeBg }) {
+// Отметка выбора. Галочка в списке из десяти строк читается плохо: она
+// одного веса с текстом и теряется среди букв. Точка в кольце заметна
+// периферийным зрением и сразу говорит «выбрано одно из многих».
+function Pick({ active, color }) {
+  return (
+    <View style={[styles.pick, active && { borderColor: color }]}>
+      {active && <View style={[styles.pickDot, { backgroundColor: color }]} />}
+    </View>
+  );
+}
+
+function Opt({ label, active, onPress, activeBg, accent }) {
   return (
     <TouchableOpacity style={[styles.row, active && styles.rowActive, active && activeBg]} onPress={onPress}>
       <Text style={[styles.rowText, active && styles.rowTextActive, { flex: 1 }]}>{label}</Text>
-      {active && <Icon name="check" size={17} color={COLORS.white} />}
+      <Pick active={active} color={accent} />
     </TouchableOpacity>
   );
 }
 
 // Строка звука: выбор слева, прослушивание справа. Без прослушивания выбор
-// вслепую — названия «Балафон» и «Рассвет» ничего не говорят, пока не
-// услышишь. У системного звука кнопки нет: его файла в приложении нет.
-function SoundRow({ item, lang, active, activeBg, playing, onPreview, onPick }) {
+// вслепую — название ничего не говорит, пока не услышишь. У системного звука
+// кнопки нет: его файла в приложении нет.
+function SoundRow({ item, lang, active, activeBg, playing, onPreview, onPick, accent }) {
   return (
     <View style={[styles.row, active && styles.rowActive, active && activeBg]}>
       <TouchableOpacity style={{ flex: 1 }} onPress={onPick}>
@@ -45,7 +56,7 @@ function SoundRow({ item, lang, active, activeBg, playing, onPreview, onPick }) 
           <Icon name={playing ? 'pause' : 'play'} size={16} color={COLORS.accentSoft} />
         </TouchableOpacity>
       ) : null}
-      {active && <Icon name="check" size={17} color={COLORS.white} />}
+      <Pick active={active} color={accent} />
     </View>
   );
 }
@@ -72,8 +83,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
     fontSet, chooseFontSet, FONT_SETS, parallax, toggleParallax,
-    tint } = useAppearance();
+    tint, accent } = useAppearance();
   const tintRgb = tint || '180,215,230';
+  const accentColor = accent || COLORS.accent;
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
   const [previewing, setPreviewing] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
@@ -130,13 +142,13 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
           <Text style={styles.label}>{t('time_source')}</Text>
           {TIME_SOURCES.map((s) => (
             <Opt key={s.id} label={lang === 'ru' ? s.label_ru : s.label_en}
-              active={timeSourceId === s.id} onPress={() => chooseTimeSource(s.id)} activeBg={activeBg} />
+              active={timeSourceId === s.id} onPress={() => chooseTimeSource(s.id)} activeBg={activeBg} accent={accentColor} />
           ))}
 
           <Text style={styles.label}>{t('asr_method')}</Text>
           {ASR_SCHOOLS.map((m) => (
             <Opt key={m.id} label={lang === 'ru' ? m.label_ru : m.label_en}
-              active={asrSchool === m.id} onPress={() => chooseAsrSchool(m.id)} activeBg={activeBg} />
+              active={asrSchool === m.id} onPress={() => chooseAsrSchool(m.id)} activeBg={activeBg} accent={accentColor} />
           ))}
 
           {/* Два набора звуков вместо одного: напоминание «за N минут» и само
@@ -148,16 +160,15 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
             <SoundRow key={sn.id} item={sn} lang={lang} activeBg={activeBg}
               active={notifSound === sn.id} onPick={() => chooseNotifSound(sn.id)}
               playing={previewing === 'n:' + sn.id}
-              onPreview={() => previewAsset('n:' + sn.id, sn.id)} />
+              onPreview={() => previewAsset('n:' + sn.id, sn.id)} accent={accentColor} />
           ))}
 
           <Text style={styles.label}>{t('at_time_sound')}</Text>
-          <Text style={styles.hintText}>{t('at_time_sound_hint')}</Text>
-          {ADHAN_NOTIF_SOUNDS.map((sn) => (
+          {NOTIF_SOUNDS.map((sn) => (
             <SoundRow key={sn.id} item={sn} lang={lang} activeBg={activeBg}
               active={adhanNotifSound === sn.id} onPick={() => chooseAdhanNotifSound(sn.id)}
               playing={previewing === 'a:' + sn.id}
-              onPreview={() => previewAsset('a:' + sn.id, sn.id)} />
+              onPreview={() => previewAsset('a:' + sn.id, sn.id)} accent={accentColor} />
           ))}
 
           <Text style={styles.label}>{t('adhan_sound')}</Text>
@@ -177,7 +188,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
                         size={16} color={COLORS.accentSoft} />}
                 </TouchableOpacity>
               )}
-              {adhanSound === a.id && !a.url && <Icon name="check" size={17} color={COLORS.white} />}
+              <Pick active={adhanSound === a.id} color={accentColor} />
             </View>
           ))}
 
@@ -275,8 +286,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
         <Section id="general" icon="settings" title={t("sec_general")}
           open={openSection === 'general'} onToggle={toggle}>
           <Text style={styles.label}>{t('language')}</Text>
-          <Opt label="English" active={lang === 'en'} onPress={() => setLang('en')} activeBg={activeBg} />
-          <Opt label="Русский" active={lang === 'ru'} onPress={() => setLang('ru')} activeBg={activeBg} />
+          <Opt label="English" active={lang === 'en'} onPress={() => setLang('en')} activeBg={activeBg} accent={accentColor} />
+          <Opt label="Русский" active={lang === 'ru'} onPress={() => setLang('ru')} activeBg={activeBg} accent={accentColor} />
 
           {/* Поправка хиджры: месяц начинают по наблюдению молодого месяца,
               а таблица считает арифметикой, поэтому расхождение в день-другой
@@ -326,6 +337,12 @@ const styles = StyleSheet.create({
     padding: SPACING.md, borderRadius: RADIUS.md, marginBottom: SPACING.sm,
     backgroundColor: COLORS.surface },
   rowActive: { backgroundColor: COLORS.surfaceActive },
+  // Кольцо с точкой вместо галочки: в списке из десяти строк галочка одного
+  // веса с текстом и теряется среди букв.
+  pick: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center',
+    marginLeft: SPACING.sm },
+  pickDot: { width: 9, height: 9, borderRadius: 4.5 },
   rowText: { ...TYPE.body, color: COLORS.text },
   rowTextActive: { color: COLORS.white, fontWeight: '700' },
   check: { ...TYPE.subhead, color: COLORS.white, fontWeight: '900', marginLeft: SPACING.sm },

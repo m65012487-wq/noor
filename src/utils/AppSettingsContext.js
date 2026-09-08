@@ -15,7 +15,7 @@ function defaultReminders() {
 export function AppSettingsProvider({ children }) {
   const [adhanSound, setAdhanSound] = useState('alafasy');
   const [notifSound, setNotifSound] = useState('chime');
-  const [adhanNotifSound, setAdhanNotifSound] = useState('birds');
+  const [adhanNotifSound, setAdhanNotifSound] = useState('bell');
   const [hijriOffset, setHijriOffset] = useState(-1);
   const [reminders, setReminders] = useState(defaultReminders());
   const [dailyGoal, setDailyGoal] = useState(5);
@@ -31,7 +31,7 @@ export function AppSettingsProvider({ children }) {
       setAdhanSound(await loadJSON('adhanSound', 'alafasy'));
       setReminders(await loadJSON('prayerReminders', defaultReminders()));
       setNotifSound(await loadJSON('notifSound', 'chime'));
-      setAdhanNotifSound(await loadJSON('adhanNotifSound', 'birds'));
+      setAdhanNotifSound(await loadJSON('adhanNotifSound', 'bell'));
       setHijriOffset(await loadJSON('hijriOffset', -1));
       setDailyGoal(await loadJSON('dailyGoal', 5));
       setCalcMethod(await loadJSON('calcMethod', 'mwl'));
@@ -85,30 +85,18 @@ export function AppSettingsProvider({ children }) {
 
 export const useAppSettings = () => useContext(AppSettingsContext);
 
-// Звуки уведомлений. Их два набора, и это не прихоть: до этого напоминание
-// «за десять минут» и само наступление времени звучали одинаково, поэтому
-// на слух они не различались — а это разные события.
+// Звуки уведомлений. Список один, а выбор из него — два: напоминание перед
+// намазом и само наступление времени звучат по-разному, но набор у них общий.
+// Отдельный короткий список для момента намаза оказался лишней сущностью.
 //
-// В уведомление iOS пускает только короткий файл из бандла, не длиннее
-// тридцати секунд. Поэтому сам азан звучать в уведомлении не может: записи
-// азанов лежат на сервере и идут минутами. Азан играет в приложении.
-
-// Напоминание перед намазом: короткое и негромкое.
+// В уведомление iOS пускает только файл из бандла не длиннее тридцати секунд
+// и только в несжатом виде. Записи азанов лежат в сети и идут минутами,
+// поэтому азан звучит в приложении, а не в уведомлении.
 export const NOTIF_SOUNDS = [
   { id: 'default', label_en: 'System',  label_ru: 'Системный',   file: undefined },
   { id: 'chime',   label_en: 'Chime',   label_ru: 'Колокольчик', file: 'chime.wav' },
   { id: 'bell',    label_en: 'Bell',    label_ru: 'Колокол',     file: 'bell.wav' },
   { id: 'soft',    label_en: 'Soft',    label_ru: 'Тихий',       file: 'soft.wav' },
-  { id: 'balafon', label_en: 'Balafon', label_ru: 'Балафон',     file: 'balafon.wav' },
-];
-
-// Наступление времени намаза: длиннее и заметнее, чем напоминание.
-export const ADHAN_NOTIF_SOUNDS = [
-  { id: 'birds',   label_en: 'Birdsong', label_ru: 'Птичья трель', file: 'birds.wav' },
-  { id: 'dawn',    label_en: 'Dawn',     label_ru: 'Рассвет',      file: 'dawn.wav' },
-  { id: 'bell',    label_en: 'Bell',     label_ru: 'Колокол',      file: 'bell.wav' },
-  { id: 'balafon', label_en: 'Balafon',  label_ru: 'Балафон',      file: 'balafon.wav' },
-  { id: 'default', label_en: 'System',   label_ru: 'Системный',    file: undefined },
 ];
 
 // Файлы для прослушивания в настройках. Уведомление берёт звук по имени из
@@ -117,15 +105,10 @@ export const SOUND_ASSETS = {
   chime: require('../../assets/sounds/chime.wav'),
   bell: require('../../assets/sounds/bell.wav'),
   soft: require('../../assets/sounds/soft.wav'),
-  balafon: require('../../assets/sounds/balafon.wav'),
-  birds: require('../../assets/sounds/birds.wav'),
-  dawn: require('../../assets/sounds/dawn.wav'),
 };
 
 export function notifSoundFile(id) {
   return NOTIF_SOUNDS.find((x) => x.id === id)?.file;
 }
 
-export function adhanNotifSoundFile(id) {
-  return ADHAN_NOTIF_SOUNDS.find((x) => x.id === id)?.file;
-}
+export const adhanNotifSoundFile = notifSoundFile;
