@@ -76,7 +76,7 @@ function Section({ id, icon, title, open, onToggle, children }) {
   );
 }
 
-export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
+export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onOpenGarden }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
     adhanNotifSound, chooseAdhanNotifSound, hijriOffset, chooseHijriOffset,
@@ -304,6 +304,17 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Вход в прототип сада. Спрятан в «Общих», пока это демонстрация,
+              а не раздел приложения: навигацию ради него не трогаем. */}
+          {onOpenGarden && (
+            <TouchableOpacity style={[styles.row, { marginTop: SPACING.md }]}
+              onPress={() => { stopAudio(); setPreviewing(null); onOpenGarden(); }}>
+              <Text style={styles.rowText}>{t('garden_open')}</Text>
+              <Icon name="back" size={18} color={COLORS.accentSoft}
+                style={{ transform: [{ rotate: '180deg' }] }} />
+            </TouchableOpacity>
+          )}
         </Section>
 
       <TouchableOpacity style={styles.doneBtn} onPress={close}>

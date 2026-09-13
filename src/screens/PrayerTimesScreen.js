@@ -20,6 +20,7 @@ import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
 import MoonPhase from '../components/MoonPhase';
 import CalendarSheet from '../components/CalendarSheet';
+import GardenPrototypeScreen from './GardenPrototypeScreen';
 import { formatGregorian, formatHijri } from '../utils/hijri';
 import { useLocation } from '../utils/LocationContext';
 import { useAppSettings, notifSoundFile, adhanNotifSoundFile } from '../utils/AppSettingsContext';
@@ -51,6 +52,7 @@ export default function PrayerTimesScreen() {
   const [reminderPrayer, setReminderPrayer] = useState(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [gardenOpen, setGardenOpen] = useState(false);
   const timer = useRef(null);
   // Намаз через один после ближайшего: список замкнут в круг, поэтому после
   // иши идёт фаджр следующих суток. Считается ниже nextName — выше он попадал
@@ -282,9 +284,16 @@ export default function PrayerTimesScreen() {
       </ScrollView>
 
       <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
-      <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setTimings((x) => (x ? { ...x } : x))} />
+      <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setTimings((x) => (x ? { ...x } : x))}
+        onOpenGarden={() => {
+          setSettingsOpen(false);
+          // iOS не показывает новое модальное окно, пока предыдущее ещё
+          // закрывается, — без паузы сад молча не открывался бы.
+          setTimeout(() => setGardenOpen(true), 450);
+        }} />
       <PrayerReminderSheet prayer={reminderPrayer} onClose={() => setReminderPrayer(null)} />
       <CalendarSheet visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
+      <GardenPrototypeScreen visible={gardenOpen} onClose={() => setGardenOpen(false)} />
     </ScreenWrapper>
   );
 }
