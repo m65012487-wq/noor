@@ -17,11 +17,12 @@ export function LocationProvider({ children }) {
         setCoords(saved);
         setStatus('ok');
       }
+      // Location permission/GPS can remain pending. Reading and Tasbih must still open.
+      setReady(true);
       // Then try to refresh from GPS unless user manually picked a city.
       if (!saved || saved.fromGps) {
         await requestGps();
       }
-      setReady(true);
     })();
   }, []);
 

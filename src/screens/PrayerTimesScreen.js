@@ -82,7 +82,7 @@ export default function PrayerTimesScreen() {
   }, []);
 
   useEffect(() => {
-    if (!coords) return undefined;
+    if (!coords) { setLoading(false); return undefined; }
     let cancelled = false;
     setLoading(true);
     setError(null);
