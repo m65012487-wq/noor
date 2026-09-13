@@ -69,7 +69,7 @@ function timeToDate(hhmm, day) {
  * @returns {Promise<number>} сколько уведомлений поставлено
  */
 export async function schedulePrayerReminders({
-  timesForDate, reminders, label, body, sound, atTimeSound, days = 4,
+  timesForDate, reminders, label, body, sound, atTimeSound, days = 7,
 }) {
   await cancelPrayerReminders();
 

@@ -24,17 +24,26 @@ const ALADHAN_METHOD = {
   qatar: 10, turkey: 13, tehran: 7, singapore: 11, moonsighting: 15, russia: 14,
 };
 
-async function fetchAladhan(lat, lng, methodNum, school) {
+async function fetchAladhan(lat, lng, methodNum, school, date = new Date()) {
   let tz = '';
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
   const tzp = tz ? `&timezonestring=${encodeURIComponent(tz)}` : '';
   const schoolNum = school === 'hanafi' ? 1 : 0;
-  const url = `${ALADHAN}?latitude=${lat}&longitude=${lng}&method=${methodNum}&school=${schoolNum}${tzp}`;
-  const res = await fetch(url);
+  const day = `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+  const url = `${ALADHAN}/${day}?latitude=${lat}&longitude=${lng}&method=${methodNum}&school=${schoolNum}${tzp}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  let res;
+  try { res = await fetch(url, { signal: controller.signal }); }
+  finally { clearTimeout(timeout); }
   if (!res.ok) throw new Error('aladhan http ' + res.status);
   const j = await res.json();
   const t = j.data.timings;
-  return { Fajr: t.Fajr, Sunrise: t.Sunrise, Dhuhr: t.Dhuhr, Asr: t.Asr, Maghrib: t.Maghrib, Isha: t.Isha };
+  return Object.fromEntries(['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(name => {
+    const time = t[name]?.match(/^\d{2}:\d{2}/)?.[0];
+    if (!time) throw new Error('Invalid time from provider');
+    return [name, time];
+  }));
 }
 
 // Detect if the user is in Russia (by timezone) for the 'auto' source.
@@ -63,22 +72,25 @@ export const TIME_SOURCES = [
   { id: 'local', label_en: 'Offline (device calc)', label_ru: 'Офлайн (на устройстве)', method: null },
 ];
 
-export function getPrayerTimes2({ lat, lng, sourceId = 'mwl_intl', school = 'shafi', tune = null }) {
+export function getPrayerTimes2({ lat, lng, sourceId = 'mwl_intl', school = 'shafi', tune = null, date = new Date(), onFallback }) {
   const src = TIME_SOURCES.find((s) => s.id === sourceId) || TIME_SOURCES[0];
   // ДУМ КБР: считаем на устройстве. Метод восстановлен по официальным
   // графикам за три сезона; расхождение с ними — до трёх минут, чаще ноль.
   // Aladhan с его методом 14 «ДУМ РФ» здесь не помощник: на 7 сентября 2026
   // он даёт Ишу 19:52 против официальных 20:16.
   if (sourceId === 'russia') {
-    return Promise.resolve(applyTune(computeDumKbr(lat, lng), tune));
+    return Promise.resolve(applyTune(computeDumKbr(lat, lng, date), tune));
   }
   if (src.method == null) {
     // local offline
-    return Promise.resolve(applyTune(computePrayerTimes(lat, lng, 'mwl', school), tune));
+    return Promise.resolve(localTimesForDate({ lat, lng, sourceId, school, tune, date }));
   }
-  return fetchAladhan(lat, lng, src.method, school)
+  return fetchAladhan(lat, lng, src.method, school, date)
     .then((t) => applyTune(t, tune))
-    .catch(() => applyTune(computePrayerTimes(lat, lng, 'mwl', school), tune));
+    .catch(() => {
+      onFallback?.();
+      return localTimesForDate({ lat, lng, sourceId, school, tune, date });
+    });
 }
 
 // Локальные времена на произвольную дату — синхронно и без сети.

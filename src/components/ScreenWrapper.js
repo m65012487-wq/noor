@@ -75,7 +75,7 @@ function useTilt(active) {
 // «Уменьшение движения» в настройках iOS включают не из прихоти: параллакс
 // у части людей вызывает укачивание. Системный флаг перевешивает настройку
 // приложения — спрашивать об этом второй раз незачем.
-function useReduceMotion() {
+export function useReduceMotion() {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
     let alive = true;

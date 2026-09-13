@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { localDateKey } from './calendarDate';
 
 // ---------- Qibla direction ----------
 // Returns bearing in degrees from user location toward the Kaaba.
@@ -91,20 +92,20 @@ export async function loadJSON(key, fallback = null) {
 // ---------- Streak logic ----------
 // Returns the day index string like "2026-06-21"
 export function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 export function yesterdayKey() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
 }
 
 // ---------- Days-ago key (for streak grace logic) ----------
 export function daysAgoKey(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
 }
 
 // Returns the difference in whole days between two YYYY-MM-DD keys.

@@ -40,6 +40,9 @@ jobs:
       - name: Установить зависимости
         run: npm ci --no-audit --no-fund
 
+      - name: Проверить логику приложения
+        run: npm test
+
       - name: Подставить bundle ID
         env:
           BUNDLE_ID: ${{ inputs.bundle_id }}

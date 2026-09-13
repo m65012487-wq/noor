@@ -49,7 +49,7 @@ export default function QiblaScreen() {
   // Текущая погрешность датчика в градусах. Нужна окну калибровки:
   // без неё оно оставалось инструкцией, которую нечем закрыть по существу.
   const [accuracy, setAccuracy] = useState(null);
-  const calGood = typeof accuracy === 'number' && accuracy > 0 && accuracy <= 15;
+  const calGood = typeof accuracy === 'number' && accuracy >= 2;
   const dialRotate = useRef(new Animated.Value(0)).current;
   const needleRotate = useRef(new Animated.Value(0)).current;
   const dialCont = useRef(0);   // continuous (unwrapped) dial angle
@@ -82,15 +82,14 @@ export default function QiblaScreen() {
             // отрицательное значение означает, что система его ещё не знает.
             const deg = h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
             if (typeof deg !== "number" || Number.isNaN(deg)) return;
-            // accuracy на iOS — погрешность в градусах. Больше 25 означает,
-            // что датчик сбит: рядом магнит или прибор не откалиброван.
+            // Expo reports calibration quality on a 0–3 scale, not degrees.
             if (typeof h.accuracy === "number") setAccuracy(h.accuracy);
-            setNeedsCalibration(typeof h.accuracy === "number" && h.accuracy > 25);
+            setNeedsCalibration(typeof h.accuracy === "number" && h.accuracy < 2);
             setHeading(smooth(deg));
           });
           return;
         }
-      } catch (e) {}
+      } catch {}
       // Fallback: raw magnetometer
       Magnetometer.setUpdateInterval(80);
       magSub = Magnetometer.addListener((data) => {
@@ -128,7 +127,14 @@ export default function QiblaScreen() {
   const needleAngle = qibla != null ? (qibla - heading + 360) % 360 : 0;
   const aligned = qibla != null && Math.abs(((needleAngle + 180) % 360) - 180) < 5;
 
-// Окно калибровки закрывается само, когда датчик выправился и держится  // ровно полторы секунды. Раньше оно было инструкцией без обратной связи:  // человек крутил телефон и не понимал, помогло ли, а закрывать приходилось  // вручную независимо от результата.  const calibratedSince = useRef(null);  useEffect(() => {    if (!calibrateOpen) { calibratedSince.current = null; return undefined; }    const good = typeof accuracy === 'number' && accuracy > 0 && accuracy <= 15;    if (!good) { calibratedSince.current = null; return undefined; }    if (calibratedSince.current == null) calibratedSince.current = Date.now();    const held = Date.now() - calibratedSince.current;    if (held >= 1500) {      if (focused.current) hapticSuccess();      setCalibrateOpen(false);      return undefined;    }    const timer = setTimeout(() => setAccuracy((a) => a), 1500 - held);    return () => clearTimeout(timer);  }, [calibrateOpen, accuracy]);
+  useEffect(() => {
+    if (!calibrateOpen || !calGood) return undefined;
+    const timer = setTimeout(() => {
+      if (focused.current) hapticSuccess();
+      setCalibrateOpen(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [calibrateOpen, calGood]);
   const wasAligned = useRef(false);
   useEffect(() => {
     if (aligned && !wasAligned.current) {
@@ -150,11 +156,11 @@ export default function QiblaScreen() {
   useEffect(() => {
     dialCont.current = unwrap(dialCont.current, dialAngle);
     Animated.timing(dialRotate, { toValue: dialCont.current, duration: 90, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-  }, [dialAngle]);
+  }, [dialAngle, dialRotate]);
   useEffect(() => {
     needleCont.current = unwrap(needleCont.current, needleAngle);
     Animated.timing(needleRotate, { toValue: needleCont.current, duration: 90, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-  }, [needleAngle]);
+  }, [needleAngle, needleRotate]);
 
   const dialSpin = dialRotate.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
   const needleSpin = needleRotate.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
@@ -246,7 +252,7 @@ export default function QiblaScreen() {
               <Text style={styles.calStatusText}>
                 {accuracy == null
                   ? t('cal_waiting')
-                  : `${t(calGood ? 'cal_good' : 'cal_poor')} · ±${Math.round(accuracy)}°`}
+                  : t(calGood ? 'cal_good' : 'cal_poor')}
               </Text>
             </View>
 

@@ -1,18 +1,20 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ActivityIndicator, ScrollView, TouchableOpacity, AppState, LayoutAnimation, Platform, UIManager } from 'react-native';
 import Text from '../components/AppText';
 import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
-import { Card, SectionTitle, Subtitle } from '../components/ui';
+import { Card, SectionTitle } from '../components/ui';
 import LocationPicker from '../components/LocationPicker';
 import SettingsModal from '../components/SettingsModal';
 import PrayerReminderSheet from '../components/PrayerReminderSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useAppearance } from '../utils/AppearanceContext';
-import { getNextPrayer, intervalProgress, saveJSON, loadJSON } from '../utils/helpers';
+
 import ProgressRing from '../components/ProgressRing';
-import { getPrayerTimes2, TIME_SOURCES, localTimesForDate } from '../utils/prayerSource';
+import { getPrayerDay, getPrayerWindow, prayerEvents } from '../utils/prayerSchedule';
+import { localDateKey } from '../utils/calendarDate';
+import { updateSchedule } from '../utils/scheduleQueue';
 import { schedulePrayerReminders } from '../utils/prayerNotifications';
 import { publishPrayerDay } from '../utils/widgetBridge';
 import { useLang } from '../i18n/LanguageContext';
@@ -21,10 +23,11 @@ import { useTabSwipe } from '../utils/useTabSwipe';
 import MoonPhase from '../components/MoonPhase';
 import CalendarSheet from '../components/CalendarSheet';
 import GardenPrototypeScreen from './GardenPrototypeScreen';
+import GateEntry from '../tasbih/GateEntry';
 import { formatGregorian, formatHijri } from '../utils/hijri';
 import { useLocation } from '../utils/LocationContext';
 import { useAppSettings, notifSoundFile, adhanNotifSoundFile } from '../utils/AppSettingsContext';
-import { scheduleFajrAlarm, markAwake, isInAlarmWindow, getFajrAlarmSettings } from '../utils/fajrAlarm';
+import { scheduleFajrDays, markAwake, isInAlarmWindow, getFajrAlarmSettings } from '../utils/fajrAlarm';
 
 // Восход стоит между фаджром и зухром: он завершает время утренней молитвы,
 // и без него в расписании оставался необъяснимый разрыв.
@@ -39,8 +42,15 @@ export default function PrayerTimesScreen() {
   const swipe = useTabSwipe('Prayer');
   const { accent } = useAppearance();
   const { coords } = useLocation();
-  const { reminders, timeSourceId, asrSchool, notifSound, adhanNotifSound, hijriOffset } = useAppSettings();
-  const today = new Date();
+  const { reminders, timeSourceId, asrSchool, notifSound, adhanNotifSound, hijriOffset, tune } = useAppSettings();
+  const [clock, setClock] = useState(new Date());
+  const today = clock;
+  const [days, setDays] = useState([]);
+  const [refresh, setRefresh] = useState(0);
+  const dayKey = localDateKey(clock);
+  const [nextTime, setNextTime] = useState('');
+  const [afterTime, setAfterTime] = useState('');
+  const [afterNext, setAfterNext] = useState(null);
   const [timings, setTimings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -53,14 +63,9 @@ export default function PrayerTimesScreen() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [gardenOpen, setGardenOpen] = useState(false);
-  const timer = useRef(null);
   // Намаз через один после ближайшего: список замкнут в круг, поэтому после
   // иши идёт фаджр следующих суток. Считается ниже nextName — выше он попадал
   // в мёртвую зону объявления и падал на первом же рендере.
-  const afterNext = nextName
-    ? PRAYERS[(PRAYERS.indexOf(nextName) + 1) % PRAYERS.length]
-    : null;
-
   function toggleSchedule() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setScheduleOpen((v) => !v);
@@ -68,107 +73,75 @@ export default function PrayerTimesScreen() {
 
   const [alarmWindow, setAlarmWindow] = useState(false);
 
-  useEffect(() => { if (coords) load(); }, [coords, timeSourceId, asrSchool]);
-
-  // Smart Fajr alarm: (re)schedule when times arrive; opening the app inside
-  // the window counts as waking up (auto-stops the chain) but keeps the banner
-  // so the person sees what happened.
   useEffect(() => {
-    (async () => {
-      if (!timings) return;
-      const parse = (str) => { // "HH:MM" today
-        if (!str) return null;
-        const [h, m] = String(str).split(':').map(Number);
-        const d = new Date(); d.setHours(h, m, 0, 0); return d;
-      };
-      const fajr = parse(timings.Fajr);
-      const sunrise = parse(timings.Sunrise);
-      await scheduleFajrAlarm(fajr, sunrise, {
-        title: lang === 'ru' ? 'Фаджр! Пора вставать 🕌' : 'Fajr! Time to wake up 🕌',
-        body: lang === 'ru'
-          ? 'Открой приложение или нажми «Я проснулся» — будильник остановится.'
-          : "Open the app or tap \"I'm awake\" to stop the alarm.",
-      });
-      setAlarmWindow(await isInAlarmWindow() && (await getFajrAlarmSettings()).enabled);
-    })();
-  }, [timings]);
-
-  // App became active during the window -> treat as awake.
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', async (st) => {
-      if (st === 'active' && await isInAlarmWindow()) {
-        await markAwake();
-        setAlarmWindow(await isInAlarmWindow() && (await getFajrAlarmSettings()).enabled);
-      }
+    const tick = setInterval(() => setClock(new Date()), 1000);
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') { setClock(new Date()); setRefresh(v => v + 1); }
     });
-    return () => sub.remove();
+    return () => { clearInterval(tick); sub.remove(); };
   }, []);
 
-
-  // Напоминания о намазе. Планировщик работает на локальном расчёте, поэтому
-  // расписание ставится на неделю вперёд и переживает отсутствие сети.
-  // Пересобираем при смене места, настроек напоминаний, источника и языка:
-  // тексты уведомлений уже лежат в очереди и сами не переведутся.
   useEffect(() => {
-    if (!coords) return;
-    schedulePrayerReminders({
-      timesForDate: (date) => localTimesForDate({
-        lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool, date,
-      }),
-      reminders,
-      sound: notifSoundFile(notifSound),
-      atTimeSound: adhanNotifSoundFile(adhanNotifSound),
-      label: (p) => prayerName(p, lang),
-      // Заголовок — имя намаза, тело — что происходит. Раньше в тело
-      // попадали подписи кнопок настроек («В момент азана», «мин до»),
-      // и уведомление читалось как обрывок фразы из другого места.
-      body: (p, minutes) => {
-        if (p === "Sunrise") return t("notif_sunrise");
-        if (minutes === 0) return t("notif_now");
-        return t("notif_in").replace("{n}", String(minutes));
-      },
-    });
-  }, [coords, reminders, timeSourceId, asrSchool, lang, t, notifSound, adhanNotifSound]);
-  async function load() {
-    setLoading(true); setError(null); setTimings(null);
-    try {
-      const tt = await getPrayerTimes2({
-        lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool,
-      });
-      setTimings(tt); saveJSON('lastTimings', tt);
-      // Виджет читает готовый срез: считать времена второй раз на Swift
-      // значило бы завести источник правды, который однажды разойдётся.
-      publishPrayerDay({
-        timings: tt,
-        order: PRAYERS,
-        label: (key) => prayerName(key, lang),
-        city: coords?.label || "",
-        nextKey: getNextPrayer(tt)?.name,
-      });
-    } catch (e) {
-      const cached = await loadJSON('lastTimings');
-      if (cached) { setTimings(cached); setError(t('offline_times')); }
-      else setError(t('load_error'));
-    }
-    setLoading(false);
-  }
+    if (!coords) return undefined;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setTimings(null);
+    setDays([]);
+    const options = { lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool, tune };
+    getPrayerDay(options)
+      .then(day => {
+        if (cancelled) return [];
+        setTimings(day.timings);
+        if (day.offlineFallback) setError(lang === 'ru' ? 'Нет ответа источника: используется локальный расчёт выбранного метода.' : 'Source unavailable: using the selected method offline.');
+        setLoading(false);
+        return getPrayerWindow(options);
+      })
+      .then(window => {
+        if (cancelled) return;
+        setDays(window);
+        setTimings(window.find(day => day.date === dayKey)?.timings || null);
+        publishPrayerDay({ days: window, order: PRAYERS, label: key => prayerName(key, lang), city: coords.label || '' });
+      })
+      .catch(() => { if (!cancelled) setError(t('load_error')); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [coords, timeSourceId, asrSchool, tune, dayKey, refresh, lang, t]);
 
   useEffect(() => {
-    if (!timings) return;
-    clearInterval(timer.current);
-    timer.current = setInterval(() => {
-      const next = getNextPrayer(timings);
-      if (!next) return;
-      setNextName(next.name);
-      const diff = next.date - new Date();
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setCountdown(`${h}h ${m}m ${s}s`);
-      setProgress(intervalProgress(timings));
-    }, 1000);
-    return () => clearInterval(timer.current);
-  }, [timings]);
+    if (!days.length) return undefined;
+    let cancelled = false;
+    updateSchedule(async () => {
+      if (cancelled) return;
+      await schedulePrayerReminders({
+        timesForDate: date => days.find(day => day.date === localDateKey(date))?.timings,
+        reminders, sound: notifSoundFile(notifSound), atTimeSound: adhanNotifSoundFile(adhanNotifSound),
+        label: p => prayerName(p, lang),
+        body: (p, minutes) => p === 'Sunrise' ? t('notif_sunrise')
+          : minutes === 0 ? (lang === 'ru' ? 'Время ' : 'Time for ') + prayerName(p, lang)
+          : (lang === 'ru' ? minutes + ' минут до ' : minutes + ' minutes until ') + prayerName(p, lang),
+      });
+      await scheduleFajrDays(days, {
+        title: lang === 'ru' ? 'Фаджр — время проснуться' : 'Fajr — time to wake up',
+        body: lang === 'ru' ? 'Подтвердите «Я проснулся» в приложении.' : 'Confirm “I’m awake” in the app.',
+      });
+      if (!cancelled) setAlarmWindow(await isInAlarmWindow() && (await getFajrAlarmSettings()).enabled);
+    }).catch(() => { if (!cancelled) setError(lang === 'ru' ? 'Не удалось обновить уведомления. Проверьте разрешения.' : 'Could not update notifications. Check permissions.'); });
+    return () => { cancelled = true; };
+  }, [days, reminders, notifSound, adhanNotifSound, lang, t]);
+
+  useEffect(() => {
+    const events = prayerEvents(days, clock);
+    const next = events.next;
+    if (!next) { setNextName(''); return; }
+    setNextName(next.name);
+    setNextTime(next.time);
+    setAfterNext(events.afterNext?.name || null);
+    setAfterTime(events.afterNext?.time || '');
+    const diff = Math.max(0, next.date - clock);
+    setCountdown(`${Math.floor(diff / 3600000)}:${String(Math.floor(diff / 60000) % 60).padStart(2, '0')}:${String(Math.floor(diff / 1000) % 60).padStart(2, '0')}`);
+    setProgress(events.progress);
+  }, [days, clock]);
 
   return (
     <ScreenWrapper swipeHandlers={swipe}>
@@ -176,7 +149,7 @@ export default function PrayerTimesScreen() {
         <GlassView radius={RADIUS.md} style={styles.alarmBanner}>
           <Text style={styles.alarmText}>⏰ {t('alarm_active')}</Text>
           <TouchableOpacity style={styles.awakeBtn}
-            onPress={async () => { await markAwake(); setAlarmWindow(false); }}>
+            onPress={async () => { await updateSchedule(markAwake); setAlarmWindow(false); }}>
             <Text style={styles.awakeText}>{t('im_awake')}</Text>
           </TouchableOpacity>
         </GlassView>
@@ -232,7 +205,7 @@ export default function PrayerTimesScreen() {
                 <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
                 <Text style={styles.countdown}>{countdown}</Text>
                 {!!nextName && (
-                  <Text style={styles.nextAt}>{timings[nextName]}</Text>
+                  <Text style={styles.nextAt}>{nextTime}</Text>
                 )}
               </ProgressRing>
             </View>
@@ -247,7 +220,7 @@ export default function PrayerTimesScreen() {
                   {!scheduleOpen && !!afterNext && (
                     <>
                       <Text style={styles.spoilerLabel}>{prayerName(afterNext, lang)}</Text>
-                      <Text style={styles.spoilerNext}>{timings[afterNext]}</Text>
+                      <Text style={styles.spoilerNext}>{afterTime}</Text>
                     </>
                   )}
                   <Icon name={scheduleOpen ? 'up' : 'down'}
@@ -283,8 +256,9 @@ export default function PrayerTimesScreen() {
         )}
       </ScrollView>
 
+      {!scheduleOpen && <GateEntry />}
       <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
-      <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setTimings((x) => (x ? { ...x } : x))}
+      <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setRefresh(v => v + 1)}
         onOpenGarden={() => {
           setSettingsOpen(false);
           // iOS не показывает новое модальное окно, пока предыдущее ещё

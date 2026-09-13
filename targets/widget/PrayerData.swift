@@ -15,18 +15,33 @@ struct PrayerDay: Codable {
     let city: String
     let times: [PrayerEntryData]
     let nextKey: String?
+    var timezone: String? = nil
+    var tomorrowTimes: [PrayerEntryData]? = nil
 
     static let appGroup = "group.95233b59e7e45aab.1"
     static let storageKey = "prayerDay"
 
-    static func load() -> PrayerDay? {
+    static func load(at date: Date = Date()) -> PrayerDay? {
         guard
             let defaults = UserDefaults(suiteName: appGroup),
-            let raw = defaults.string(forKey: storageKey),
+            let raw = defaults.string(forKey: "prayerWindow:v2"),
             let data = raw.data(using: .utf8)
         else { return nil }
-        return try? JSONDecoder().decode(PrayerDay.self, from: data)
+        guard let days = try? JSONDecoder().decode([PrayerDay].self, from: data) else { return nil }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let key = formatter.string(from: date)
+        guard var day = days.first(where: { $0.date == key }),
+              day.timezone == nil || day.timezone == TimeZone.current.identifier else { return nil }
+        if let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: date) {
+            day.tomorrowTimes = days.first(where: { $0.date == formatter.string(from: tomorrow) })?.times
+        }
+        return day
     }
+
+    static let empty = PrayerDay(date: "", city: "Noor", times: [], nextKey: nil)
 
     // Показывается, пока приложение ни разу не записало расписание —
     // и в галерее виджетов, где реальных данных нет по определению.

@@ -12,37 +12,27 @@ struct Provider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PrayerEntry) -> Void) {
-        let day = context.isPreview ? PrayerDay.placeholder : (PrayerDay.load() ?? .placeholder)
+        let day = context.isPreview ? PrayerDay.placeholder : (PrayerDay.load() ?? .empty)
         completion(PrayerEntry(date: Date(), day: day))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<PrayerEntry>) -> Void) {
-        let day = PrayerDay.load() ?? .placeholder
         let now = Date()
-
-        // Точки обновления — сами времена намазов: между ними виджету нечего
-        // пересчитывать, а лишние пробуждения система всё равно урежет.
-        var dates: [Date] = []
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.timeZone = TimeZone.current
         let calendar = Calendar.current
-
-        for item in day.times {
-            guard let parsed = formatter.date(from: item.time) else { continue }
-            let parts = calendar.dateComponents([.hour, .minute], from: parsed)
-            guard let at = calendar.date(
-                bySettingHour: parts.hour ?? 0, minute: parts.minute ?? 0, second: 0, of: now
-            ), at > now else { continue }
-            dates.append(at)
+        var dates = [now]
+        for offset in 0..<8 {
+            guard let date = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now)) else { continue }
+            if date > now { dates.append(date) }
+            guard let day = PrayerDay.load(at: date) else { continue }
+            for item in day.times {
+                let parts = item.time.split(separator: ":").compactMap { Int($0) }
+                guard parts.count == 2,
+                      let at = calendar.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: date),
+                      at > now else { continue }
+                dates.append(at)
+            }
         }
-
-        // Хвост на завтра: без него виджет замер бы после последнего намаза.
-        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) {
-            dates.append(tomorrow)
-        }
-
-        let entries = ([now] + dates.sorted()).map { PrayerEntry(date: $0, day: day) }
+        let entries = dates.sorted().map { PrayerEntry(date: $0, day: PrayerDay.load(at: $0) ?? .empty) }
         completion(Timeline(entries: entries, policy: .atEnd))
     }
 }
@@ -50,44 +40,20 @@ struct Provider: TimelineProvider {
 // Ближайший намаз по времени. Восход в счёт не идёт: он не молитва,
 // а конец времени фаджра, и подписывать его как «следующий намаз» неверно.
 func upcoming(in day: PrayerDay, now: Date = Date()) -> PrayerEntryData? {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "HH:mm"
-    let calendar = Calendar.current
-
-    for item in day.times where item.key != "Sunrise" {
-        guard let parsed = formatter.date(from: item.time) else { continue }
-        let parts = calendar.dateComponents([.hour, .minute], from: parsed)
-        guard let at = calendar.date(
-            bySettingHour: parts.hour ?? 0, minute: parts.minute ?? 0, second: 0, of: now
-        ) else { continue }
-        if at > now { return item }
-    }
-    return day.times.first { $0.key != "Sunrise" }
+    upcomingList(in: day, count: 1, now: now).first
 }
 
-// Ближайшие несколько молитв подряд, с переходом на завтра.
-// Без переноса вечером список обрывался: после ночной молитвы в сутках
-// ничего не остаётся, и виджет показывал одну строку.
 func upcomingList(in day: PrayerDay, count: Int, now: Date = Date()) -> [PrayerEntryData] {
-    let prayers = day.times.filter { $0.key != "Sunrise" }
-    guard !prayers.isEmpty else { return [] }
-
-    let formatter = DateFormatter()
-    formatter.dateFormat = "HH:mm"
     let calendar = Calendar.current
-
-    var startIndex = 0
-    for (index, item) in prayers.enumerated() {
-        guard let parsed = formatter.date(from: item.time) else { continue }
-        let parts = calendar.dateComponents([.hour, .minute], from: parsed)
-        guard let at = calendar.date(
-            bySettingHour: parts.hour ?? 0, minute: parts.minute ?? 0, second: 0, of: now
-        ) else { continue }
-        if at > now { startIndex = index; break }
-        startIndex = (index + 1) % prayers.count
+    let remaining = day.times.filter { item in
+        guard item.key != "Sunrise" else { return false }
+        let parts = item.time.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2,
+              let at = calendar.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: now) else { return false }
+        return at > now
     }
-
-    return (0..<min(count, prayers.count)).map { prayers[(startIndex + $0) % prayers.count] }
+    let tomorrow = (day.tomorrowTimes ?? []).filter { $0.key != "Sunrise" }
+    return Array((remaining + tomorrow).prefix(count))
 }
 
 // MARK: - Экран блокировки
@@ -97,9 +63,10 @@ func upcomingList(in day: PrayerDay, count: Int, now: Date = Date()) -> [PrayerE
 // выделяя: виджет должен отвечать на вопрос «когда», а не просто называть время.
 struct LockView: View {
     let day: PrayerDay
+    let now: Date
 
     var body: some View {
-        let items = upcomingList(in: day, count: 3)
+        let items = upcomingList(in: day, count: 3, now: now)
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                 HStack(spacing: 4) {
@@ -125,10 +92,11 @@ struct LockView: View {
 
 struct HomeView: View {
     let day: PrayerDay
+    let now: Date
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        let next = upcoming(in: day)
+        let next = upcoming(in: day, now: now)
 
         // Все времена помещаются и в малый квадрат: шесть строк мелким
         // кеглем читаются, а виджет с одним намазом заставляет открывать
@@ -177,10 +145,16 @@ struct NoorWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             Group {
-                if #available(iOS 16.0, *) {
-                    WidgetFamilySwitch(day: entry.day)
+                if entry.day.times.isEmpty {
+                    Text("Откройте Noor, чтобы обновить расписание")
+                        .font(.caption)
+                        .widgetURL(URL(string: "noor://prayer"))
                 } else {
-                    HomeView(day: entry.day)
+                if #available(iOS 16.0, *) {
+                    WidgetFamilySwitch(day: entry.day, now: entry.date)
+                } else {
+                    HomeView(day: entry.day, now: entry.date)
+                }
                 }
             }
             .containerBackground(.fill.tertiary, for: .widget)
@@ -202,13 +176,14 @@ struct NoorWidget: Widget {
 @available(iOS 16.0, *)
 struct WidgetFamilySwitch: View {
     let day: PrayerDay
+    let now: Date
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
         if family == .accessoryRectangular {
-            LockView(day: day)
+            LockView(day: day, now: now)
         } else {
-            HomeView(day: day)
+            HomeView(day: day, now: now)
         }
     }
 }

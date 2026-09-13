@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import Text from './AppText';
 import Icon from './Icon';
@@ -9,7 +9,7 @@ import { useAppearance } from '../utils/AppearanceContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { useLocation } from '../utils/LocationContext';
 import { toHijri, formatHijri, monthName, HIJRI_MONTHS_RU, HIJRI_MONTHS_EN } from '../utils/hijri';
-import { localTimesForDate } from '../utils/prayerSource';
+import { getPrayerDay } from '../utils/prayerSchedule';
 import { prayerName } from '../constants/prayerNames';
 import { moonPhase } from '../utils/moon';
 
@@ -26,7 +26,7 @@ const sameDay = (a, b) => a.getFullYear() === b.getFullYear()
 export default function CalendarSheet({ visible, onClose }) {
   const { t, lang } = useLang();
   const { accent } = useAppearance();
-  const { hijriOffset, timeSourceId, asrSchool } = useAppSettings();
+  const { hijriOffset, timeSourceId, asrSchool, tune } = useAppSettings();
   const { coords } = useLocation();
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -45,17 +45,16 @@ export default function CalendarSheet({ visible, onClose }) {
     return cells;
   }, [cursor]);
 
-  const times = useMemo(() => {
-    if (!coords) return null;
-    try {
-      return localTimesForDate({
-        lat: coords.lat, lng: coords.lng, sourceId: timeSourceId,
-        school: asrSchool, date: picked,
-      });
-    } catch {
-      return null;
-    }
-  }, [coords, timeSourceId, asrSchool, picked]);
+  const [times, setTimes] = useState(null);
+  useEffect(() => {
+    if (!visible || !coords) return undefined;
+    let cancelled = false;
+    setTimes(null);
+    getPrayerDay({ lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool, tune }, picked)
+      .then(day => { if (!cancelled) setTimes(day.timings); })
+      .catch(() => { if (!cancelled) setTimes(null); });
+    return () => { cancelled = true; };
+  }, [visible, coords, timeSourceId, asrSchool, tune, picked]);
 
   const step = (delta) => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1));
 
