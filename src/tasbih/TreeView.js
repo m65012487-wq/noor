@@ -10,7 +10,9 @@ const Artwork = memo(function Artwork({ asset }) {
   if (!asset) return <View style={styles.empty} />;
   if (asset.xml) return <SvgXml xml={asset.xml} width="100%" height="100%" />;
   if (asset.layers) return asset.layers.map((layer, index) => <View key={index} style={StyleSheet.absoluteFill}><Artwork asset={layer} /></View>);
-  return <Image source={asset.source} contentFit="contain" style={StyleSheet.absoluteFill} />;
+  return <Image source={asset.source} contentFit="contain" style={[StyleSheet.absoluteFill, {
+    transformOrigin: '50% 90%', transform: [{ scale: asset.scale ?? 1 }],
+  }]} />;
 });
 
 export default memo(function TreeView({ stageId, pulse, reduceMotion }) {
@@ -32,7 +34,8 @@ export default memo(function TreeView({ stageId, pulse, reduceMotion }) {
     const nextStage = STAGES[STAGES.findIndex(s => s.id === stageId) + 1];
     const next = nextStage && TREE_ASSETS[nextStage.assetName];
     if (next?.source) {
-      const uri = RNImage.resolveAssetSource(next.source)?.uri;
+      const uri = RNImage.resolveAssetSource?.(next.source)?.uri
+        || (typeof next.source === 'string' ? next.source : next.source?.uri);
       if (uri) Image.prefetch(uri).catch(() => {});
     }
   }, [stageId]);

@@ -28,6 +28,19 @@ const load = loader();
 const model = load('src/tasbih/model.js');
 const dates = load('src/utils/calendarDate.js');
 const day = '2026-09-13';
+test('dismiss gestures distinguish deliberate exit from taps and vertical scrolling', () => {
+  const { capturesDismiss, finishesDismiss } = load('src/tasbih/dismissGesture.js');
+  assert.equal(capturesDismiss({ dx: 3, dy: 2, numberActiveTouches: 1 }), false);
+  assert.equal(capturesDismiss({ dx: 22, dy: 40, numberActiveTouches: 1 }), false);
+  assert.equal(capturesDismiss({ dx: 30, dy: 4, numberActiveTouches: 2 }), false);
+  assert.equal(capturesDismiss({ dx: 30, dy: 4, numberActiveTouches: 1 }), true);
+  assert.equal(finishesDismiss({ dx: 100, dy: 4, vx: 0.1, vy: 0 }), true);
+  assert.equal(finishesDismiss({ dx: -120, dy: 0, vx: -1, vy: 0 }), false);
+  assert.equal(finishesDismiss({ dx: 30, dy: 1, vx: 0.9, vy: 0 }), false);
+  assert.equal(finishesDismiss({ dx: 45, dy: 1, vx: 0.9, vy: 0 }), true);
+  assert.equal(capturesDismiss({ dx: 4, dy: 30, numberActiveTouches: 1 }, 'down'), true);
+  assert.equal(finishesDismiss({ dx: 4, dy: 110, vx: 0, vy: 0.2 }, 'down'), true);
+});
 test('lighting boundaries preserve one shared environment configuration', () => {
   const { lightStateAt, LIGHT_STATES, ENVIRONMENT } = load('src/constants/environmentTheme.js');
   for (const [hour, expected] of [[0,'night'],[4,'dawn'],[7,'day'],[17,'sunset'],[20,'night']]) {

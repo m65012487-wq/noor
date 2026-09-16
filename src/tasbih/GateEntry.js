@@ -11,6 +11,7 @@ import GateAssembly from './GateAssembly';
 import TreeView from './TreeView';
 import EnvironmentDebug from './EnvironmentDebug';
 import TasbihScreen from './TasbihScreen';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function GateEntry() {
   const { schemeColors } = useAppearance();
@@ -18,9 +19,11 @@ export default function GateEntry() {
   const { lang } = useLang();
   const reduceMotion = useReduceMotion();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const gateWidth = Math.min(96, Math.max(56, width * ENVIRONMENT.gateWidthRatio));
   const gateHeight = gateWidth * 1.2;
   const target = useRef(null);
+  const measuredFrame = useRef(null);
   const progress = useRef(new Animated.Value(0)).current;
   const closed = useRef(new Animated.Value(0)).current;
   const busy = useRef(false);
@@ -36,17 +39,17 @@ export default function GateEntry() {
   const start = () => {
     if (busy.current || (!state && !error)) return;
     busy.current = true;
-    target.current?.measureInWindow((x, y, w, h) => {
-      progress.setValue(0); setEntered(false);
-      setFrame({ x: x + (w - gateWidth) / 2, y: y + (h - gateHeight) / 2 });
-      sawGate();
-    });
+    progress.setValue(0); setEntered(false);
+    setFrame(measuredFrame.current || { x: (width - gateWidth) / 2, y: height - gateHeight - 120 });
+    sawGate();
   };
   const opening = progress.interpolate({ inputRange: [0, 0.1, 0.55, 1], outputRange: [0, 0, reduceMotion ? 0.08 : 1, reduceMotion ? 0.08 : 1] });
   const camera = progress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 1] });
   const treeWidth = Math.min(width - 48, 420);
   return <View style={styles.region}>
-    <Pressable ref={target} onPress={start} accessibilityRole="button" accessibilityLabel={lang === 'ru' ? 'Ворота в Тасбих' : 'Enter Tasbih'}
+    <Pressable ref={target} onLayout={() => target.current?.measureInWindow((x, y, w, h) => {
+      measuredFrame.current = { x: x + (w - gateWidth) / 2, y: y + (h - gateHeight) / 2 };
+    })} onPress={start} accessibilityRole="button" accessibilityLabel={lang === 'ru' ? 'Ворота в Тасбих' : 'Enter Tasbih'}
       accessibilityState={{ disabled: !state && !error }}
       accessibilityHint={lang === 'ru' ? 'Открывает дерево и счётчик зикра' : 'Opens the tree and dhikr counter'}
       style={[styles.entry, { width: gateWidth + 24, height: gateHeight + 20 }]}>
@@ -54,7 +57,8 @@ export default function GateEntry() {
       <EnvironmentDebug state={state} animation="idle" label="gate hit frame" />
     </Pressable>
     {!!state && !state.hasSeenGateHint && <Text style={styles.hint}>{lang === 'ru' ? 'Коснитесь ворот' : 'Touch the gate'}</Text>}
-    <Modal visible={!!frame} transparent={false} animationType="none" onRequestClose={close}>
+    <Modal visible={!!frame} transparent={false} presentationStyle="fullScreen" animationType="none" onRequestClose={close}>
+      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width, height }, insets }}>
       {entered ? <TasbihScreen onClose={close} /> : <View style={{ flex: 1 }} accessibilityViewIsModal>
         <ThemedBackground camera={camera} />
         {frame && <>
@@ -75,6 +79,7 @@ export default function GateEntry() {
         </>}
         <EnvironmentDebug state={state} animation="entering" label="camera viewport" />
       </View>}
+      </SafeAreaProvider>
     </Modal>
   </View>;
 }

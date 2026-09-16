@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
 import { ThemedBackground, useReduceMotion } from '../components/ScreenWrapper';
@@ -12,6 +12,7 @@ import TreeView from './TreeView';
 import useTasbih from './useTasbih';
 import { definition, DHIKR } from './model';
 import EnvironmentDebug from './EnvironmentDebug';
+import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 export default function TasbihScreen({ onClose }) {
   const { state, error, tap, select, retry } = useTasbih();
@@ -21,6 +22,16 @@ export default function TasbihScreen({ onClose }) {
   const reduceMotion = useReduceMotion();
   const [selector, setSelector] = useState(false);
   const [pulse, setPulse] = useState(0);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const swipes = useMemo(() => {
+    const make = direction => PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_event, gesture) => capturesDismiss(gesture, direction),
+      onPanResponderRelease: (_event, gesture) => { if (finishesDismiss(gesture, direction)) closeRef.current(); },
+      onPanResponderTerminationRequest: () => true,
+    });
+    return { right: make('right'), down: make('down') };
+  }, []);
   const hint = useRef(new Animated.Value(0)).current;
   const textFade = useRef(new Animated.Value(1)).current;
   const item = state ? definition(state) : DHIKR[0];
@@ -36,14 +47,17 @@ export default function TasbihScreen({ onClose }) {
   const options = [{ id: 'sequence', label: ru ? 'Последовательность' : 'Sequence' }, ...DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en }))];
   return (
     <ThemedBackground>
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose} {...swipes.right.panHandlers}>
+        <View {...swipes.down.panHandlers}>
+        <View style={styles.grabber} />
         <View style={styles.header}>
           <Text style={styles.title}>{ru ? 'Тасбих' : 'Tasbih'}</Text>
-          <Pressable accessibilityRole="button" onPress={onClose} style={styles.control}><Text style={{ color: accent }}>{ru ? 'Закрыть' : 'Close'}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={ru ? 'Закрыть Тасбих' : 'Close Tasbih'} onPress={onClose} style={styles.control}><Text style={{ color: accent }}>{ru ? 'Закрыть' : 'Close'}</Text></Pressable>
+        </View>
         </View>
         {error && <Pressable onPress={retry} accessibilityRole="button" style={styles.error}><Text style={styles.caption}>{ru ? 'Не удалось сохранить или прочитать прогресс. Нажмите, чтобы повторить.' : 'Could not save or load progress. Tap to retry.'}</Text></Pressable>}
         {!state ? <ActivityIndicator style={{ flex: 1 }} color={accent} /> : (
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <Pressable accessibilityRole="button" accessibilityState={{ expanded: selector }} onPress={() => setSelector(v => !v)} style={styles.selector}>
               <Text style={[styles.caption, { color: accent }]}>{options.find(o => o.id === state.selectedDhikr)?.label} · {ru ? 'Выбрать' : 'Choose'}</Text>
             </Pressable>
@@ -72,16 +86,27 @@ export default function TasbihScreen({ onClose }) {
             </Animated.View>
           </ScrollView>
         )}
+        <View style={styles.footer}>
+          <Pressable accessibilityRole="button" onPress={onClose} style={styles.returnButton}>
+            <Text style={[styles.caption, { color: accent }]}>{ru ? 'Вернуться к намазам' : 'Back to prayer times'}</Text>
+          </Pressable>
+          <Text style={styles.swipeHint}>{ru ? 'Свайп вправо — выйти' : 'Swipe right to leave'}</Text>
+        </View>
         <EnvironmentDebug state={state} animation="ready" label="safe content" anchor={false} />
       </SafeAreaView>
     </ThemedBackground>
   );
 }
 const styles = StyleSheet.create({
-  safe: { flex: 1, paddingHorizontal: SPACING.lg },
+  safe: { flex: 1, paddingHorizontal: SPACING.lg, paddingTop: 12, paddingBottom: 8 },
+  scroll: { flex: 1, minHeight: 0 },
+  grabber: { width: 32, height: 3, borderRadius: 2, backgroundColor: COLORS.textMuted, opacity: 0.35, alignSelf: 'center', marginBottom: 8 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { ...TYPE.heading, color: COLORS.text },
-  control: { minWidth: 70, minHeight: 48, justifyContent: 'center', alignItems: 'flex-end' },
+  control: { minWidth: 88, minHeight: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 24, backgroundColor: 'rgba(180,205,188,0.1)' },
+  footer: { flexShrink: 0, paddingTop: 4, alignItems: 'center' },
+  returnButton: { minHeight: 48, paddingHorizontal: 24, justifyContent: 'center', borderRadius: 24, backgroundColor: 'rgba(180,205,188,0.1)' },
+  swipeHint: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: 6 },
   content: { flexGrow: 1, paddingBottom: SPACING.md },
   selector: { alignSelf: 'center', minHeight: 48, justifyContent: 'center', paddingHorizontal: 12 },
   words: { alignItems: 'center', paddingTop: SPACING.sm },

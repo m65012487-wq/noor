@@ -1,4 +1,10 @@
-# Generated olive candidates — NOT release assets
+# Generated olive originals
+
+Update: at the user's explicit request these five images are now copied to
+`assets/tasbih/tree/olive_stage_01.png` through `olive_stage_05.png` and registered
+in `src/tasbih/assets.js`. Per-stage scale aligns their visual growth. The soft
+translucent edges remain part of the supplied artwork. The review below is
+historical; SVGs remain available for the separate garden prototype.
 
 Built-in imagegen generated five botanical PNGs, 1024×1536, numbered seed → sprout → young plant → juvenile tree → mature tree. These are stored here as design candidates, not referenced by Metro or shipped in the IPA.
 
