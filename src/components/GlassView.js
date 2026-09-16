@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView as NativeGlass, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { RADIUS } from '../constants/theme';
+import { GLASS_MATERIAL } from '../constants/environmentTheme';
 import { useAppearance } from '../utils/AppearanceContext';
 
 // Проверка нативная и неизменная в течение сессии, поэтому считаем один раз,
@@ -35,7 +36,7 @@ export default function GlassView({
     return (
       <NativeGlass
         glassEffectStyle="regular"
-        tintColor={azure ? `rgba(${rgb},0.14)` : undefined}
+        tintColor={`rgba(${rgb},${azure ? 0.14 : GLASS_MATERIAL.tintOpacity})`}
         isInteractive={interactive}
         style={[styles.wrap, { borderRadius: radius }, style]}
       >

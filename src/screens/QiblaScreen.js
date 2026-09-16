@@ -173,7 +173,7 @@ export default function QiblaScreen() {
   );
 
   return (
-    <ScreenWrapper swipeHandlers={swipe}>
+    <ScreenWrapper swipeHandlers={swipe} plain>
       <SectionTitle>{t('qibla_title')}</SectionTitle>
       <Subtitle>{t('qibla_subtitle')}</Subtitle>
 

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { LIGHT_STATES, lightStateAt } from '../constants/environmentTheme';
 import { loadJSON, saveJSON } from './helpers';
 
 const AppearanceContext = createContext(null);
@@ -66,6 +67,7 @@ export function patternKind(id) {
 // держится ниже 0.11, иначе приглушённый текст (`textMuted`) перестаёт
 // набирать три к одному по контрасту, а он несёт подписи и время.
 export const SCHEMES = [
+  { id: 'sanctuary', label_en: 'Quiet garden', label_ru: 'Тихий сад', environment: true, ...LIGHT_STATES.night },
   { id: 'ink',   label_en: 'Ink',    label_ru: 'Тушь',
     bg: ['#1b2430', '#0d131b'], tint: '190,205,220', accent: '#c8d6e2' },
   { id: 'sand',  label_en: 'Sand',   label_ru: 'Песок',
@@ -140,7 +142,9 @@ export function fontSetFor(id) {
 
 export function AppearanceProvider({ children }) {
   const [pattern, setPattern] = useState('city');
-  const [scheme, setScheme] = useState('ink');
+  const [scheme, setScheme] = useState('sanctuary');
+  const [lighting, setLighting] = useState('auto');
+  const [currentLight, setCurrentLight] = useState(lightStateAt());
   const [fontSet, setFontSet] = useState('system');
   const [arabicFont, setArabicFont] = useState('system');
   const [parallax, setParallax] = useState(true);
@@ -153,8 +157,16 @@ export function AppearanceProvider({ children }) {
       const savedPattern = await loadJSON('pattern', 'city');
       setPattern(PATTERNS.some((p) => p.id === savedPattern) ? savedPattern : 'city');
 
-      const savedScheme = await loadJSON('scheme', 'ink');
-      setScheme(SCHEMES.some((s) => s.id === savedScheme) ? savedScheme : 'ink');
+      const savedScheme = await loadJSON('scheme', 'sanctuary');
+      const introduced = await loadJSON('sanctuaryThemeIntroduced', false);
+      if (!introduced) {
+        await saveJSON('previousScheme', savedScheme);
+        await saveJSON('scheme', 'sanctuary');
+        await saveJSON('sanctuaryThemeIntroduced', true);
+      }
+      setScheme(introduced && SCHEMES.some(s => s.id === savedScheme) ? savedScheme : 'sanctuary');
+      const savedLight = await loadJSON('environmentLighting', 'auto');
+      setLighting(savedLight === 'auto' || LIGHT_STATES[savedLight] ? savedLight : 'auto');
 
       const savedFont = await loadJSON('fontSet', 'system');
       setFontSet(FONT_SETS.some((f) => f.id === savedFont) ? savedFont : 'system');
@@ -174,7 +186,13 @@ export function AppearanceProvider({ children }) {
   const chooseArabicFont = async (id) => { setArabicFont(id); await saveJSON('arabicFont', id); };
   const toggleParallax = async (v) => { setParallax(v); await saveJSON('parallax', v); };
 
-  const sc = schemeFor(scheme);
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentLight(lightStateAt()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const chooseLighting = async id => { setLighting(id); await saveJSON('environmentLighting', id); };
+  const phase = lighting === 'auto' ? currentLight : lighting;
+  const sc = scheme === 'sanctuary' ? { ...schemeFor(scheme), ...LIGHT_STATES[phase], phase } : schemeFor(scheme);
   const fonts = fontSetFor(fontSet);
 
   if (!ready) return null;
@@ -182,6 +200,7 @@ export function AppearanceProvider({ children }) {
     <AppearanceContext.Provider value={{
       pattern, choosePattern, PATTERNS,
       scheme, chooseScheme, SCHEMES,
+      lighting, chooseLighting, phase,
       fontSet, chooseFontSet, FONT_SETS,
       arabicFont, chooseArabicFont, ARABIC_FONTS,
       arabicFamily: arabicFontFor(arabicFont).family,
@@ -197,7 +216,8 @@ export function AppearanceProvider({ children }) {
 
 export const useAppearance = () => useContext(AppearanceContext) || {
   pattern: 'city', choosePattern: () => {}, PATTERNS,
-  scheme: 'ink', chooseScheme: () => {}, SCHEMES,
+  scheme: 'sanctuary', chooseScheme: () => {}, SCHEMES,
+  lighting: 'auto', chooseLighting: () => {}, phase: 'night',
   fontSet: 'system', chooseFontSet: () => {}, FONT_SETS,
   arabicFont: 'system', chooseArabicFont: () => {}, ARABIC_FONTS,
   arabicFamily: 'System',

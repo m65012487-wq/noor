@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import Text from './AppText';
 import Icon from './Icon';
@@ -17,7 +17,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const OPACITY_LEVELS = [0.01, 0.04, 0.08, 0.13, 0.18];
 
 // Отметка выбора. Галочка в списке из десяти строк читается плохо: она
 // одного веса с текстом и теряется среди букв. Точка в кольце заметна
@@ -83,7 +82,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
     fontSet, chooseFontSet, FONT_SETS, parallax, toggleParallax,
-    tint, accent } = useAppearance();
+    tint, accent, lighting, chooseLighting } = useAppearance();
   const tintRgb = tint || '180,215,230';
   const accentColor = accent || COLORS.accent;
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
@@ -263,6 +262,17 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
               </TouchableOpacity>
             ))}
           </View>
+
+          {scheme === 'sanctuary' && <>
+            <Text style={styles.label}>{lang === 'ru' ? 'Освещение сада' : 'Garden lighting'}</Text>
+            <View style={styles.themeRow}>
+              {['auto', 'dawn', 'day', 'sunset', 'night'].map((id, index) => <TouchableOpacity key={id}
+                accessibilityRole="radio" accessibilityState={{ checked: lighting === id }}
+                onPress={() => chooseLighting(id)} style={[styles.themeChip, lighting === id && activeBg]}>
+                <Text style={styles.themeText}>{(lang === 'ru' ? ['По времени', 'Рассвет', 'День', 'Закат', 'Ночь'] : ['Automatic', 'Dawn', 'Day', 'Sunset', 'Night'])[index]}</Text>
+              </TouchableOpacity>)}
+            </View>
+          </>}
 
           {/* Образец набирается тем самым шрифтом: название семейства
               ничего не говорит, пока не увидишь буквы. */}

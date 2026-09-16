@@ -10,20 +10,20 @@ export const COLORS = {
   emberSoft: '#ffce8a',
   // Акценты — мягкое серебро и лазурь, без золота.
   accent: '#e8eef2',
-  accentSoft: '#bcd3e0',
-  accentDeep: '#8fb8cd',
+  accentSoft: '#c4d1be',
+  accentDeep: '#8fae9c',
 
-  azure: '#7fb4cc',
-  azureDeep: '#3d6b85',
+  azure: '#95b4a3',
+  azureDeep: '#416b60',
   cream: '#f3efe6',
   white: '#ffffff',
-  navy: '#16263b',
-  navyDeep: '#0e1a2a',
+  navy: '#142e2a',
+  navyDeep: '#0c1b19',
 
   // Текст
   textOnDark: '#f3efe6',
-  text: '#eef4f7',
-  textMuted: '#a8bcc8',
+  text: '#f1f0e7',
+  textMuted: '#b9c9bd',
   textFaint: 'rgba(238,244,247,0.55)',
 
   // Состояния. Раньше эти цвета были вписаны прямо в экраны.

@@ -10,12 +10,12 @@ import QiblaScreen from './src/screens/QiblaScreen';
 import QuranStack from './src/navigation/QuranStack';
 import ReadingScreen from './src/screens/ReadingScreen';
 import { COLORS } from './src/constants/theme';
-import { loadJSON, saveJSON } from './src/utils/helpers';
 import { LanguageProvider, useLang } from './src/i18n/LanguageContext';
 import { LocationProvider } from './src/utils/LocationContext';
 import { QuranPrefsProvider } from './src/utils/QuranPrefsContext';
 import { AppSettingsProvider } from './src/utils/AppSettingsContext';
 import { AppearanceProvider } from './src/utils/AppearanceContext';
+import { TasbihProvider } from './src/tasbih/useTasbih';
 
 const Tab = createBottomTabNavigator();
 
@@ -70,9 +70,11 @@ export default function App() {
         <AppSettingsProvider>
           <LocationProvider>
             <QuranPrefsWrapper>
-              <NavigationContainer>
-                <Tabs />
-              </NavigationContainer>
+              <TasbihProvider>
+                <NavigationContainer>
+                  <Tabs />
+                </NavigationContainer>
+              </TasbihProvider>
             </QuranPrefsWrapper>
           </LocationProvider>
         </AppSettingsProvider>
@@ -87,5 +89,5 @@ function QuranPrefsWrapper({ children }) {
 }
 
 async function requestNotifPermission() {
-  try { await Notifications.requestPermissionsAsync(); } catch (e) {}
+  try { await Notifications.requestPermissionsAsync(); } catch (_e) {}
 }

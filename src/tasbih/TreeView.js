@@ -4,11 +4,12 @@ import { Image } from 'expo-image';
 import { SvgXml } from 'react-native-svg';
 import { TREE_ASSETS } from './assets';
 import { resolveStageAsset, STAGES } from './model';
+import { ENVIRONMENT } from '../constants/environmentTheme';
 
 const Artwork = memo(function Artwork({ asset }) {
   if (!asset) return <View style={styles.empty} />;
   if (asset.xml) return <SvgXml xml={asset.xml} width="100%" height="100%" />;
-  if (asset.layers) return asset.layers.map((layer, index) => <Artwork key={index} asset={layer} />);
+  if (asset.layers) return asset.layers.map((layer, index) => <View key={index} style={StyleSheet.absoluteFill}><Artwork asset={layer} /></View>);
   return <Image source={asset.source} contentFit="contain" style={StyleSheet.absoluteFill} />;
 });
 
@@ -23,7 +24,7 @@ export default memo(function TreeView({ stageId, pulse, reduceMotion }) {
     setOldAsset(previous.current);
     previous.current = asset;
     crossfade.setValue(0);
-    const animation = Animated.timing(crossfade, { toValue: 1, duration: reduceMotion ? 300 : 1600, useNativeDriver: true });
+    const animation = Animated.timing(crossfade, { toValue: 1, duration: reduceMotion ? 300 : ENVIRONMENT.stageTransitionMs, useNativeDriver: true });
     animation.start(({ finished }) => { if (finished) setOldAsset(null); });
     return () => animation.stop();
   }, [asset, crossfade, reduceMotion]);
@@ -48,7 +49,7 @@ export default memo(function TreeView({ stageId, pulse, reduceMotion }) {
   const variant = pulse % 4;
   return (
     <Animated.View pointerEvents="none" style={[styles.tree, {
-      transformOrigin: '50% 90%',
+      transformOrigin: `${ENVIRONMENT.treeAnchor.x * 100}% ${ENVIRONMENT.treeAnchor.y * 100}%`,
       transform: [
         { rotate: sway.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${variant < 2 ? direction * 0.6 : 0}deg`] }) },
         { scale: sway.interpolate({ inputRange: [0, 1], outputRange: [1, variant === 2 ? 1.004 : 0.998] }) },

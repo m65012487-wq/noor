@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Animated, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView as NativeGlass, GlassContainer } from 'expo-glass-effect';
@@ -11,7 +11,6 @@ import { LIQUID_GLASS } from './GlassView';
 
 const TABS = { Prayer: 'prayer', Qibla: 'qibla', Quran: 'quran', Read: 'read' };
 
-const { width } = Dimensions.get('window');
 
 // Плавающая «островная» панель вкладок.
 // На iOS 26 остров — системный Liquid Glass: он преломляет содержимое под собой
@@ -22,6 +21,7 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
   // менял их число между рендерами и ронял приложение с «Rendered more hooks
   // than during the previous render» при входе в чтение суры.
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { tint, accent } = useAppearance();
   const rgb = tint || '150,200,225';
   const base = 0.08;
@@ -75,6 +75,7 @@ export default function GlassTabBar({ state, descriptors, navigation }) {
       <TouchableOpacity key={route.key} style={[styles.item, { width: SLOT }]}
         onPress={onPress} activeOpacity={0.7}
         accessibilityRole="button"
+        accessibilityLabel={descriptors[route.key]?.options?.tabBarLabel || route.name}
         accessibilityState={{ selected: focused }}>
         <Icon
           name={TABS[route.name] || "prayer"}

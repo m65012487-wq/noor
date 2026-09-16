@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  StyleSheet, View, ImageBackground, Animated, AccessibilityInfo,
+  StyleSheet, View, ImageBackground, Animated, AccessibilityInfo, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeviceMotion } from 'expo-sensors';
 import { SPACING } from '../constants/theme';
+import EnvironmentScene from './EnvironmentScene';
 import {
   useAppearance, PATTERN_TILES, SCENE_LAYERS, patternKind,
 } from '../utils/AppearanceContext';
@@ -33,7 +34,7 @@ function useTilt(active) {
   const ty = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!active) {
+    if (!active || Platform.OS === 'web') {
       tx.setValue(0);
       ty.setValue(0);
       return undefined;
@@ -64,7 +65,7 @@ function useTilt(active) {
         tx.setValue(curX);
         ty.setValue(curY);
       });
-    })();
+    })().catch(() => { tx.setValue(0); ty.setValue(0); });
 
     return () => { cancelled = true; if (sub) sub.remove(); };
   }, [active, tx, ty]);
@@ -101,15 +102,18 @@ function shift(value, distance, factor = 1) {
 //
 // `plain` — спокойный градиент без узора. Для длинного чтения любой рисунок
 // под текстом мешает: узор просвечивает между строк.
-export function ThemedBackground({ children, plain = false, style }) {
+export function ThemedBackground({ children, plain = false, style, camera }) {
   const appearance = useAppearance();
   const reduceMotion = useReduceMotion();
   const kind = patternKind(appearance?.pattern);
-  const wanted = appearance?.parallax !== false && !reduceMotion && !plain && kind !== 'none';
+  const wanted = appearance?.parallax !== false && !reduceMotion && !plain && (kind !== 'none' || appearance?.schemeColors?.environment);
   const { tx, ty } = useTilt(wanted);
 
   const sc = appearance?.schemeColors;
   const bg = sc ? sc.bg : ['#1b2430', '#0d131b'];
+  if (sc?.environment) {
+    return <EnvironmentScene colors={sc} plain={plain} style={style} camera={reduceMotion ? null : camera} tx={tx} ty={ty}>{children}</EnvironmentScene>;
+  }
 
   // Экраны чтения и вариант «без узора» получают чистый градиент.
   if (plain || kind === 'none') {

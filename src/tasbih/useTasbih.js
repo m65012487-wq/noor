@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { advance, definition, registerDhikr, selectDhikr } from './model';
 import { tasbihPersistence } from './persistence';
 import { localDateKey } from '../utils/calendarDate';
-export default function useTasbih() {
+const TasbihContext = createContext(null);
+export function TasbihProvider({ children }) {
+  const value = useTasbihState();
+  return <TasbihContext.Provider value={value}>{children}</TasbihContext.Provider>;
+}
+export default function useTasbih() { return useContext(TasbihContext); }
+function useTasbihState() {
   const [state, setState] = useState(null);
   const [error, setError] = useState(false);
   const current = useRef(null);
@@ -39,6 +45,7 @@ export default function useTasbih() {
   return { state, error,
     tap: () => { if (current.current) persist(registerDhikr(current.current, localDateKey())); },
     select: id => { if (current.current) persist(selectDhikr(current.current, id)); },
+    sawGate: () => { if (current.current && !current.current.hasSeenGateHint) persist({ ...current.current, hasSeenGateHint: true }); },
     retry: () => current.current ? persist(current.current) : load(),
   };
 }

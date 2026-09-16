@@ -178,7 +178,7 @@ export default function PrayerTimesScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
         {loading && <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />}
         {error && (
           <Card style={{ borderColor: COLORS.danger }}>
@@ -256,7 +256,9 @@ export default function PrayerTimesScreen() {
         )}
       </ScrollView>
 
-      {!scheduleOpen && <GateEntry />}
+      <View style={{ paddingBottom: 94, minHeight: 94 }}>
+        {!scheduleOpen && <GateEntry />}
+      </View>
       <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setRefresh(v => v + 1)}
         onOpenGarden={() => {

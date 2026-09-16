@@ -11,6 +11,7 @@ import { hapticLight } from '../utils/haptics';
 import TreeView from './TreeView';
 import useTasbih from './useTasbih';
 import { definition, DHIKR } from './model';
+import EnvironmentDebug from './EnvironmentDebug';
 
 export default function TasbihScreen({ onClose }) {
   const { state, error, tap, select, retry } = useTasbih();
@@ -34,7 +35,7 @@ export default function TasbihScreen({ onClose }) {
   const phrase = ru ? item.ru : item.en;
   const options = [{ id: 'sequence', label: ru ? 'Последовательность' : 'Sequence' }, ...DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en }))];
   return (
-    <ThemedBackground plain>
+    <ThemedBackground>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <Text style={styles.title}>{ru ? 'Тасбих' : 'Tasbih'}</Text>
@@ -56,6 +57,7 @@ export default function TasbihScreen({ onClose }) {
             <Animated.View style={[styles.words, { opacity: textFade }]}>
               <Text style={styles.arabic} accessibilityLanguage="ar">{item.arabic}</Text>
               <Text style={styles.phrase}>{phrase}</Text>
+              <Text style={styles.translation}>{ru ? item.translation_ru : item.translation_en}</Text>
               <Text style={[styles.count, { color: accent }]}>{state.currentDhikrCount} / {item.target}</Text>
             </Animated.View>
             <Pressable onPress={() => { tap(); hapticLight(); setPulse(v => v + 1); }} style={styles.treeArea}
@@ -63,12 +65,14 @@ export default function TasbihScreen({ onClose }) {
               accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount} ${ru ? 'из' : 'of'} ${item.target}`}
               accessibilityHint={ru ? 'Нажмите дважды, чтобы засчитать одно поминание' : 'Double tap to count one remembrance'}>
               <TreeView stageId={state.treeStage} pulse={pulse} reduceMotion={reduceMotion} />
+              <EnvironmentDebug state={state} animation={pulse ? 'tap' : 'idle'} label="tree hit area" />
             </Pressable>
             <Animated.View style={{ opacity: hint }} accessibilityElementsHidden={state.hasSeenTasbihHint} importantForAccessibility={state.hasSeenTasbihHint ? 'no-hide-descendants' : 'auto'}>
               <Text style={[styles.caption, styles.hint]}>{ru ? 'Нажимайте на дерево, чтобы считать зикр' : 'Tap the tree to count dhikr'}</Text>
             </Animated.View>
           </ScrollView>
         )}
+        <EnvironmentDebug state={state} animation="ready" label="safe content" anchor={false} />
       </SafeAreaView>
     </ThemedBackground>
   );
@@ -83,6 +87,7 @@ const styles = StyleSheet.create({
   words: { alignItems: 'center', paddingTop: SPACING.sm },
   arabic: { fontFamily: FONTS.arabic, fontSize: 30, lineHeight: 52, color: COLORS.text, textAlign: 'center' },
   phrase: { ...TYPE.body, color: COLORS.text, textAlign: 'center' },
+  translation: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: 4 },
   count: { ...TYPE.title, ...TYPE.mono, marginTop: SPACING.md },
   treeArea: { flex: 1, minHeight: 280, maxHeight: 520, width: '100%', alignSelf: 'center' },
   caption: { ...TYPE.callout, color: COLORS.text },

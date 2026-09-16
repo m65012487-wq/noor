@@ -28,6 +28,37 @@ const load = loader();
 const model = load('src/tasbih/model.js');
 const dates = load('src/utils/calendarDate.js');
 const day = '2026-09-13';
+test('lighting boundaries preserve one shared environment configuration', () => {
+  const { lightStateAt, LIGHT_STATES, ENVIRONMENT } = load('src/constants/environmentTheme.js');
+  for (const [hour, expected] of [[0,'night'],[4,'dawn'],[7,'day'],[17,'sunset'],[20,'night']]) {
+    assert.equal(lightStateAt(new Date(2026, 8, 14, hour)), expected);
+    assert.equal(LIGHT_STATES[expected].bg.length, 2);
+  }
+  assert.equal(ENVIRONMENT.debug, false);
+  assert.deepEqual(ENVIRONMENT.treeAnchor, { x: 0.5, y: 0.9 });
+});
+test('gate hint survives restoration and stage configuration can grow beyond five entries', () => {
+  assert.equal(model.restoreState({ ...model.initialState(), hasSeenGateHint: true }).hasSeenGateHint, true);
+  const stages = Array.from({ length: 30 }, (_, i) => ({ id: `stage_${i}`, requiredProgress: i * 100, minimumDays: i }));
+  assert.equal(model.chooseStage(2900, 29, stages).id, 'stage_29');
+  assert.equal(model.chooseStage(2900, 2, stages).id, 'stage_2');
+});
+test('olive artwork shares a transparent vector canvas and gate files match their registry', () => {
+  const root = path.resolve(__dirname, '..');
+  const olive = path.join(root, 'assets/garden/plants/olive');
+  const files = fs.readdirSync(olive).filter(name => name.endsWith('.svg'));
+  assert.equal(files.length, 5);
+  const canvases = new Set(files.map(name => {
+    const xml = fs.readFileSync(path.join(olive, name), 'utf8');
+    assert.doesNotMatch(xml, /<(image|text)\b|(?:href|url)\s*=/i);
+    return xml.match(/viewBox="([^"]+)"/)[1];
+  }));
+  assert.equal(canvases.size, 1);
+  const { GATE_VECTORS } = load('src/tasbih/gateVectors.js');
+  for (const [name, xml] of Object.entries(GATE_VECTORS)) {
+    assert.equal(fs.readFileSync(path.join(root, 'assets/tasbih/gate', `${name}.svg`), 'utf8').trim(), xml.trim());
+  }
+});
 function taps(n, state = model.initialState(), key = day) {
   for (let i = 0; i < n; i++) state = model.registerDhikr(state, key);
   return state;
