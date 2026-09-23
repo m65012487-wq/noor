@@ -16,7 +16,13 @@ function loader(overrides = {}) {
     });
     const localRequire = id => {
       if (Object.hasOwn(overrides, id)) return overrides[id];
-      if (id.startsWith('.')) return load(path.resolve(path.dirname(full), id + (path.extname(id) ? '' : '.js')));
+      if (id.startsWith('.')) {
+        // Metro-only asset imports (images, fonts) aren't JS modules; stub
+        // them so files that require() artwork can still be loaded for their
+        // pure exports.
+        if (/\.(png|jpg|jpeg|gif|webp|ttf|otf)$/i.test(id)) return { uri: id };
+        return load(path.resolve(path.dirname(full), id + (path.extname(id) ? '' : '.js')));
+      }
       return require(id);
     };
     new Function('require', 'module', 'exports', result.code)(localRequire, mod, mod.exports);
@@ -50,13 +56,13 @@ test('lighting boundaries preserve one shared environment configuration', () => 
   assert.equal(ENVIRONMENT.debug, false);
   assert.deepEqual(ENVIRONMENT.treeAnchor, { x: 0.5, y: 0.9 });
 });
-test('gate hint survives restoration and stage configuration can grow beyond five entries', () => {
+test('gate hint survives restoration and stage configuration can grow beyond eight entries', () => {
   assert.equal(model.restoreState({ ...model.initialState(), hasSeenGateHint: true }).hasSeenGateHint, true);
-  const stages = Array.from({ length: 30 }, (_, i) => ({ id: `stage_${i}`, requiredProgress: i * 100, minimumDays: i }));
-  assert.equal(model.chooseStage(2900, 29, stages).id, 'stage_29');
-  assert.equal(model.chooseStage(2900, 2, stages).id, 'stage_2');
+  const stages = Array.from({ length: 30 }, (_, i) => ({ requiredProgress: i * 100, minimumDays: i }));
+  assert.equal(model.chooseStage(2900, 29, stages), 29);
+  assert.equal(model.chooseStage(2900, 2, stages), 2);
 });
-test('olive artwork shares a transparent vector canvas and gate files match their registry', () => {
+test('olive artwork shares a transparent vector canvas', () => {
   const root = path.resolve(__dirname, '..');
   const olive = path.join(root, 'assets/garden/plants/olive');
   const files = fs.readdirSync(olive).filter(name => name.endsWith('.svg'));
@@ -67,10 +73,6 @@ test('olive artwork shares a transparent vector canvas and gate files match thei
     return xml.match(/viewBox="([^"]+)"/)[1];
   }));
   assert.equal(canvases.size, 1);
-  const { GATE_VECTORS } = load('src/tasbih/gateVectors.js');
-  for (const [name, xml] of Object.entries(GATE_VECTORS)) {
-    assert.equal(fs.readFileSync(path.join(root, 'assets/tasbih/gate', `${name}.svg`), 'utf8').trim(), xml.trim());
-  }
 });
 function taps(n, state = model.initialState(), key = day) {
   for (let i = 0; i < n; i++) state = model.registerDhikr(state, key);
@@ -99,9 +101,10 @@ test('complete sequence wraps, single selection stays selected', () => {
 });
 test('10000 taps in a day cannot bypass consistency', () => {
   const state = taps(10000);
+  const tree = model.activeTree(state);
   assert.equal(state.activeDays, 1);
-  assert.ok(state.treeGrowthProgress <= model.GROWTH.dailyCap + model.GROWTH.activeDayContribution + 0.00001);
-  assert.equal(state.treeStage, 'olive_stage_02');
+  assert.ok(tree.progress <= model.GROWTH.dailyCap + model.GROWTH.activeDayContribution + 0.00001);
+  assert.equal(tree.stage, 1);
 });
 test('new dates count once, revisiting a date does not award another active day', () => {
   let state = taps(7);
@@ -114,15 +117,104 @@ test('absence does not erase growth; resting is a derived state', () => {
   const state = taps(99);
   assert.equal(model.isResting(state, '2026-10-20'), true);
   const resumed = taps(1, state, '2026-10-20');
-  assert.ok(resumed.treeGrowthProgress >= state.treeGrowthProgress);
+  assert.ok(model.activeTree(resumed).progress >= model.activeTree(state).progress);
   assert.equal(model.isResting(resumed, '2026-10-20'), false);
 });
-test('missing stage art falls back; empty registry is safe', () => {
-  const seed = { xml: '<svg />' };
-  assert.equal(model.resolveStageAsset('olive_stage_05', { seed }), seed);
-  assert.equal(model.resolveStageAsset('olive_stage_05', {}), null);
-  const stages = [...model.STAGES, { id: 'extra', assetName: 'extra', requiredProgress: 10000, minimumDays: 90 }];
-  assert.equal(model.chooseStage(20000, 100, stages).id, 'extra');
+test('stage configuration can grow beyond the built-in eight entries', () => {
+  const stages = [...model.STAGES, { requiredProgress: 10000, minimumDays: 90 }];
+  assert.equal(model.chooseStage(20000, 100, stages), stages.length - 1);
+});
+test('v1 saves migrate into a single olive tree and reset the v2 garden fields', () => {
+  const v1 = { version: 1, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 5,
+    totalDhikrCount: 40, perDhikrCounts: { subhanallah: 40 }, treeGrowthProgress: 500, treeStage: 'olive_stage_03',
+    lastActiveDate: day, activeDays: 4, dailyDhikrCounts: { [day]: 40 }, hasSeenTasbihHint: true, hasSeenGateHint: false };
+  const state = model.restoreState(v1);
+  assert.equal(state.version, 2);
+  assert.equal(state.trees.length, 1);
+  const tree = model.activeTree(state);
+  assert.equal(tree.species, 'olive');
+  assert.equal(tree.progress, 500);
+  assert.equal(tree.activeDays, 4);
+  assert.equal(tree.stage, model.chooseStage(500, 4));
+  assert.deepEqual(state.seeds, {});
+  assert.deepEqual(state.pendingDrops, []);
+  assert.equal(state.lastCircleDropDate, null);
+  assert.equal(state.totalDhikrCount, 40);
+});
+test('a seed drops once the 7th distinct active day completes, tagged reason week', () => {
+  let state = model.initialState();
+  const rng = () => 0;
+  const days = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07'];
+  for (const d of days) state = model.registerDhikr(state, d, { rng });
+  assert.equal(state.activeDays, 7);
+  assert.equal(state.pendingDrops.length, 1);
+  assert.equal(state.pendingDrops[0].reason, 'week');
+  assert.equal(Object.values(state.seeds).reduce((a, b) => a + b, 0), 1);
+});
+test('a seed drops with reason harvest exactly when the active tree first reaches the final stage', () => {
+  const rng = () => 0;
+  const near = { ...model.initialState(),
+    trees: [{ id: 't1', species: 'olive', progress: model.STAGES[7].requiredProgress - 1, activeDays: model.STAGES[7].minimumDays, stage: 6, lastGrowDate: null, plantedOn: null, harvested: false }] };
+  const state = model.registerDhikr(near, day, { rng });
+  const tree = model.activeTree(state);
+  assert.equal(tree.stage, 7);
+  assert.equal(tree.harvested, true);
+  assert.equal(state.pendingDrops.filter(d => d.reason === 'harvest').length, 1);
+  const again = model.registerDhikr(state, '2026-09-14', { rng });
+  assert.equal(again.pendingDrops.filter(d => d.reason === 'harvest').length, 1);
+});
+test('a full circle (multiples of 99) drops at most once per day, gated by probability', () => {
+  const alwaysDrops = () => 0;
+  let state = model.initialState();
+  for (let i = 0; i < 99; i += 1) state = model.registerDhikr(state, day, { rng: alwaysDrops });
+  assert.equal(state.pendingDrops.filter(d => d.reason === 'circle').length, 1);
+  assert.equal(state.lastCircleDropDate, day);
+  for (let i = 0; i < 99; i += 1) state = model.registerDhikr(state, day, { rng: alwaysDrops });
+  assert.equal(state.pendingDrops.filter(d => d.reason === 'circle').length, 1);
+
+  const neverDrops = () => 0.99;
+  let quiet = model.initialState();
+  for (let i = 0; i < 99; i += 1) quiet = model.registerDhikr(quiet, day, { rng: neverDrops });
+  assert.equal(quiet.pendingDrops.filter(d => d.reason === 'circle').length, 0);
+  assert.equal(quiet.lastCircleDropDate, null);
+});
+test('sidr stays out of the drop pool until three distinct species are owned', () => {
+  const base = { ...model.initialState(), activeDays: 6 };
+  const rngHigh = () => 0.999999;
+  const onlyOlive = model.registerDhikr(base, '2026-09-20', { rng: rngHigh });
+  assert.equal(onlyOlive.pendingDrops[0].reason, 'week');
+  assert.notEqual(onlyOlive.pendingDrops[0].species, 'sidr');
+  const threeSpecies = { ...base, trees: [
+    { ...base.trees[0] },
+    { id: 't2', species: 'fig', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false },
+    { id: 't3', species: 'pomegranate', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false },
+  ] };
+  const withSidr = model.registerDhikr(threeSpecies, '2026-09-20', { rng: rngHigh });
+  assert.equal(withSidr.pendingDrops[0].species, 'sidr');
+});
+test('plantSeed spends a seed and makes the new tree active; a missing seed is a no-op', () => {
+  const state = { ...model.initialState(), seeds: { fig: 1 } };
+  const planted = model.plantSeed(state, 'fig', day);
+  assert.equal(planted.seeds.fig, undefined);
+  assert.equal(planted.trees.length, 2);
+  assert.equal(planted.activeTreeId, planted.trees[1].id);
+  assert.equal(planted.trees[1].species, 'fig');
+  assert.equal(planted.trees[1].stage, 0);
+  assert.equal(model.plantSeed(state, 'sidr', day), state);
+});
+test('setActiveTree only switches to a known tree; ackDrop consumes pending drops in order', () => {
+  const state = { ...model.initialState(), pendingDrops: [{ species: 'fig', reason: 'week' }, { species: 'olive', reason: 'circle' }] };
+  assert.equal(model.setActiveTree(state, 'missing'), state);
+  assert.equal(model.setActiveTree(state, 't1').activeTreeId, 't1');
+  const afterFirst = model.ackDrop(state);
+  assert.deepEqual(afterFirst.pendingDrops, [{ species: 'olive', reason: 'circle' }]);
+  assert.deepEqual(model.ackDrop(model.ackDrop(afterFirst)).pendingDrops, []);
+});
+test('a tree stage never rolls back even if computed progress momentarily dips below its threshold', () => {
+  const state = { ...model.initialState(),
+    trees: [{ id: 't1', species: 'olive', progress: 10, activeDays: 1, stage: 5, lastGrowDate: null, plantedOn: null, harvested: false }] };
+  const next = model.registerDhikr(state, day, { rng: () => 1 });
+  assert.equal(model.activeTree(next).stage, 5);
 });
 test('persist 17/33 and serialize rapid writes; storage failure is observable', async () => {
   let raw = null;

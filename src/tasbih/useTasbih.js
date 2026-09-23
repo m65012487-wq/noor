@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { advance, definition, registerDhikr, selectDhikr } from './model';
+import { ackDrop, advance, definition, plantSeed, registerDhikr, selectDhikr, setActiveTree } from './model';
 import { tasbihPersistence } from './persistence';
 import { localDateKey } from '../utils/calendarDate';
 const TasbihContext = createContext(null);
@@ -45,6 +45,9 @@ function useTasbihState() {
   return { state, error,
     tap: () => { if (current.current) persist(registerDhikr(current.current, localDateKey())); },
     select: id => { if (current.current) persist(selectDhikr(current.current, id)); },
+    plant: species => { if (current.current) persist(plantSeed(current.current, species, localDateKey())); },
+    setActive: id => { if (current.current) persist(setActiveTree(current.current, id)); },
+    ackDrop: () => { if (current.current) persist(ackDrop(current.current)); },
     sawGate: () => { if (current.current && !current.current.hasSeenGateHint) persist({ ...current.current, hasSeenGateHint: true }); },
     retry: () => current.current ? persist(current.current) : load(),
   };

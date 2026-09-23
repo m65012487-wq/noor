@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { LIGHT_STATES, lightStateAt } from '../constants/environmentTheme';
+import { LIGHT_STATES, THEMES, lightStateAt } from '../constants/environmentTheme';
 import { loadJSON, saveJSON } from './helpers';
 
 const AppearanceContext = createContext(null);
@@ -67,7 +67,9 @@ export function patternKind(id) {
 // держится ниже 0.11, иначе приглушённый текст (`textMuted`) перестаёт
 // набирать три к одному по контрасту, а он несёт подписи и время.
 export const SCHEMES = [
-  { id: 'sanctuary', label_en: 'Quiet garden', label_ru: 'Тихий сад', environment: true, ...LIGHT_STATES.night },
+  { id: 'sanctuary', label_en: 'Quiet garden', label_ru: 'Тихий сад', environment: true, theme: 'garden', ...THEMES.garden.phases.night },
+  { id: 'oasis', label_en: 'Oasis', label_ru: 'Оазис', environment: true, theme: 'oasis', ...THEMES.oasis.phases.night },
+  { id: 'highlands', label_en: 'Highlands', label_ru: 'Горный сад', environment: true, theme: 'highlands', ...THEMES.highlands.phases.night },
   { id: 'ink',   label_en: 'Ink',    label_ru: 'Тушь',
     bg: ['#1b2430', '#0d131b'], tint: '190,205,220', accent: '#c8d6e2' },
   { id: 'sand',  label_en: 'Sand',   label_ru: 'Песок',
@@ -192,7 +194,8 @@ export function AppearanceProvider({ children }) {
   }, []);
   const chooseLighting = async id => { setLighting(id); await saveJSON('environmentLighting', id); };
   const phase = lighting === 'auto' ? currentLight : lighting;
-  const sc = scheme === 'sanctuary' ? { ...schemeFor(scheme), ...LIGHT_STATES[phase], phase } : schemeFor(scheme);
+  const scheme_ = schemeFor(scheme);
+  const sc = scheme_.environment ? { ...scheme_, ...THEMES[scheme_.theme].phases[phase], phase, theme: scheme_.theme } : scheme_;
   const fonts = fontSetFor(fontSet);
 
   if (!ready) return null;

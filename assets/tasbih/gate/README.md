@@ -1,7 +1,6 @@
 # Gate artwork
 
-Five transparent SVG layers are included: arch, independent left/right doors, plants and lights.
-Runtime XML is in `src/tasbih/gateVectors.js`; tests keep it identical to these files.
-To replace a layer with PNG, set its matching `GATE_ASSETS` entry in `src/tasbih/assets.js`.
-Keep the same aspect ratio and transparent padding. Door hinges are left/right respectively.
-See `docs/TasbihAssetManifest.md` for dimensions, anchors and layer order.
+Four raster layers share one 600×720 canvas: `arch.png`, `door_left.png`, `door_right.png`, `glow.png`.
+Registered in `src/tasbih/assets.js` as `GATE_ASSETS`, with hinges and the opening rectangle in `GATE_GEOMETRY`.
+Draw order (back to front): the tree window (clipped to the opening) → `glow` → doors → `arch`.
+Door hinges: left door rotates around `GATE_GEOMETRY.hingeLeft` (fraction of width), right door around `hingeRight`.

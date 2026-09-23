@@ -263,8 +263,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
             ))}
           </View>
 
-          {scheme === 'sanctuary' && <>
-            <Text style={styles.label}>{lang === 'ru' ? 'Освещение сада' : 'Garden lighting'}</Text>
+          {SCHEMES.find((s) => s.id === scheme)?.environment && <>
+            <Text style={styles.label}>{lang === 'ru' ? 'Освещение' : 'Lighting'}</Text>
             <View style={styles.themeRow}>
               {['auto', 'dawn', 'day', 'sunset', 'night'].map((id, index) => <TouchableOpacity key={id}
                 accessibilityRole="radio" accessibilityState={{ checked: lighting === id }}

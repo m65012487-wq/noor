@@ -1,22 +1,19 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
 import { Animated, Image as RNImage, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
-import { SvgXml } from 'react-native-svg';
 import { TREE_ASSETS } from './assets';
-import { resolveStageAsset, STAGES } from './model';
 import { ENVIRONMENT } from '../constants/environmentTheme';
 
 const Artwork = memo(function Artwork({ asset }) {
   if (!asset) return <View style={styles.empty} />;
-  if (asset.xml) return <SvgXml xml={asset.xml} width="100%" height="100%" />;
-  if (asset.layers) return asset.layers.map((layer, index) => <View key={index} style={StyleSheet.absoluteFill}><Artwork asset={layer} /></View>);
-  return <Image source={asset.source} contentFit="contain" style={[StyleSheet.absoluteFill, {
-    transformOrigin: '50% 90%', transform: [{ scale: asset.scale ?? 1 }],
-  }]} />;
+  return <Image source={asset.source} contentFit="contain" style={StyleSheet.absoluteFill} />;
 });
 
-export default memo(function TreeView({ stageId, pulse, reduceMotion }) {
-  const asset = resolveStageAsset(stageId, TREE_ASSETS);
+// Renders one stage of one species; art is resolved directly from
+// TREE_ASSETS[species][stage] — an 8-stage grid shared by every species,
+// all drawn to the same camera scale with the trunk base at (0.5, 0.9).
+export default memo(function TreeView({ species, stage, pulse, reduceMotion }) {
+  const asset = TREE_ASSETS[species]?.[stage] || null;
   const [oldAsset, setOldAsset] = useState(null);
   const previous = useRef(asset);
   const crossfade = useRef(new Animated.Value(1)).current;
@@ -31,14 +28,13 @@ export default memo(function TreeView({ stageId, pulse, reduceMotion }) {
     return () => animation.stop();
   }, [asset, crossfade, reduceMotion]);
   useEffect(() => {
-    const nextStage = STAGES[STAGES.findIndex(s => s.id === stageId) + 1];
-    const next = nextStage && TREE_ASSETS[nextStage.assetName];
+    const next = TREE_ASSETS[species]?.[stage + 1];
     if (next?.source) {
       const uri = RNImage.resolveAssetSource?.(next.source)?.uri
         || (typeof next.source === 'string' ? next.source : next.source?.uri);
       if (uri) Image.prefetch(uri).catch(() => {});
     }
-  }, [stageId]);
+  }, [species, stage]);
   useEffect(() => {
     if (reduceMotion || !pulse) { sway.setValue(0); return undefined; }
     const animation = Animated.sequence([
