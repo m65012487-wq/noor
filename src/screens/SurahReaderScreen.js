@@ -24,6 +24,9 @@ export default function SurahReaderScreen({ route, navigation }) {
   const { translationId, reciterId, showArabic, showTranslit, showTranslation, wordByWord } = useQuranPrefs();
   const appearance = useAppearance();
   const fonts = appearance?.fonts;
+  const tint = appearance?.tint || '180,215,230';
+  const accent = appearance?.accent || COLORS.accent;
+  const tintRgba = (a) => `rgba(${tint},${a})`;
   const [data, setData] = useState(null);
   const [audioMap, setAudioMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -148,7 +151,7 @@ export default function SurahReaderScreen({ route, navigation }) {
             </View>
           </View>
 
-          {loading && <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 60 }} />}
+          {loading && <ActivityIndicator color={accent} size="large" style={{ marginTop: 60 }} />}
           {error && <Text style={styles.error}>{t('quran_load_error')}</Text>}
 
           {data && (
@@ -162,9 +165,9 @@ export default function SurahReaderScreen({ route, navigation }) {
                       вести взгляд по странице. Активный аят выделяется
                       тонкой линией слева, а не рамкой вокруг. */}
                   <View
-                    style={[styles.ayahCard, playingAyah === a.number && styles.ayahActive]}>
+                    style={[styles.ayahCard, playingAyah === a.number && { borderLeftColor: accent }]}>
                     <View style={styles.ayahHead}>
-                      <View style={[styles.ayahNum, { backgroundColor: `rgba(${appearance?.tint || '180,215,230'},0.2)` }]}><Text style={styles.ayahNumText}>{a.number}</Text></View>
+                      <View style={[styles.ayahNum, { backgroundColor: tintRgba(0.2) }]}><Text style={[styles.ayahNumText, { color: accent }]}>{a.number}</Text></View>
                       <View style={styles.ayahActions}>
                         <GlassIconButton name={playingAyah === a.number ? 'pause' : 'play'}
                           size={15} active={playingAyah === a.number}
@@ -177,18 +180,18 @@ export default function SurahReaderScreen({ route, navigation }) {
                     {showArabic && wordByWord && wbw && wbw[a.number] ? (
                       <View style={styles.wbwWrap}>
                         {wbw[a.number].map((w, wi) => (
-                          <View key={wi} style={styles.wbwCell}>
+                          <View key={wi} style={[styles.wbwCell, { borderColor: tintRgba(0.22) }]}>
                             <Text style={[styles.wbwAr, { fontSize: READER.word.fontSize * scale, lineHeight: READER.word.lineHeight * scale }]}>{w.ar}</Text>
-                            {!!w.ru && <Text style={styles.wbwRu}>{w.ru}</Text>}
+                            {!!w.ru && <Text style={[styles.wbwRu, { color: tintRgba(0.85) }]}>{w.ru}</Text>}
                           </View>
                         ))}
                       </View>
                     ) : showArabic ? (
                       <Text style={[styles.ar, { fontSize: READER.ayah.fontSize * scale, lineHeight: READER.ayah.lineHeight * scale }]}>{a.ar}</Text>
                     ) : null}
-                    {showTranslit && !!a.tr && <Text style={[styles.tr, { fontSize: READER.translit.fontSize * scale, fontFamily: fonts?.reading }]}>{a.tr}</Text>}
+                    {showTranslit && !!a.tr && <Text style={[styles.tr, { fontSize: READER.translit.fontSize * scale, fontFamily: fonts?.reading, color: tintRgba(0.85) }]}>{a.tr}</Text>}
                     {showTranslation && (
-                      <View style={styles.transBlock}>
+                      <View style={[styles.transBlock, { borderTopColor: tintRgba(0.16) }]}>
                         <Text style={[styles.en, { fontSize: READER.trans.fontSize * scale, lineHeight: READER.trans.lineHeight * scale, fontFamily: fonts?.reading }]}>{a.en}</Text>
                       </View>
                     )}
@@ -202,7 +205,7 @@ export default function SurahReaderScreen({ route, navigation }) {
                   <GlassView azure radius={RADIUS.md} style={styles.nextSurah}>
                     <View style={styles.nextInner}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.nextLabel}>{t('next_surah')}</Text>
+                        <Text style={[styles.nextLabel, { color: tintRgba(0.85) }]}>{t('next_surah')}</Text>
                         <Text style={styles.nextName}>{nextSurah.number}. {nextSurah.englishName}</Text>
                       </View>
                       <Icon name="next" size={30} color={COLORS.white} />
@@ -231,13 +234,14 @@ const styles = StyleSheet.create({
 
   ayahCard: { paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
     marginBottom: SPACING.lg, borderLeftWidth: 2, borderLeftColor: 'transparent' },
-  // Звучащий аят помечается линией слева: рамка вокруг вернула бы карточку.
-  ayahActive: { borderLeftColor: COLORS.accentSoft },
+  // Звучащий аят помечается линией слева (цвет темы подмешивается инлайн):
+  // рамка вокруг вернула бы карточку.
   ayahHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: SPACING.sm },
-  ayahNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.surfaceActive,
+  // Фон и цвет числа приходят из темы (инлайн ниже); здесь только форма.
+  ayahNum: { width: 30, height: 30, borderRadius: 15,
     alignItems: 'center', justifyContent: 'center' },
-  ayahNumText: { ...TYPE.caption, color: COLORS.accent, fontWeight: '700' },
+  ayahNumText: { ...TYPE.caption, fontWeight: '700' },
   ayahActions: { flexDirection: 'row', alignItems: 'center' },
 
   // Кегль и межстрочный приходят из настроек читалки, поэтому здесь только
@@ -245,25 +249,25 @@ const styles = StyleSheet.create({
   ar: { color: COLORS.white, textAlign: 'right', fontFamily: FONTS.arabic },
 
   wbwWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xxs },
+  // Цвет рамки — из темы (инлайн выше); здесь только форма.
   wbwCell: {
     alignItems: 'center', justifyContent: 'flex-start',
     minWidth: 54, maxWidth: 150, paddingHorizontal: 9, paddingVertical: 7,
     borderRadius: RADIUS.sm, backgroundColor: COLORS.surface,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorderSoft,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   wbwAr: { color: COLORS.white, fontFamily: FONTS.arabic, textAlign: 'center' },
-  wbwRu: { ...TYPE.caption, color: COLORS.accentSoft, lineHeight: 15,
-    textAlign: 'center', marginTop: SPACING.xs },
+  wbwRu: { ...TYPE.caption, lineHeight: 15, textAlign: 'center', marginTop: SPACING.xs },
 
-  tr: { ...TYPE.body, color: COLORS.accentSoft, fontStyle: 'italic', marginTop: SPACING.sm },
+  tr: { ...TYPE.body, fontStyle: 'italic', marginTop: SPACING.sm },
   transBlock: {
     marginTop: SPACING.md, paddingTop: SPACING.md,
-    borderTopWidth: 1, borderTopColor: COLORS.hairline,
+    borderTopWidth: 1,
   },
   en: { ...TYPE.body, color: COLORS.text, letterSpacing: 0.2 },
 
   nextSurah: { marginTop: SPACING.sm, marginBottom: SPACING.xl },
   nextInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
-  nextLabel: { ...TYPE.overline, color: COLORS.accentSoft },
+  nextLabel: { ...TYPE.overline },
   nextName: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', marginTop: SPACING.xs },
 });

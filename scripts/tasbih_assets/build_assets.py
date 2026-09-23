@@ -80,25 +80,74 @@ def themes():
         print("themes", t)
 
 
-def gate():
-    """Всё из закрытого варианта: створки — тёмное дерево в проёме, арка — остальное.
+GATE_PICK = {"garden": 2, "oasis": 1, "highlands": 1}   # какой из двух вариантов арки взят
 
-    Пустая арка служила только образцом для правки; правка слегка сдвигает кладку,
-    поэтому маску проёма берём из того же кадра, где нарисованы створки.
+
+# Светлые створки не отделить по цвету от стены — тогда проём берём из пустой арки
+# (правка сохраняет композицию почти пиксель в пиксель, запас в пару пикселей закрывает сдвиг).
+MASK_FROM = {"oasis": "empty", "highlands": "empty"}
+
+
+def opening_from_empty(theme, size):
+    empty = Image.open(RAW / "v3" / "gate" / theme / f"empty_{GATE_PICK[theme]}.png").convert("RGB").resize(size, Image.LANCZOS)
+    a = np.asarray(cutout(empty).getchannel("A")) > 128
+    ys, xs = np.nonzero(a)
+    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+    inside = np.zeros_like(a)
+    inside[y0:y1 + 1, x0:x1 + 1] = ~a[y0:y1 + 1, x0:x1 + 1]
+    lab, _ = ndimage.label(inside)
+    cx = int(xs.mean())
+    column = lab[y0:int(y0 + (y1 - y0) * 0.75), cx]
+    sub = lab[y0:y1 + 1, x0:x1 + 1]
+    edge = set(np.unique(np.concatenate([sub[0], sub[-1], sub[:, 0], sub[:, -1]])))
+    # Проём — компонента на средней вертикали, не касающаяся рамки силуэта
+    # (фон над стенами тоже попадает в рамку и бывает крупнее проёма).
+    ids = [i for i in np.unique(column) if i and i not in edge] or [i for i in np.unique(column) if i]
+    best = max(ids, key=lambda i: (lab == i).sum())
+    opening = lab == best
+    # Проём открыт к земле: снизу компонента растекается по фону вдоль основания — срезаем
+    # по нижней точке косяков (где ширина проёма ещё не выросла).
+    rows = opening.sum(1)
+    top = np.nonzero(rows)[0].min()
+    ref = np.median(rows[top + (np.nonzero(rows)[0].max() - top) // 2: np.nonzero(rows)[0].max()][:40])
+    for y in range(top, opening.shape[0]):
+        if rows[y] > ref * 1.35:
+            opening[y:] = False
+            break
+    return ndimage.binary_dilation(opening, iterations=9)
+
+
+def gates():
+    """Ворота каждой темы: створки — тёмное дерево в проёме закрытого варианта, арка — остальное.
+
+    Холст 720 по ширине, высота по пропорции силуэта (у ворот со стенами он шире, чем высок).
+    Печатает геометрию для GATE_THEMES в src/tasbih/assets.js.
     """
-    W, H = 600, 720
-    closed = Image.open(RAW / "gate" / "arch_closed.png").convert("RGB")
+    for theme in GATE_PICK:
+        gate(theme)
+
+
+def gate(theme):
+    W = 720
+    closed = Image.open(RAW / "v3" / "gate" / theme / "closed.png").convert("RGB")
     rgb = np.asarray(closed).astype(int)
     lum = rgb.mean(-1)
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    wood = ndimage.binary_opening((lum < 88) & (r > g) & (g >= b - 4), iterations=2)
-    lab, _ = ndimage.label(wood)
-    h0, w0 = lum.shape
-    doors = lab == lab[int(h0 * 0.58), w0 // 2]
-    doors = ndimage.binary_fill_holes(ndimage.binary_closing(doors, iterations=8))
-    doors = ndimage.binary_opening(doors, iterations=4)
+    if MASK_FROM.get(theme) == "empty":
+        doors = opening_from_empty(theme, closed.size)
+    else:
+        wood = ndimage.binary_opening((lum < 88) & (r > g) & (g >= b - 4), iterations=2)
+        lab, _ = ndimage.label(wood)
+        arch_a = np.asarray(cutout(closed).getchannel("A")) > 40
+        ys, xs = np.nonzero(arch_a)
+        # Створки — самая крупная тёмная область у середины силуэта.
+        cx, cy = int(xs.mean()), int(ys.min() + (ys.max() - ys.min()) * 0.6)
+        ids, counts = np.unique(lab[max(0, cy - 150):cy + 150, cx - 60:cx + 60], return_counts=True)
+        cand = [(c, i) for i, c in zip(ids, counts) if i]
+        doors = lab == max(cand)[1]
+        doors = ndimage.binary_fill_holes(ndimage.binary_closing(doors, iterations=8))
+        doors = ndimage.binary_opening(doors, iterations=4)
     oy, ox = np.nonzero(doors)
-    # Шов между створками — самая тёмная вертикаль у середины проёма.
     mid = int(ox.mean())
     band = lum[oy.min() + 40:oy.max() - 40, mid - 30:mid + 30].mean(0)
     split = mid - 30 + int(np.argmin(band))
@@ -119,16 +168,14 @@ def gate():
     x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
     bbox = (x0, y0, x1 + 1, y1 + 1)
     bw, bh = x1 + 1 - x0, y1 + 1 - y0
-    scale = min(W * 0.98 / bw, H / bh)
-    size = (round(bw * scale), round(bh * scale))
-    off = ((W - size[0]) // 2, H - size[1])
+    H = round(W * bh / bw)
+    scale = W / bw
 
     def frame(img):
-        c = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        c.alpha_composite(img.crop(bbox).resize(size, Image.LANCZOS), off)
-        return c
+        return img.crop(bbox).resize((W, H), Image.LANCZOS)
 
-    out = APP / "gate"
+    out = APP / "gates" / theme
+    out.mkdir(parents=True, exist_ok=True)
     frame(arch).save(out / "arch.png", optimize=True)
     frame(leaf(left)).save(out / "door_left.png", optimize=True)
     frame(leaf(right)).save(out / "door_right.png", optimize=True)
@@ -138,9 +185,43 @@ def gate():
     glow[..., 0], glow[..., 1], glow[..., 2] = 255, 228, 170
     glow[..., 3] = (gl * 240).astype(np.uint8)
     frame(Image.fromarray(glow, "RGBA").filter(ImageFilter.GaussianBlur(5))).save(out / "glow.png", optimize=True)
-    to = lambda x, y: (((x - x0) * scale + off[0]) / W, ((y - y0) * scale + off[1]) / H)
-    l, t = to(ox.min(), oy.min()); rr, bb = to(ox.max(), oy.max()); sx, _ = to(split, 0)
-    print(f"gate opening left={l:.3f} right={rr:.3f} top={t:.3f} bottom={bb:.3f} split={sx:.3f}")
+    fx = lambda x: (x - x0) / bw
+    fy = lambda y: (y - y0) / bh
+    print(f"{theme}: aspect={H / W:.3f} hingeLeft={fx(ox.min()):.3f} hingeRight={fx(ox.max()):.3f} "
+          f"opening={{left:{fx(ox.min()):.3f}, right:{fx(ox.max()):.3f}, top:{fy(oy.min()):.3f}, bottom:{fy(oy.max()):.3f}}} split={fx(split):.3f}")
+
+
+def winter_grade(im):
+    """Зелень поляны img2img не перекрашивает — уводим её в снег, кадр слегка охлаждаем."""
+    a = np.asarray(im).astype(np.float32)
+    h = a.shape[0]
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    green = np.clip((g - b - 12) / 35, 0, 1) * (r <= g + 18)   # зелёная и оливковая трава
+    ramp = np.clip((np.arange(h) / h - 0.5) / 0.15, 0, 1)[:, None]      # только земля
+    snow = np.array([234, 239, 246], np.float32)
+    k = (green * ramp * 0.85)[..., None]
+    out = a * (1 - k) + snow * k
+    grey = out.mean(-1, keepdims=True)
+    out = out * 0.8 + grey * 0.2                                          # чуть меньше цвета
+    out = out * np.array([0.97, 0.99, 1.04])                              # и холоднее
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8))
+
+
+def garden():
+    """Сезонный сад тасбиха: v3/garden/<сезон>.png → assets/tasbih/garden/<сезон>.jpg (1080×1920)."""
+    (APP / "garden").mkdir(parents=True, exist_ok=True)
+    for season in ["spring", "summer", "autumn", "winter"]:
+        src = RAW / "v3" / "garden" / f"{season}.png"
+        if not src.exists():
+            print("missing", src); continue
+        im = Image.open(src).convert("RGB")
+        if season == "winter":
+            im = winter_grade(im)
+        im = im.resize((1080, round(im.height * 1080 / im.width)), Image.LANCZOS)
+        top = max(0, im.height - 1920)
+        im = im.crop((0, top // 3, 1080, top // 3 + 1920)) if im.height >= 1920 else im.resize((1080, 1920), Image.LANCZOS)
+        im.save(APP / "garden" / f"{season}.jpg", quality=88, optimize=True, progressive=True)
+    print("garden")
 
 
 if __name__ == "__main__":

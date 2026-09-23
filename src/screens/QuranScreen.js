@@ -16,10 +16,15 @@ import { surahMeaning } from '../constants/surahNames';
 import { useLang } from '../i18n/LanguageContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
 import { useTabSwipe } from '../utils/useTabSwipe';
+import { useAppearance } from '../utils/AppearanceContext';
 
 export default function QuranScreen({ navigation }) {
   const { t, lang } = useLang();
   const swipe = useTabSwipe('Quran');
+  const appearance = useAppearance();
+  const tint = appearance?.tint || '180,215,230';
+  const accent = appearance?.accent || COLORS.accent;
+  const tintRgba = (a) => `rgba(${tint},${a})`;
   const { translationId } = useQuranPrefs();
   const [seg, setSeg] = useState('read'); // read | learn
   const [list, setList] = useState([]);
@@ -102,7 +107,7 @@ export default function QuranScreen({ navigation }) {
         <TouchableOpacity activeOpacity={0.85} onPress={() => openByNumber(lastRead.surahNumber, lastRead.ayah)}>
           <GlassView azure intensity={42} style={styles.continueCard} radius={RADIUS.md}>
             <View style={styles.continueInner}>
-              <Text style={styles.continueLabel}>{t('continue_reading')}</Text>
+              <Text style={[styles.continueLabel, { color: tintRgba(0.85) }]}>{t('continue_reading')}</Text>
               <Text style={styles.continueName}>{lastRead.name}</Text>
               <Text style={styles.continueAyah}>{t('ayah')} {lastRead.ayah}</Text>
             </View>
@@ -116,7 +121,7 @@ export default function QuranScreen({ navigation }) {
             <TouchableOpacity key={i} activeOpacity={0.85} onPress={() => openByNumber(b.surahNumber, b.ayah)}>
               <GlassView style={styles.bmRow} radius={RADIUS.sm}>
                 <View style={styles.bmInner}>
-                  <Icon name="bookmark" size={15} color={COLORS.accentSoft} style={{ marginRight: 8 }} />
+                  <Icon name="bookmark" size={15} color={tintRgba(0.85)} style={{ marginRight: 8 }} />
                   <Text style={styles.bmText}>{b.name} · {t('ayah')} {b.ayah}</Text>
                 </View>
               </GlassView>
@@ -129,7 +134,7 @@ export default function QuranScreen({ navigation }) {
         placeholderTextColor={COLORS.textMuted} value={query} onChangeText={onSearch} />
       {error && <Text style={styles.error}>{t('quran_load_error')}</Text>}
 
-      {searchingAyahs && <ActivityIndicator color={COLORS.accent} style={{ marginVertical: SPACING.md }} />}
+      {searchingAyahs && <ActivityIndicator color={accent} style={{ marginVertical: SPACING.md }} />}
       {ayahResults.length > 0 && (
         <View style={{ marginBottom: SPACING.md }}>
           <Text style={styles.sectionLabel}>{t('ayah')}</Text>
@@ -138,7 +143,7 @@ export default function QuranScreen({ navigation }) {
               onPress={() => openByNumber(r.surahNumber, r.ayah)}>
               <GlassView style={styles.ayahResult} radius={RADIUS.sm}>
                 <View style={{ padding: SPACING.md }}>
-                  <Text style={styles.ayahResultRef}>{r.surahName} · {t('ayah')} {r.ayah}</Text>
+                  <Text style={[styles.ayahResultRef, { color: tintRgba(0.85) }]}>{r.surahName} · {t('ayah')} {r.ayah}</Text>
                   <Text style={styles.ayahResultText} numberOfLines={2}>{r.text}</Text>
                 </View>
               </GlassView>
@@ -158,7 +163,7 @@ export default function QuranScreen({ navigation }) {
         <CoursePathScreen refreshKey={courseRefresh}
           onOpenLesson={(ui, li) => setActiveLesson({ unitIndex: ui, lessonIndex: li })} />
       ) : loading ? (
-        <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 60 }} />
+        <ActivityIndicator color={accent} size="large" style={{ marginTop: 60 }} />
       ) : (
         <FlatList
           data={filtered}
@@ -170,12 +175,12 @@ export default function QuranScreen({ navigation }) {
             <TouchableOpacity activeOpacity={0.85} onPress={() => openSurah(item)}>
               <GlassView style={styles.row} radius={RADIUS.md}>
                 <View style={styles.rowInner}>
-                  <View style={styles.numBadge}><Text style={styles.num}>{item.number}</Text></View>
+                  <View style={[styles.numBadge, { backgroundColor: tintRgba(0.2) }]}><Text style={[styles.num, { color: accent }]}>{item.number}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{item.englishName}</Text>
                     <Text style={styles.meaning}>{surahMeaning(item.number, lang)} · {item.numberOfAyahs} {t('verses')}</Text>
                   </View>
-                  <Text style={styles.arName}>{item.name}</Text>
+                  <Text style={[styles.arName, { color: tintRgba(0.85) }]}>{item.name}</Text>
                 </View>
               </GlassView>
             </TouchableOpacity>
@@ -214,7 +219,7 @@ const styles = StyleSheet.create({
 
   continueCard: { marginBottom: SPACING.md },
   continueInner: { padding: SPACING.md },
-  continueLabel: { ...TYPE.overline, color: COLORS.accentSoft },
+  continueLabel: { ...TYPE.overline },
   continueName: { ...TYPE.heading, color: COLORS.white, marginTop: SPACING.xs },
   continueAyah: { ...TYPE.callout, color: COLORS.textMuted, marginTop: SPACING.xxs },
 
@@ -231,16 +236,16 @@ const styles = StyleSheet.create({
 
   row: { marginBottom: SPACING.sm },
   rowInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
-  numBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.surfaceActive,
+  // Фон и цвет числа — из темы (инлайн выше); здесь только форма.
+  numBadge: { width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
-  num: { ...TYPE.callout, color: COLORS.accent, fontWeight: '700' },
+  num: { ...TYPE.callout, fontWeight: '700' },
   name: { ...TYPE.subhead, color: COLORS.text, fontWeight: '700' },
   meaning: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },
-  arName: { ...ARABIC.sm, color: COLORS.accentSoft,
-    fontFamily: FONTS.arabic, marginLeft: SPACING.sm },
+  arName: { ...ARABIC.sm, fontFamily: FONTS.arabic, marginLeft: SPACING.sm },
 
   lessonModal: { flex: 1, backgroundColor: COLORS.navyDeep },
   ayahResult: { marginBottom: SPACING.sm },
-  ayahResultRef: { ...TYPE.caption, color: COLORS.accentSoft, marginBottom: SPACING.xs },
+  ayahResultRef: { ...TYPE.caption, marginBottom: SPACING.xs },
   ayahResultText: { ...TYPE.callout, color: COLORS.text, lineHeight: 20 },
 });

@@ -2,23 +2,36 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
-import { ThemedBackground, useReduceMotion } from '../components/ScreenWrapper';
+import { useReduceMotion } from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
-import DraggableSheet from '../components/DraggableSheet';
 import Icon from '../components/Icon';
 import { ARABIC, COLORS, FONTS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useAppearance } from '../utils/AppearanceContext';
 import { useLang } from '../i18n/LanguageContext';
-import { hapticLight } from '../utils/haptics';
+import { hapticHeavy, hapticLight, hapticSuccess } from '../utils/haptics';
 import TreeView from './TreeView';
 import SeedDrop from './SeedDrop';
 import GardenSheet from './GardenSheet';
+import DhikrSheet from './DhikrSheet';
+import GardenBackground from './GardenBackground';
 import useTasbih from './useTasbih';
 import { activeTree, definition, DHIKR, SPECIES, STAGES, STAGE_NAMES } from './model';
 import EnvironmentDebug from './EnvironmentDebug';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
+
+// Pill label for the current mode — 'sequence'/'free' aren't in DHIKR, and a
+// custom dhikr's label is its own text, so this can't just look the id up
+// in the options list definition() would return for the active dhikr.
+function modeLabel(state, ru) {
+  if (state.selectedDhikr === 'sequence') return ru ? 'Последовательность' : 'Sequence';
+  if (state.selectedDhikr === 'free') return ru ? 'Свободный зикр' : 'Free dhikr';
+  const single = DHIKR.find(d => d.id === state.selectedDhikr);
+  if (single) return ru ? single.ru : single.en;
+  const custom = (state.customDhikr || []).find(d => `custom:${d.id}` === state.selectedDhikr);
+  return custom ? custom.text : '';
+}
 
 // Growth toward the next stage needs both enough progress and enough active
 // days (see model.chooseStage); the bar shows whichever is further behind.
@@ -34,7 +47,7 @@ function growthRatio(tree) {
 }
 
 export default function TasbihScreen({ onClose }) {
-  const { state, error, tap, select, retry, plant, setActive, ackDrop } = useTasbih();
+  const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
   const { accent } = useAppearance();
@@ -53,13 +66,35 @@ export default function TasbihScreen({ onClose }) {
     return { right: make('right'), down: make('down') };
   }, []);
   const textFade = useRef(new Animated.Value(1)).current;
+  // Native-driver-only value (opacity + transform, see TASBIH_V3_SPEC.md's
+  // iOS note): a brief accent flash behind the counter and a small scale
+  // pop mark the end of a circle or a full sequence. reduceMotion keeps the
+  // opacity flash but skips the scale.
+  const flash = useRef(new Animated.Value(0)).current;
+  const flashScale = flash.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
+  const flashGlow = flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] });
+  const triggerFlash = () => {
+    flash.setValue(0);
+    Animated.sequence([
+      Animated.timing(flash, { toValue: 1, duration: 110, useNativeDriver: true }),
+      Animated.timing(flash, { toValue: 0, duration: 140, useNativeDriver: true }),
+    ]).start();
+  };
   const item = state ? definition(state) : DHIKR[0];
   useEffect(() => {
     textFade.setValue(0);
     Animated.timing(textFade, { toValue: 1, duration: reduceMotion ? 150 : 350, useNativeDriver: true }).start();
   }, [item.id, textFade, reduceMotion]);
   const phrase = ru ? item.ru : item.en;
-  const options = [{ id: 'sequence', label: ru ? 'Последовательность' : 'Sequence' }, ...DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en }))];
+  const translation = ru ? item.translation_ru : item.translation_en;
+  const onTap = () => {
+    const event = tap();
+    hapticLight();
+    if (event === 'circle') hapticHeavy();
+    else if (event === 'complete') hapticSuccess();
+    setPulse(v => v + 1);
+    if (event !== 'tap') triggerFlash();
+  };
   const tree = state ? activeTree(state) : null;
   const drop = state?.pendingDrops?.[0] || null;
   const dropKey = drop ? `${state.pendingDrops.length}:${drop.species}:${drop.reason}` : null;
@@ -70,7 +105,7 @@ export default function TasbihScreen({ onClose }) {
   const ratio = tree ? growthRatio(tree) : 0;
 
   return (
-    <ThemedBackground>
+    <GardenBackground>
       <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose} {...swipes.right.panHandlers}>
         <View style={styles.header} {...swipes.down.panHandlers}>
           <Pressable accessibilityRole="button" accessibilityLabel={ru ? 'Закрыть Тасбих' : 'Close Tasbih'}
@@ -98,29 +133,32 @@ export default function TasbihScreen({ onClose }) {
           <>
             <View style={styles.pillRow}>
               <Pressable accessibilityRole="button" accessibilityState={{ expanded: selector }}
-                accessibilityLabel={ru ? `Режим: ${options.find(o => o.id === state.selectedDhikr)?.label}. Открыть выбор` : `Mode: ${options.find(o => o.id === state.selectedDhikr)?.label}. Open picker`}
+                accessibilityLabel={ru ? `Режим: ${modeLabel(state, ru)}. Открыть выбор` : `Mode: ${modeLabel(state, ru)}. Open picker`}
                 onPress={() => setSelector(true)}>
                 <GlassView radius={RADIUS.pill} style={styles.pill}>
-                  <Text style={[styles.pillText, { color: accent }]}>{options.find(o => o.id === state.selectedDhikr)?.label}</Text>
+                  <Text style={[styles.pillText, { color: accent }]} numberOfLines={1}>{modeLabel(state, ru)}</Text>
                   <Icon name="down" size={14} color={accent} />
                 </GlassView>
               </Pressable>
             </View>
 
             <Animated.View style={[styles.words, { opacity: textFade }]}>
-              <Text style={styles.arabic} accessibilityLanguage="ar">{item.arabic}</Text>
+              {!!item.arabic && <Text style={styles.arabic} accessibilityLanguage="ar">{item.arabic}</Text>}
               <Text style={styles.phrase}>{phrase}</Text>
-              <Text style={styles.translation}>{ru ? item.translation_ru : item.translation_en}</Text>
+              {!!translation && <Text style={styles.translation}>{translation}</Text>}
             </Animated.View>
 
-            <View style={styles.counter}>
+            <Animated.View style={[styles.counter, { transform: [{ scale: reduceMotion ? 1 : flashScale }] }]}>
               <View style={styles.counterRow}>
+                <Animated.View pointerEvents="none" style={[styles.counterGlow, { opacity: flashGlow, backgroundColor: accent }]} />
                 <Text style={[styles.count, { color: accent }]}>{state.currentDhikrCount}</Text>
-                <Text style={styles.target}>/ {item.target}</Text>
+                {item.target != null && <Text style={styles.target}>/ {item.target}</Text>}
               </View>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${clamp01(state.currentDhikrCount / item.target) * 100}%`, backgroundColor: accent }]} />
-              </View>
+              {item.target != null && (
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${clamp01(state.currentDhikrCount / item.target) * 100}%`, backgroundColor: accent }]} />
+                </View>
+              )}
               {state.selectedDhikr === 'sequence' && (
                 <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
                   {DHIKR.map((d, index) => (
@@ -128,11 +166,11 @@ export default function TasbihScreen({ onClose }) {
                   ))}
                 </View>
               )}
-            </View>
+            </Animated.View>
 
-            <Pressable onPress={() => { tap(); hapticLight(); setPulse(v => v + 1); }} style={styles.treeArea}
+            <Pressable onPress={onTap} style={styles.treeArea}
               accessibilityRole="button"
-              accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount} ${ru ? 'из' : 'of'} ${item.target}`}
+              accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${ru ? 'из' : 'of'} ${item.target}` : ''}`}
               accessibilityHint={ru ? 'Нажмите дважды, чтобы засчитать одно поминание' : 'Double tap to count one remembrance'}>
               <View style={styles.treeShadow} pointerEvents="none" />
               <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />
@@ -157,18 +195,11 @@ export default function TasbihScreen({ onClose }) {
         <EnvironmentDebug state={state} animation="ready" label="safe content" anchor={false} />
       </SafeAreaView>
 
-      <DraggableSheet visible={selector} onClose={() => setSelector(false)} title={ru ? 'Зикр' : 'Dhikr'}>
-        {options.map(option => (
-          <Pressable key={option.id} accessibilityRole="radio" accessibilityState={{ checked: option.id === state?.selectedDhikr }}
-            style={styles.option} onPress={() => { select(option.id); setSelector(false); }}>
-            <View style={[styles.radio, { borderColor: accent }, option.id === state?.selectedDhikr && { backgroundColor: accent }]} />
-            <Text style={styles.optionText}>{option.label}</Text>
-          </Pressable>
-        ))}
-      </DraggableSheet>
+      <DhikrSheet visible={selector} onClose={() => setSelector(false)} state={state}
+        select={select} addCustom={addCustom} removeCustom={removeCustom} setCircleLimit={setCircleLimit} />
 
       <GardenSheet visible={garden} onClose={() => setGarden(false)} state={state} plant={plant} setActive={setActive} />
-    </ThemedBackground>
+    </GardenBackground>
   );
 }
 // Фон — светлая картина (рассвет, день), поэтому текст над ним получает мягкую тень.
@@ -189,6 +220,10 @@ const styles = StyleSheet.create({
   translation: { ...LEGIBLE, ...TYPE.callout, color: COLORS.text, opacity: 0.85, textAlign: 'center', marginTop: 2 },
   counter: { alignItems: 'center', paddingTop: SPACING.sm },
   counterRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
+  counterGlow: {
+    position: 'absolute', left: -SPACING.lg, right: -SPACING.lg, top: -SPACING.sm, bottom: -SPACING.sm,
+    borderRadius: RADIUS.lg,
+  },
   count: { ...LEGIBLE, ...TYPE.display, ...TYPE.mono },
   target: { ...LEGIBLE, ...TYPE.subhead, color: COLORS.textMuted, marginBottom: 4 },
   progressTrack: { width: 160, height: 3, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.14)', marginTop: SPACING.xs, overflow: 'hidden' },
@@ -207,7 +242,4 @@ const styles = StyleSheet.create({
   growthFill: { height: '100%', borderRadius: RADIUS.pill },
   caption: { ...TYPE.callout, color: COLORS.text },
   error: { paddingVertical: SPACING.sm },
-  option: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.sm },
-  optionText: { ...TYPE.callout, color: COLORS.text },
-  radio: { width: 12, height: 12, borderRadius: 6, borderWidth: 1 },
 });

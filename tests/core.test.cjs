@@ -216,6 +216,133 @@ test('a tree stage never rolls back even if computed progress momentarily dips b
   const next = model.registerDhikr(state, day, { rng: () => 1 });
   assert.equal(model.activeTree(next).stage, 5);
 });
+test('free dhikr mode counts without a fixed phrase, respecting the circle limit', () => {
+  let state = model.selectDhikr(model.initialState(), 'free');
+  assert.equal(model.definition(state).id, 'free');
+  assert.equal(model.definition(state).target, 33);
+  for (let i = 0; i < 33; i++) state = model.registerDhikr(state, day);
+  assert.equal(state.currentDhikrCount, 33);
+  assert.equal(state.perDhikrCounts.free, 33);
+  const after = model.registerDhikr(state, day);
+  assert.equal(after.currentDhikrCount, 1);
+  assert.equal(after.perDhikrCounts.free, 34);
+});
+test('custom dhikr: add, select, count, and removing the active one falls back to free', () => {
+  let state = model.addCustomDhikr(model.initialState(), { text: '  Astagfirullah  ', arabic: '', translation: ' forgiveness ' });
+  assert.equal(state.customDhikr.length, 1);
+  const id = state.customDhikr[0].id;
+  assert.equal(state.customDhikr[0].text, 'Astagfirullah');
+  assert.equal(state.customDhikr[0].translation, 'forgiveness');
+  state = model.selectDhikr(state, `custom:${id}`);
+  assert.equal(state.selectedDhikr, `custom:${id}`);
+  state = model.registerDhikr(state, day);
+  assert.equal(state.perDhikrCounts[`custom:${id}`], 1);
+  assert.equal(model.definition(state).ru, 'Astagfirullah');
+  state = model.removeCustomDhikr(state, id);
+  assert.equal(state.customDhikr.length, 0);
+  assert.equal(state.selectedDhikr, 'free');
+  assert.equal(state.currentDhikrCount, 0);
+});
+test('addCustomDhikr rejects blank text and enforces length limits; removing an unknown id is a no-op', () => {
+  const state = model.initialState();
+  assert.equal(model.addCustomDhikr(state, { text: '   ' }), state);
+  const long = model.addCustomDhikr(state, { text: 'x'.repeat(200), arabic: 'y'.repeat(200), translation: 'z'.repeat(200) });
+  assert.equal(long.customDhikr[0].text.length, 80);
+  assert.equal(long.customDhikr[0].arabic.length, 120);
+  assert.equal(long.customDhikr[0].translation.length, 120);
+  assert.equal(model.removeCustomDhikr(state, 'missing'), state);
+});
+test('circleLimit off removes the target and lets the count grow past 33 without resetting', () => {
+  let state = model.setCircleLimit(model.selectDhikr(model.initialState(), 'allahuakbar'), false);
+  assert.equal(model.definition(state).target, null);
+  for (let i = 0; i < 40; i++) state = model.registerDhikr(state, day);
+  assert.equal(state.currentDhikrCount, 40);
+  const withLimit = model.setCircleLimit(state, true);
+  assert.equal(model.definition(withLimit).target, 33);
+});
+test('sequence mode always circles by 33 regardless of circleLimit', () => {
+  let state = model.setCircleLimit(model.initialState(), false);
+  for (let i = 0; i < 33; i++) state = model.registerDhikr(state, day);
+  assert.equal(state.currentDhikrCount, 33);
+  const next = model.registerDhikr(state, day);
+  assert.equal(next.currentDhikrCount, 1);
+  assert.equal(model.definition(next).id, 'alhamdulillah');
+});
+test('tapEvent classifies taps as tap, circle, or complete', () => {
+  let state = model.initialState();
+  for (let i = 0; i < 32; i++) state = model.registerDhikr(state, day);
+  let prev = state;
+  state = model.registerDhikr(state, day); // 33rd tap of subhanallah
+  assert.equal(model.tapEvent(prev, state), 'circle');
+  for (let i = 0; i < 32; i++) state = model.registerDhikr(state, day);
+  prev = state;
+  state = model.registerDhikr(state, day); // 33rd tap of alhamdulillah
+  assert.equal(model.tapEvent(prev, state), 'circle');
+  for (let i = 0; i < 32; i++) state = model.registerDhikr(state, day);
+  prev = state;
+  state = model.registerDhikr(state, day); // 33rd tap of allahuakbar completes the full sequence
+  assert.equal(model.tapEvent(prev, state), 'complete');
+
+  let single = model.selectDhikr(model.initialState(), 'allahuakbar');
+  for (let i = 0; i < 32; i++) single = model.registerDhikr(single, day);
+  const beforeSingle = single;
+  single = model.registerDhikr(single, day);
+  assert.equal(model.tapEvent(beforeSingle, single), 'circle');
+
+  let free = model.setCircleLimit(model.selectDhikr(model.initialState(), 'free'), false);
+  for (let i = 0; i < 32; i++) free = model.registerDhikr(free, day);
+  const beforeCircle = free;
+  free = model.registerDhikr(free, day);
+  assert.equal(model.tapEvent(beforeCircle, free), 'circle');
+  for (let i = 0; i < 65; i++) free = model.registerDhikr(free, day);
+  const beforeComplete = free;
+  free = model.registerDhikr(free, day);
+  assert.equal(free.currentDhikrCount, 99);
+  assert.equal(model.tapEvent(beforeComplete, free), 'complete');
+});
+test('restoreState validates circleLimit, customDhikr entries, and mode references', () => {
+  const base = model.initialState();
+  const raw = { ...base, circleLimit: 'yes', customDhikr: [
+    { id: 'c1', text: '  Hi  ', arabic: '', translation: '' },
+    { id: 'c1', text: 'duplicate id' },
+    { id: '', text: 'missing id' },
+    { id: 'c2', text: '   ' },
+    null,
+  ], selectedDhikr: 'custom:missing' };
+  const state = model.restoreState(raw);
+  assert.equal(state.circleLimit, true);
+  assert.equal(state.customDhikr.length, 1);
+  assert.equal(state.customDhikr[0].id, 'c1');
+  assert.equal(state.customDhikr[0].text, 'Hi');
+  assert.equal(state.selectedDhikr, 'sequence');
+
+  const validCustomRaw = { ...base, customDhikr: [{ id: 'c9', text: 'Zikr' }], selectedDhikr: 'custom:c9', circleLimit: false };
+  const restored = model.restoreState(validCustomRaw);
+  assert.equal(restored.selectedDhikr, 'custom:c9');
+  assert.equal(restored.circleLimit, false);
+  assert.equal(model.definition(restored).target, null);
+
+  assert.equal(model.restoreState({ ...base, selectedDhikr: 'free' }).selectedDhikr, 'free');
+});
+test('v1 saves migrate with v3 mode defaults (circleLimit on, no custom dhikr)', () => {
+  const v1 = { version: 1, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 0,
+    totalDhikrCount: 0, perDhikrCounts: {}, treeGrowthProgress: 0, treeStage: 'olive_stage_01',
+    lastActiveDate: null, activeDays: 0, dailyDhikrCounts: {}, hasSeenTasbihHint: false, hasSeenGateHint: false };
+  const state = model.restoreState(v1);
+  assert.equal(state.circleLimit, true);
+  assert.deepEqual(state.customDhikr, []);
+});
+test('seasonAt maps the device month to a garden season', () => {
+  assert.equal(model.seasonAt(new Date(2026, 2, 1)), 'spring');
+  assert.equal(model.seasonAt(new Date(2026, 4, 31)), 'spring');
+  assert.equal(model.seasonAt(new Date(2026, 5, 1)), 'summer');
+  assert.equal(model.seasonAt(new Date(2026, 7, 31)), 'summer');
+  assert.equal(model.seasonAt(new Date(2026, 8, 1)), 'autumn');
+  assert.equal(model.seasonAt(new Date(2026, 10, 30)), 'autumn');
+  assert.equal(model.seasonAt(new Date(2026, 11, 1)), 'winter');
+  assert.equal(model.seasonAt(new Date(2026, 0, 15)), 'winter');
+  assert.equal(model.seasonAt(new Date(2026, 1, 28)), 'winter');
+});
 test('persist 17/33 and serialize rapid writes; storage failure is observable', async () => {
   let raw = null;
   const storage = { getItem: async () => raw, setItem: async (_, value) => { await new Promise(r => setTimeout(r, 1)); raw = value; } };

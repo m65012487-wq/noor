@@ -63,17 +63,44 @@ export const SEED_ASSETS = {
   fig: require('../../assets/tasbih/seeds/fig.png'),
   sidr: require('../../assets/tasbih/seeds/sidr.png'),
 };
-// Four stacked raster layers sharing one canvas; see GATE_GEOMETRY for the
-// door hinges and the opening rectangle the tree window clips to.
-export const GATE_ASSETS = {
-  arch: require('../../assets/tasbih/gate/arch.png'),
-  doorLeft: require('../../assets/tasbih/gate/door_left.png'),
-  doorRight: require('../../assets/tasbih/gate/door_right.png'),
-  glow: require('../../assets/tasbih/gate/glow.png'),
+// Gates: one set of four stacked raster layers per environment theme on a
+// shared canvas (720 wide, height = aspect × width). Geometry comes from
+// scripts/tasbih_assets/build_assets.py (gates), which prints it for each theme:
+// hinges are the door edges at the walls, opening is the doorway rectangle.
+const GEOMETRY = {
+  garden: { aspect: 0.924, hingeLeft: 0.352, hingeRight: 0.629, opening: { left: 0.352, right: 0.629, top: 0.299, bottom: 0.826 } },
+  oasis: { aspect: 0.721, hingeLeft: 0.389, hingeRight: 0.607, opening: { left: 0.389, right: 0.607, top: 0.187, bottom: 0.765 } },
+  highlands: { aspect: 0.696, hingeLeft: 0.378, hingeRight: 0.628, opening: { left: 0.378, right: 0.628, top: 0.156, bottom: 0.790 } },
 };
-export const GATE_GEOMETRY = {
-  aspect: 1.2,
-  hingeLeft: 0.272,
-  hingeRight: 0.730,
-  opening: { left: 0.272, right: 0.730, top: 0.225, bottom: 0.933 },
+export const GATE_THEMES = {
+  garden: {
+    assets: {
+      arch: require('../../assets/tasbih/gates/garden/arch.png'),
+      doorLeft: require('../../assets/tasbih/gates/garden/door_left.png'),
+      doorRight: require('../../assets/tasbih/gates/garden/door_right.png'),
+      glow: require('../../assets/tasbih/gates/garden/glow.png'),
+    },
+    geometry: GEOMETRY.garden,
+  },
+  oasis: {
+    assets: {
+      arch: require('../../assets/tasbih/gates/oasis/arch.png'),
+      doorLeft: require('../../assets/tasbih/gates/oasis/door_left.png'),
+      doorRight: require('../../assets/tasbih/gates/oasis/door_right.png'),
+      glow: require('../../assets/tasbih/gates/oasis/glow.png'),
+    },
+    geometry: GEOMETRY.oasis,
+  },
+  highlands: {
+    assets: {
+      arch: require('../../assets/tasbih/gates/highlands/arch.png'),
+      doorLeft: require('../../assets/tasbih/gates/highlands/door_left.png'),
+      doorRight: require('../../assets/tasbih/gates/highlands/door_right.png'),
+      glow: require('../../assets/tasbih/gates/highlands/glow.png'),
+    },
+    geometry: GEOMETRY.highlands,
+  },
 };
+export function gateFor(theme) {
+  return GATE_THEMES[theme] || GATE_THEMES.garden;
+}

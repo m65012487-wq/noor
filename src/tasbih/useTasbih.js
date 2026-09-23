@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { ackDrop, advance, definition, plantSeed, registerDhikr, selectDhikr, setActiveTree } from './model';
+import { ackDrop, addCustomDhikr, advance, definition, plantSeed, registerDhikr, removeCustomDhikr, selectDhikr,
+  setActiveTree, setCircleLimit, tapEvent } from './model';
 import { tasbihPersistence } from './persistence';
 import { localDateKey } from '../utils/calendarDate';
 const TasbihContext = createContext(null);
@@ -43,11 +44,22 @@ function useTasbihState() {
     return () => clearTimeout(timer);
   }, [state, persist]);
   return { state, error,
-    tap: () => { if (current.current) persist(registerDhikr(current.current, localDateKey())); },
+    // Returns the tapEvent classification ('tap' | 'circle' | 'complete') so
+    // the screen can react with the right haptic without recomputing it.
+    tap: () => {
+      if (!current.current) return 'tap';
+      const prev = current.current;
+      const next = registerDhikr(prev, localDateKey());
+      persist(next);
+      return tapEvent(prev, next);
+    },
     select: id => { if (current.current) persist(selectDhikr(current.current, id)); },
     plant: species => { if (current.current) persist(plantSeed(current.current, species, localDateKey())); },
     setActive: id => { if (current.current) persist(setActiveTree(current.current, id)); },
     ackDrop: () => { if (current.current) persist(ackDrop(current.current)); },
+    addCustom: payload => { if (current.current) persist(addCustomDhikr(current.current, payload)); },
+    removeCustom: id => { if (current.current) persist(removeCustomDhikr(current.current, id)); },
+    setCircleLimit: value => { if (current.current) persist(setCircleLimit(current.current, value)); },
     sawGate: () => { if (current.current && !current.current.hasSeenGateHint) persist({ ...current.current, hasSeenGateHint: true }); },
     retry: () => current.current ? persist(current.current) : load(),
   };

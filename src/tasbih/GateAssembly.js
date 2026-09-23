@@ -1,16 +1,22 @@
 import React, { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import TreeView from './TreeView';
-import { GATE_ASSETS, GATE_GEOMETRY } from './assets';
+import { gateFor } from './assets';
 
-const { opening, hingeLeft, hingeRight } = GATE_GEOMETRY;
+// Doors sit ajar at rest (part of the landscape, not a shut gate waiting to
+// be noticed) and swing out to just past perpendicular on entry, past what a
+// real door does, so the tree reads clearly through the frame at full zoom.
+const REST_DEG = 55;
+const OPEN_DEG = 105;
 
-// `opening`: 0..1 swing of the doors (and, once entering, the camera zoom
-// driving this frame). `glow`: optional 0..1 opacity for the light in the
-// doorway during the entry animation; when absent the gate breathes gently
-// on its own (main-screen idle state), unless `breathing` is false.
-export default memo(function GateAssembly({ width, opening: openingValue, glow, breathing = true, tree, reduceMotion }) {
-  const height = width * GATE_GEOMETRY.aspect;
+// `opening`: 0..1, 0 = resting ajar, 1 = fully open (also the camera zoom
+// driving this frame once entering). `glow`: optional 0..1 opacity for the
+// light in the doorway during the entry animation; when absent the gate
+// breathes gently on its own (idle state), unless `breathing` is false.
+export default memo(function GateAssembly({ width, opening: openingValue, glow, breathing = true, tree, reduceMotion, theme }) {
+  const { assets, geometry } = gateFor(theme);
+  const { opening, hingeLeft, hingeRight } = geometry;
+  const height = width * geometry.aspect;
   const idleGlow = useRef(new Animated.Value(0.55)).current;
   useEffect(() => {
     if (glow || !breathing || reduceMotion) { idleGlow.setValue(0.55); return undefined; }
@@ -27,22 +33,22 @@ export default memo(function GateAssembly({ width, opening: openingValue, glow, 
       left: `${opening.left * 100}%`, width: `${(opening.right - opening.left) * 100}%`,
       top: `${opening.top * 100}%`, height: `${(opening.bottom - opening.top) * 100}%`,
     }]}>
-      {tree && <TreeView species={tree.species} stage={tree.stage} pulse={0} reduceMotion={reduceMotion} />}
+      {!!tree && <TreeView species={tree.species} stage={tree.stage} pulse={0} reduceMotion={reduceMotion} />}
     </View>
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: glowOpacity }]}>
-      <Image source={GATE_ASSETS.glow} resizeMode="contain" style={styles.layer} />
+      <Image source={assets.glow} resizeMode="contain" style={styles.layer} />
     </Animated.View>
     <Animated.View style={[StyleSheet.absoluteFill, {
       transformOrigin: `${hingeLeft * 100}% 50%`,
       transform: [{ perspective: Math.max(300, width * 4) },
-        { rotateY: openingValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-105deg'] }) }],
-    }]}><Image source={GATE_ASSETS.doorLeft} resizeMode="contain" style={styles.layer} /></Animated.View>
+        { rotateY: openingValue.interpolate({ inputRange: [0, 1], outputRange: [`-${REST_DEG}deg`, `-${OPEN_DEG}deg`] }) }],
+    }]}><Image source={assets.doorLeft} resizeMode="contain" style={styles.layer} /></Animated.View>
     <Animated.View style={[StyleSheet.absoluteFill, {
       transformOrigin: `${hingeRight * 100}% 50%`,
       transform: [{ perspective: Math.max(300, width * 4) },
-        { rotateY: openingValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '105deg'] }) }],
-    }]}><Image source={GATE_ASSETS.doorRight} resizeMode="contain" style={styles.layer} /></Animated.View>
-    <View style={StyleSheet.absoluteFill}><Image source={GATE_ASSETS.arch} resizeMode="contain" style={styles.layer} /></View>
+        { rotateY: openingValue.interpolate({ inputRange: [0, 1], outputRange: [`${REST_DEG}deg`, `${OPEN_DEG}deg`] }) }],
+    }]}><Image source={assets.doorRight} resizeMode="contain" style={styles.layer} /></Animated.View>
+    <View style={StyleSheet.absoluteFill}><Image source={assets.arch} resizeMode="contain" style={styles.layer} /></View>
   </View>;
 });
 const styles = StyleSheet.create({

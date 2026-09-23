@@ -66,14 +66,14 @@ def upload(path):
     body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"{name}\"\r\n"
             f"Content-Type: image/png\r\n\r\n").encode() + data + f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"overwrite\"\r\n\r\ntrue\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(HOST + "/upload/image", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with urllib.request.urlopen(req, timeout=300) as r:
         return json.loads(r.read())["name"]
 
 
 def call(path, data=None):
     req = urllib.request.Request(HOST + path, data=json.dumps(data).encode() if data else None,
                                  headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with urllib.request.urlopen(req, timeout=300) as r:
         return r.read()
 
 
@@ -98,7 +98,10 @@ def run(job):
     t0 = time.time()
     while True:
         time.sleep(2)
-        hist = json.loads(call(f"/history/{pid}"))
+        try:
+            hist = json.loads(call(f"/history/{pid}"))
+        except (TimeoutError, OSError):   # пока грузится модель, сервер отвечает с задержкой
+            continue
         if pid in hist:
             entry = hist[pid]
             if entry.get("status", {}).get("status_str") == "error":
