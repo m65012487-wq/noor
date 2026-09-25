@@ -14,6 +14,7 @@ import SeedDrop from './SeedDrop';
 import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
 import GardenBackground from './GardenBackground';
+import WinterPlantingBed from './WinterPlantingBed';
 import useTasbih from './useTasbih';
 import { activeTree, definition, DHIKR, SPECIES, STAGES, STAGE_NAMES } from './model';
 import EnvironmentDebug from './EnvironmentDebug';
@@ -50,7 +51,7 @@ export default function TasbihScreen({ onClose }) {
   const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
-  const { accent } = useAppearance();
+  const { accent, schemeColors } = useAppearance();
   const reduceMotion = useReduceMotion();
   const [selector, setSelector] = useState(false);
   const [garden, setGarden] = useState(false);
@@ -173,6 +174,7 @@ export default function TasbihScreen({ onClose }) {
               accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${ru ? 'из' : 'of'} ${item.target}` : ''}`}
               accessibilityHint={ru ? 'Нажмите дважды, чтобы засчитать одно поминание' : 'Double tap to count one remembrance'}>
               <View style={styles.treeShadow} pointerEvents="none" />
+              {schemeColors?.theme === 'winter' && <WinterPlantingBed />}
               <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />
               {drop && <SeedDrop key={dropKey} drop={drop} reduceMotion={reduceMotion} onDone={ackDrop} />}
               <EnvironmentDebug state={state} animation={pulse ? 'tap' : 'idle'} label="tree hit area" />

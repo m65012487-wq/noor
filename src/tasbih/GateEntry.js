@@ -33,7 +33,7 @@ export default function GateEntry() {
   const reduceMotion = useReduceMotion();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const gateWidth = Math.min(320, width * 0.74);
+  const gateWidth = theme === 'winter' ? Math.min(172, width * 0.40) : Math.min(320, width * 0.74);
   const { geometry } = gateFor(theme);
   const gateHeight = gateWidth * geometry.aspect;
   const target = useRef(null);

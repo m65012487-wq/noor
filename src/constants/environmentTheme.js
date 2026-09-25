@@ -5,6 +5,15 @@
 // old LIGHT_STATES so every consumer (gradients, veils, atmosphere tints)
 // keeps working unchanged.
 export const THEMES = {
+  winter: {
+    label_ru: 'Сад Тасбиха · Зима', label_en: 'Tasbih garden · Winter',
+    phases: {
+      dawn: { bg: ['#273644', '#25302f'], tint: '209,224,230', accent: '#f3e5c9', atmosphere: '#d5b79b', imageOpacity: 1, veil: 0.12, light: 0.12 },
+      day: { bg: ['#203749', '#243834'], tint: '205,227,231', accent: '#e5f1ed', atmosphere: '#b5d5df', imageOpacity: 1, veil: 0.10, light: 0.08 },
+      sunset: { bg: ['#30303d', '#283332'], tint: '229,217,208', accent: '#f2dfbd', atmosphere: '#c29a7c', imageOpacity: 1, veil: 0.15, light: 0.18 },
+      night: { bg: ['#071b30', '#112632'], tint: '184,211,228', accent: '#daeaf2', atmosphere: '#22486a', imageOpacity: 1, veil: 0.18, light: 0.06 },
+    },
+  },
   garden: {
     label_ru: 'Тихий сад', label_en: 'Quiet garden',
     phases: {
@@ -39,6 +48,12 @@ export const THEMES = {
 export const LIGHT_STATES = THEMES.garden.phases;
 
 export const THEME_BACKGROUNDS = {
+  winter: {
+    dawn: require('../../assets/tasbih/winter/winter_morning.jpg'),
+    day: require('../../assets/tasbih/winter/winter_day.jpg'),
+    sunset: require('../../assets/tasbih/winter/winter_evening.jpg'),
+    night: require('../../assets/tasbih/winter/winter_night.jpg'),
+  },
   garden: {
     dawn: require('../../assets/tasbih/themes/garden/dawn.jpg'),
     day: require('../../assets/tasbih/themes/garden/day.jpg'),

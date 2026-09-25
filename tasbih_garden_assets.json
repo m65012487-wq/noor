@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "generator": "built-in imagegen",
+  "seasons": {
+    "winter": "ready",
+    "spring": "not generated",
+    "summer": "not generated",
+    "autumn": "not generated"
+  },
+  "phaseMap": {
+    "dawn": "morning",
+    "day": "day",
+    "sunset": "evening",
+    "night": "night"
+  },
+  "files": [
+    {
+      "file": "docs/design/tasbih-winter/masters/winter_day.png",
+      "width": 852,
+      "height": 1846,
+      "format": "PNG",
+      "alpha": false,
+      "bytes": 2611867,
+      "role": "master",
+      "season": "winter"
+    },
+    {
+      "file": "assets/tasbih/winter/winter_day.jpg",
+      "width": 852,
+      "height": 1846,
+      "format": "JPEG",
+      "alpha": false,
+      "bytes": 441587,
+      "role": "runtime",
+      "season": "winter"
+    },
+    {
+      "file": "docs/design/tasbih-winter/masters/winter_morning.png",
+      "width": 852,
+      "height": 1846,
+      "format": "PNG",
+      "alpha": false,
+      "bytes": 2453631,
+      "role": "master",
+      "season": "winter"
+    },
+    {
+      "file": "assets/tasbih/winter/winter_morning.jpg",
+      "width": 852,
+      "height": 1846,
+      "format": "JPEG",
+      "alpha": false,
+      "bytes": 408967,
+      "role": "runtime",
+      "season": "winter"
+    },
+    {
+      "file": "docs/design/tasbih-winter/masters/winter_evening.png",
+      "width": 852,
+      "height": 1846,
+      "format": "PNG",
+      "alpha": false,
+      "bytes": 2594982,
+      "role": "master",
+      "season": "winter"
+    },
+    {
+      "file": "assets/tasbih/winter/winter_evening.jpg",
+      "width": 852,
+      "height": 1846,
+      "format": "JPEG",
+      "alpha": false,
+      "bytes": 467812,
+      "role": "runtime",
+      "season": "winter"
+    },
+    {
+      "file": "docs/design/tasbih-winter/masters/winter_night.png",
+      "width": 852,
+      "height": 1846,
+      "format": "PNG",
+      "alpha": false,
+      "bytes": 2503171,
+      "role": "master",
+      "season": "winter"
+    },
+    {
+      "file": "assets/tasbih/winter/winter_night.jpg",
+      "width": 852,
+      "height": 1846,
+      "format": "JPEG",
+      "alpha": false,
+      "bytes": 424036,
+      "role": "runtime",
+      "season": "winter"
+    },
+    {
+      "file": "docs/design/tasbih-winter/masters/garden_winter.png",
+      "width": 852,
+      "height": 1846,
+      "format": "PNG",
+      "alpha": false,
+      "bytes": 2579288,
+      "role": "master",
+      "season": "winter"
+    },
+    {
+      "file": "assets/tasbih/winter/garden_winter.jpg",
+      "width": 852,
+      "height": 1846,
+      "format": "JPEG",
+      "alpha": false,
+      "bytes": 450384,
+      "role": "runtime",
+      "season": "winter"
+    },
+    {
+      "file": "docs/design/tasbih-winter/masters/arch_winter.png",
+      "width": 1024,
+      "height": 1536,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 2340643,
+      "role": "master",
+      "season": "winter"
+    },
+    {
+      "file": "assets/tasbih/winter/arch_winter.png",
+      "width": 1024,
+      "height": 1536,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 2207121,
+      "role": "runtime",
+      "season": "winter"
+    },
+    {
+      "file": "docs/design/tasbih-winter/masters/olive_ground.png",
+      "width": 1774,
+      "height": 887,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 1800959,
+      "role": "master",
+      "season": "winter"
+    },
+    {
+      "file": "assets/tasbih/winter/olive_ground.png",
+      "width": 1774,
+      "height": 887,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 1771030,
+      "role": "runtime",
+      "season": "winter"
+    },
+    {
+      "file": "assets/tasbih/trees/olive/stage_1.png",
+      "width": 768,
+      "height": 960,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 46795,
+      "role": "runtime-reused",
+      "stage": 0,
+      "anchor": [
+        0.5,
+        0.9
+      ]
+    },
+    {
+      "file": "assets/tasbih/trees/olive/stage_2.png",
+      "width": 768,
+      "height": 960,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 42391,
+      "role": "runtime-reused",
+      "stage": 1,
+      "anchor": [
+        0.5,
+        0.9
+      ]
+    },
+    {
+      "file": "assets/tasbih/trees/olive/stage_3.png",
+      "width": 768,
+      "height": 960,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 74051,
+      "role": "runtime-reused",
+      "stage": 2,
+      "anchor": [
+        0.5,
+        0.9
+      ]
+    },
+    {
+      "file": "assets/tasbih/trees/olive/stage_4.png",
+      "width": 768,
+      "height": 960,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 121858,
+      "role": "runtime-reused",
+      "stage": 3,
+      "anchor": [
+        0.5,
+        0.9
+      ]
+    },
+    {
+      "file": "assets/tasbih/trees/olive/stage_5.png",
+      "width": 768,
+      "height": 960,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 197276,
+      "role": "runtime-reused",
+      "stage": 4,
+      "anchor": [
+        0.5,
+        0.9
+      ]
+    },
+    {
+      "file": "assets/tasbih/trees/olive/stage_6.png",
+      "width": 768,
+      "height": 960,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 399088,
+      "role": "runtime-reused",
+      "stage": 5,
+      "anchor": [
+        0.5,
+        0.9
+      ]
+    },
+    {
+      "file": "assets/tasbih/trees/olive/stage_7.png",
+      "width": 768,
+      "height": 960,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 679344,
+      "role": "runtime-reused",
+      "stage": 6,
+      "anchor": [
+        0.5,
+        0.9
+      ]
+    },
+    {
+      "file": "assets/tasbih/trees/olive/stage_8.png",
+      "width": 768,
+      "height": 960,
+      "format": "PNG",
+      "alpha": true,
+      "bytes": 697253,
+      "role": "runtime-reused",
+      "stage": 7,
+      "anchor": [
+        0.5,
+        0.9
+      ]
+    }
+  ]
+}

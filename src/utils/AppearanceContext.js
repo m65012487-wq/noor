@@ -67,6 +67,7 @@ export function patternKind(id) {
 // держится ниже 0.11, иначе приглушённый текст (`textMuted`) перестаёт
 // набирать три к одному по контрасту, а он несёт подписи и время.
 export const SCHEMES = [
+  { id: 'winter', label_en: 'Tasbih garden · Winter', label_ru: 'Сад Тасбиха · Зима', environment: true, theme: 'winter', ...THEMES.winter.phases.night },
   { id: 'sanctuary', label_en: 'Quiet garden', label_ru: 'Тихий сад', environment: true, theme: 'garden', ...THEMES.garden.phases.night },
   { id: 'oasis', label_en: 'Oasis', label_ru: 'Оазис', environment: true, theme: 'oasis', ...THEMES.oasis.phases.night },
   { id: 'highlands', label_en: 'Highlands', label_ru: 'Горный сад', environment: true, theme: 'highlands', ...THEMES.highlands.phases.night },

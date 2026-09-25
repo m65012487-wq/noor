@@ -26,8 +26,10 @@ const PHASE_VEIL = {
 // arriving in the garden. When not passed (e.g. rendered on its own) the
 // background simply sits still at its resting scale.
 export default function GardenBackground({ children, camera }) {
-  const { phase } = useAppearance();
-  const source = GARDEN_BACKGROUNDS[seasonAt(new Date())] || GARDEN_BACKGROUNDS.spring;
+  const { phase, schemeColors } = useAppearance();
+  const source = schemeColors?.theme === 'winter'
+    ? require('../../assets/tasbih/winter/garden_winter.jpg')
+    : GARDEN_BACKGROUNDS[seasonAt(new Date())] || GARDEN_BACKGROUNDS.spring;
   const scale = camera ? camera.interpolate({ inputRange: [0, 1], outputRange: [1.12, 1] }) : 1;
   const veil = PHASE_VEIL[phase] || null;
   return (

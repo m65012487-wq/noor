@@ -73,6 +73,11 @@ const GEOMETRY = {
   highlands: { aspect: 0.696, hingeLeft: 0.378, hingeRight: 0.628, opening: { left: 0.378, right: 0.628, top: 0.156, bottom: 0.790 } },
 };
 export const GATE_THEMES = {
+  winter: {
+    assets: { arch: require('../../assets/tasbih/winter/arch_winter.png') },
+    geometry: { aspect: 1.5, hingeLeft: 0.27, hingeRight: 0.73,
+      opening: { left: 0.29, right: 0.71, top: 0.24, bottom: 0.95 } },
+  },
   garden: {
     assets: {
       arch: require('../../assets/tasbih/gates/garden/arch.png'),

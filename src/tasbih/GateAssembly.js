@@ -33,21 +33,21 @@ export default memo(function GateAssembly({ width, opening: openingValue, glow, 
       left: `${opening.left * 100}%`, width: `${(opening.right - opening.left) * 100}%`,
       top: `${opening.top * 100}%`, height: `${(opening.bottom - opening.top) * 100}%`,
     }]}>
-      {!!tree && <TreeView species={tree.species} stage={tree.stage} pulse={0} reduceMotion={reduceMotion} />}
+      {!!tree && theme !== 'winter' && <TreeView species={tree.species} stage={tree.stage} pulse={0} reduceMotion={reduceMotion} />}
     </View>
-    <Animated.View style={[StyleSheet.absoluteFill, { opacity: glowOpacity }]}>
+    {assets.glow && <Animated.View style={[StyleSheet.absoluteFill, { opacity: glowOpacity }]}>
       <Image source={assets.glow} resizeMode="contain" style={styles.layer} />
-    </Animated.View>
-    <Animated.View style={[StyleSheet.absoluteFill, {
+    </Animated.View>}
+    {assets.doorLeft && <Animated.View style={[StyleSheet.absoluteFill, {
       transformOrigin: `${hingeLeft * 100}% 50%`,
       transform: [{ perspective: Math.max(300, width * 4) },
         { rotateY: openingValue.interpolate({ inputRange: [0, 1], outputRange: [`-${REST_DEG}deg`, `-${OPEN_DEG}deg`] }) }],
-    }]}><Image source={assets.doorLeft} resizeMode="contain" style={styles.layer} /></Animated.View>
-    <Animated.View style={[StyleSheet.absoluteFill, {
+    }]}><Image source={assets.doorLeft} resizeMode="contain" style={styles.layer} /></Animated.View>}
+    {assets.doorRight && <Animated.View style={[StyleSheet.absoluteFill, {
       transformOrigin: `${hingeRight * 100}% 50%`,
       transform: [{ perspective: Math.max(300, width * 4) },
         { rotateY: openingValue.interpolate({ inputRange: [0, 1], outputRange: [`${REST_DEG}deg`, `${OPEN_DEG}deg`] }) }],
-    }]}><Image source={assets.doorRight} resizeMode="contain" style={styles.layer} /></Animated.View>
+    }]}><Image source={assets.doorRight} resizeMode="contain" style={styles.layer} /></Animated.View>}
     <View style={StyleSheet.absoluteFill}><Image source={assets.arch} resizeMode="contain" style={styles.layer} /></View>
   </View>;
 });
