@@ -67,6 +67,14 @@ export default function TasbihScreen({ onClose }) {
     return { right: make('right'), down: make('down') };
   }, []);
   const textFade = useRef(new Animated.Value(1)).current;
+  // Экран появляется поверх уже показанного сада (переход из ворот кончается
+  // тем же фоном), поэтому проявляется только содержимое — без рывка.
+  const appear = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const animation = Animated.timing(appear, { toValue: 1, duration: reduceMotion ? 150 : 320, useNativeDriver: true });
+    animation.start();
+    return () => animation.stop();
+  }, [appear, reduceMotion]);
   // Native-driver-only value (opacity + transform, see TASBIH_V3_SPEC.md's
   // iOS note): a brief accent flash behind the counter and a small scale
   // pop mark the end of a circle or a full sequence. reduceMotion keeps the
@@ -107,6 +115,7 @@ export default function TasbihScreen({ onClose }) {
 
   return (
     <GardenBackground>
+      <Animated.View style={[styles.appear, { opacity: appear }]}>
       <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose} {...swipes.right.panHandlers}>
         <View style={styles.header} {...swipes.down.panHandlers}>
           <Pressable accessibilityRole="button" accessibilityLabel={ru ? 'Закрыть Тасбих' : 'Close Tasbih'}
@@ -173,8 +182,11 @@ export default function TasbihScreen({ onClose }) {
               accessibilityRole="button"
               accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${ru ? 'из' : 'of'} ${item.target}` : ''}`}
               accessibilityHint={ru ? 'Нажмите дважды, чтобы засчитать одно поминание' : 'Double tap to count one remembrance'}>
-              <View style={styles.treeShadow} pointerEvents="none" />
-              {schemeColors?.theme === 'winter' && <WinterPlantingBed />}
+              {/* У зимы под деревом своя клумба — старая эллиптическая тень
+                  рисовалась бы под ней второй тенью. */}
+              {schemeColors?.theme === 'winter'
+                ? <WinterPlantingBed />
+                : <View style={styles.treeShadow} pointerEvents="none" />}
               <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />
               {drop && <SeedDrop key={dropKey} drop={drop} reduceMotion={reduceMotion} onDone={ackDrop} />}
               <EnvironmentDebug state={state} animation={pulse ? 'tap' : 'idle'} label="tree hit area" />
@@ -196,6 +208,7 @@ export default function TasbihScreen({ onClose }) {
         )}
         <EnvironmentDebug state={state} animation="ready" label="safe content" anchor={false} />
       </SafeAreaView>
+      </Animated.View>
 
       <DhikrSheet visible={selector} onClose={() => setSelector(false)} state={state}
         select={select} addCustom={addCustom} removeCustom={removeCustom} setCircleLimit={setCircleLimit} />
@@ -207,6 +220,7 @@ export default function TasbihScreen({ onClose }) {
 // Фон — светлая картина (рассвет, день), поэтому текст над ним получает мягкую тень.
 const LEGIBLE = { textShadowColor: 'rgba(8,18,16,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 const styles = StyleSheet.create({
+  appear: { flex: 1 },
   safe: { flex: 1, paddingHorizontal: SPACING.lg, paddingTop: 8, paddingBottom: 8 },
   header: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(180,205,188,0.1)' },

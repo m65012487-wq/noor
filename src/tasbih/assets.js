@@ -75,8 +75,12 @@ const GEOMETRY = {
 export const GATE_THEMES = {
   winter: {
     assets: { arch: require('../../assets/tasbih/winter/arch_winter.png') },
-    geometry: { aspect: 1.5, hingeLeft: 0.27, hingeRight: 0.73,
-      opening: { left: 0.29, right: 0.71, top: 0.24, bottom: 0.95 } },
+    // Проём измерен по альфе arch_winter.png: вершина свода 0.154, низ у
+    // цоколей 0.95, внутренние грани колонн ≈0.28/0.72. По центру проёма
+    // целится наезд камеры при входе, поэтому top важен (был 0.24 — камера
+    // уезжала ниже середины арки).
+    geometry: { aspect: 1.5, hingeLeft: 0.28, hingeRight: 0.72,
+      opening: { left: 0.28, right: 0.72, top: 0.154, bottom: 0.95 } },
   },
   garden: {
     assets: {

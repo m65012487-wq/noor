@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 
+const GROUND = require('../../assets/tasbih/winter/olive_ground.png');
+
 // Match TreeView's contain-fit 768×960 canvas, including short phone layouts.
 // The bed stays centred on the common root, not on the changing crown.
 export default function WinterPlantingBed() {
@@ -10,7 +12,7 @@ export default function WinterPlantingBed() {
   const rootY = (size.height - canvasWidth * 1.25) / 2 + canvasWidth * 1.25 * 0.9;
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}
     onLayout={({ nativeEvent: { layout } }) => setSize({ width: layout.width, height: layout.height })}>
-    {canvasWidth > 0 && <Image source={require('../../assets/tasbih/winter/olive_ground.png')}
+    {canvasWidth > 0 && <Image source={GROUND}
       resizeMode="contain" style={{ position: 'absolute', width: bedWidth, height: bedWidth / 2,
         left: (size.width - bedWidth) / 2, top: rootY - bedWidth / 4 }} />}
   </View>;

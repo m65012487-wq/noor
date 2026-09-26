@@ -13,7 +13,6 @@ import { activeTree } from './model';
 import GateAssembly from './GateAssembly';
 import { gateFor } from './assets';
 import GardenBackground from './GardenBackground';
-import TreeView from './TreeView';
 import EnvironmentDebug from './EnvironmentDebug';
 import TasbihScreen from './TasbihScreen';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -86,7 +85,6 @@ export default function GateEntry() {
   // matters.
   const gardenOpacity = progress.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0, 0, 1], extrapolate: 'clamp' });
   const gardenCamera = progress.interpolate({ inputRange: [0.7, 1], outputRange: [0, 1], extrapolate: 'clamp' });
-  const treeWidth = Math.min(width - 48, 420);
   const openingCenterX = (geometry.opening.left + geometry.opening.right) / 2;
   const openingCenterY = (geometry.opening.top + geometry.opening.bottom) / 2;
   const enabled = !!state || !!error;
@@ -122,11 +120,10 @@ export default function GateEntry() {
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: gardenOpacity }]}>
           <GardenBackground camera={reduceMotion ? null : gardenCamera} />
         </Animated.View>
-        <Animated.View pointerEvents="none" style={{
-          position: 'absolute', left: width / 2 - treeWidth / 2, bottom: 76, width: treeWidth, height: treeWidth * 1.25,
-          opacity: progress.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0, 0.3, 1] }),
-          transformOrigin: '50% 90%', transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 1 : 0.15, 1] }) }],
-        }}>{!!tree && <TreeView species={tree.species} stage={tree.stage} pulse={0} reduceMotion={reduceMotion} />}</Animated.View>
+        {/* Дерево здесь не рисуется: его место на экране тасбиха зависит от
+            вёрстки (flex-область, клумба у зимы), и приблизительная копия в
+            переходе прыгала при подмене экрана. Сад проявляется пустым, а
+            дерево появляется вместе с экраном тасбиха на своём месте. */}
         <Animated.View pointerEvents="none" style={{
           position: 'absolute', left: frame.x, top: frame.y,
           opacity: progress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }),

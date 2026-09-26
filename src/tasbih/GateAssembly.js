@@ -2,6 +2,7 @@ import React, { memo, useEffect, useRef } from 'react';
 import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import TreeView from './TreeView';
 import { gateFor } from './assets';
+import { useAppearance } from '../utils/AppearanceContext';
 
 // Doors sit ajar at rest (part of the landscape, not a shut gate waiting to
 // be noticed) and swing out to just past perpendicular on entry, past what a
@@ -13,9 +14,20 @@ const OPEN_DEG = 105;
 // driving this frame once entering). `glow`: optional 0..1 opacity for the
 // light in the doorway during the entry animation; when absent the gate
 // breathes gently on its own (idle state), unless `breathing` is false.
+// Арка нарисована при дневном свете, а пейзаж за ней меняется по времени
+// суток — ночью белый мрамор выглядел наклеенным. Поверх кладём ту же арку,
+// залитую цветом фазы (tintColor сохраняет альфу), с нужной плотностью.
+const ARCH_SHADE = {
+  dawn: { color: '#2b3150', opacity: 0.16 },
+  sunset: { color: '#3b2233', opacity: 0.24 },
+  night: { color: '#08172e', opacity: 0.58 },
+};
+
 export default memo(function GateAssembly({ width, opening: openingValue, glow, breathing = true, tree, reduceMotion, theme }) {
   const { assets, geometry } = gateFor(theme);
   const { opening, hingeLeft, hingeRight } = geometry;
+  const { phase } = useAppearance();
+  const shade = ARCH_SHADE[phase] || null;
   const height = width * geometry.aspect;
   const idleGlow = useRef(new Animated.Value(0.55)).current;
   useEffect(() => {
@@ -49,6 +61,9 @@ export default memo(function GateAssembly({ width, opening: openingValue, glow, 
         { rotateY: openingValue.interpolate({ inputRange: [0, 1], outputRange: [`${REST_DEG}deg`, `${OPEN_DEG}deg`] }) }],
     }]}><Image source={assets.doorRight} resizeMode="contain" style={styles.layer} /></Animated.View>}
     <View style={StyleSheet.absoluteFill}><Image source={assets.arch} resizeMode="contain" style={styles.layer} /></View>
+    {!!shade && <View style={StyleSheet.absoluteFill}>
+      <Image source={assets.arch} resizeMode="contain" style={[styles.layer, { tintColor: shade.color, opacity: shade.opacity }]} />
+    </View>}
   </View>;
 });
 const styles = StyleSheet.create({

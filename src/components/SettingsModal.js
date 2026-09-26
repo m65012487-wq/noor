@@ -223,6 +223,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
         <Section id="appearance" icon="options" title={t("sec_appearance")}
           open={openSection === 'appearance'} onToggle={toggle}>
 
+          {/* Узор действует только на простые цветовые схемы: пейзажная тема
+              рисует свой фон и узор игнорирует — выбор там лишь путал бы. */}
+          {!SCHEMES.find((s) => s.id === scheme)?.environment && <>
           <Text style={styles.label}>{t("pattern")}</Text>
           <View style={styles.themeRow}>
             {PATTERNS.map((p) => (
@@ -235,6 +238,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
               </TouchableOpacity>
             ))}
           </View>
+          </>}
 
           {/* Параллакс касается только сцен: у плитки нет переднего плана,
               и сносить её целиком незачем. Выключатель нужен потому, что
@@ -249,6 +253,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
             {parallax && <Icon name="check" size={17} color={COLORS.white} />}
           </TouchableOpacity>
 
+          {/* Пока тема одна, выбирать не из чего — секция вернётся сама,
+              как только в SCHEMES появится второй вариант. */}
+          {SCHEMES.length > 1 && <>
           <Text style={styles.label}>{t("color_scheme")}</Text>
           <View style={styles.themeRow}>
             {SCHEMES.map((s) => (
@@ -262,6 +269,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
               </TouchableOpacity>
             ))}
           </View>
+          </>}
 
           {SCHEMES.find((s) => s.id === scheme)?.environment && <>
             <Text style={styles.label}>{lang === 'ru' ? 'Освещение' : 'Lighting'}</Text>

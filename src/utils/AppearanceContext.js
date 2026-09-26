@@ -66,8 +66,15 @@ export function patternKind(id) {
 // Потолок светлоты выбран не на глаз: у верхнего цвета градиента яркость
 // держится ниже 0.11, иначе приглушённый текст (`textMuted`) перестаёт
 // набирать три к одному по контрасту, а он несёт подписи и время.
+// Пока план работы над темами не устоялся, в приложении ОДНА тема —
+// «Сад Тасбиха · Зима». Прежние схемы не удалены, а убраны в архив ниже:
+// их не видно в настройках, и сохранённый выбор любой из них переводится
+// на зиму при запуске. Вернуть — перенести запись обратно в SCHEMES.
 export const SCHEMES = [
   { id: 'winter', label_en: 'Tasbih garden · Winter', label_ru: 'Сад Тасбиха · Зима', environment: true, theme: 'winter', ...THEMES.winter.phases.night },
+];
+
+export const ARCHIVED_SCHEMES = [
   { id: 'sanctuary', label_en: 'Quiet garden', label_ru: 'Тихий сад', environment: true, theme: 'garden', ...THEMES.garden.phases.night },
   { id: 'oasis', label_en: 'Oasis', label_ru: 'Оазис', environment: true, theme: 'oasis', ...THEMES.oasis.phases.night },
   { id: 'highlands', label_en: 'Highlands', label_ru: 'Горный сад', environment: true, theme: 'highlands', ...THEMES.highlands.phases.night },
@@ -145,7 +152,7 @@ export function fontSetFor(id) {
 
 export function AppearanceProvider({ children }) {
   const [pattern, setPattern] = useState('city');
-  const [scheme, setScheme] = useState('sanctuary');
+  const [scheme, setScheme] = useState(SCHEMES[0].id);
   const [lighting, setLighting] = useState('auto');
   const [currentLight, setCurrentLight] = useState(lightStateAt());
   const [fontSet, setFontSet] = useState('system');
@@ -160,14 +167,11 @@ export function AppearanceProvider({ children }) {
       const savedPattern = await loadJSON('pattern', 'city');
       setPattern(PATTERNS.some((p) => p.id === savedPattern) ? savedPattern : 'city');
 
-      const savedScheme = await loadJSON('scheme', 'sanctuary');
-      const introduced = await loadJSON('sanctuaryThemeIntroduced', false);
-      if (!introduced) {
-        await saveJSON('previousScheme', savedScheme);
-        await saveJSON('scheme', 'sanctuary');
-        await saveJSON('sanctuaryThemeIntroduced', true);
-      }
-      setScheme(introduced && SCHEMES.some(s => s.id === savedScheme) ? savedScheme : 'sanctuary');
+      // Одна тема: любой сохранённый выбор (в том числе архивные схемы)
+      // сводится к ней, чтобы после обновления никто не остался на старой.
+      const savedScheme = await loadJSON('scheme', SCHEMES[0].id);
+      if (!SCHEMES.some(s => s.id === savedScheme)) await saveJSON('scheme', SCHEMES[0].id);
+      setScheme(SCHEMES.some(s => s.id === savedScheme) ? savedScheme : SCHEMES[0].id);
       const savedLight = await loadJSON('environmentLighting', 'auto');
       setLighting(savedLight === 'auto' || LIGHT_STATES[savedLight] ? savedLight : 'auto');
 
@@ -220,7 +224,7 @@ export function AppearanceProvider({ children }) {
 
 export const useAppearance = () => useContext(AppearanceContext) || {
   pattern: 'city', choosePattern: () => {}, PATTERNS,
-  scheme: 'sanctuary', chooseScheme: () => {}, SCHEMES,
+  scheme: SCHEMES[0].id, chooseScheme: () => {}, SCHEMES,
   lighting: 'auto', chooseLighting: () => {}, phase: 'night',
   fontSet: 'system', chooseFontSet: () => {}, FONT_SETS,
   arabicFont: 'system', chooseArabicFont: () => {}, ARABIC_FONTS,

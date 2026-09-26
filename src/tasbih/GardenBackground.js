@@ -12,6 +12,21 @@ const GARDEN_BACKGROUNDS = {
   autumn: require('../../assets/tasbih/garden/autumn.jpg'),
   winter: require('../../assets/tasbih/garden/winter.jpg'),
 };
+// У зимней темы свой сад — один кадр на все месяцы (см. tasbih_garden_assets.md)
+// и отдельный ночной: дневное фото под одной вуалью ночью оставалось дневным,
+// хотя пейзаж перед воротами уже ночной. Ночной кадр — цветокоррекция того же
+// мастера, композиция совпадает.
+const THEME_GARDENS = {
+  winter: {
+    base: require('../../assets/tasbih/winter/garden_winter.jpg'),
+    night: require('../../assets/tasbih/winter/garden_winter_night.jpg'),
+  },
+};
+
+function rgba(hex, alpha) {
+  const v = (hex || '#060e0c').replace('#', '');
+  return `rgba(${parseInt(v.slice(0, 2), 16)},${parseInt(v.slice(2, 4), 16)},${parseInt(v.slice(4, 6), 16)},${alpha})`;
+}
 
 // A light veil per time of day, layered over the readability gradient below.
 const PHASE_VEIL = {
@@ -27,11 +42,18 @@ const PHASE_VEIL = {
 // background simply sits still at its resting scale.
 export default function GardenBackground({ children, camera }) {
   const { phase, schemeColors } = useAppearance();
-  const source = schemeColors?.theme === 'winter'
-    ? require('../../assets/tasbih/winter/garden_winter.jpg')
-    : GARDEN_BACKGROUNDS[seasonAt(new Date())] || GARDEN_BACKGROUNDS.spring;
+  const themed = THEME_GARDENS[schemeColors?.theme];
+  const source = themed?.[phase] || themed?.base
+    || GARDEN_BACKGROUNDS[seasonAt(new Date())] || GARDEN_BACKGROUNDS.spring;
+  // Если у фазы свой кадр, вуаль поверх него уже лишняя.
+  const ownPhaseImage = !!themed?.[phase];
+  // Затемнение для читаемости — в тоне темы (у зимы тёмно-синее), а не
+  // зелёное: на светлом снежном небе зелёная вуаль выглядела грязью, а
+  // счётчик терялся в облаках. Верх плотнее и ниже — там весь текст.
+  const top = schemeColors?.bg?.[0];
+  const bottom = schemeColors?.bg?.[1];
   const scale = camera ? camera.interpolate({ inputRange: [0, 1], outputRange: [1.12, 1] }) : 1;
-  const veil = PHASE_VEIL[phase] || null;
+  const veil = ownPhaseImage ? null : PHASE_VEIL[phase] || null;
   return (
     <View style={styles.flex}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -39,8 +61,8 @@ export default function GardenBackground({ children, camera }) {
           <Image source={source} resizeMode="cover" style={styles.fill} />
         </Animated.View>
         <LinearGradient
-          colors={['rgba(6,14,12,0.7)', 'rgba(6,14,12,0)', 'rgba(6,14,12,0)', 'rgba(6,14,12,0.55)']}
-          locations={[0, 0.45, 0.7, 1]}
+          colors={[rgba(top, 0.8), rgba(top, 0.45), rgba(top, 0), rgba(bottom, 0), rgba(bottom, 0.55)]}
+          locations={[0, 0.3, 0.52, 0.72, 1]}
           style={StyleSheet.absoluteFill}
         />
         {!!veil && <View style={[StyleSheet.absoluteFill, { backgroundColor: veil }]} />}
