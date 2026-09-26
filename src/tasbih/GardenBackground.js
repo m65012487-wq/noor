@@ -2,16 +2,7 @@ import React from 'react';
 import { Animated, Image, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppearance } from '../utils/AppearanceContext';
-import { seasonAt } from './model';
 
-// One still photo per season, not the appearance theme's wallpaper — the
-// tasbih garden is its own place (see docs/TASBIH_V3_SPEC.md, section C).
-const GARDEN_BACKGROUNDS = {
-  spring: require('../../assets/tasbih/garden/spring.jpg'),
-  summer: require('../../assets/tasbih/garden/summer.jpg'),
-  autumn: require('../../assets/tasbih/garden/autumn.jpg'),
-  winter: require('../../assets/tasbih/garden/winter.jpg'),
-};
 // У зимней темы свой сад — один кадр на все месяцы (см. tasbih_garden_assets.md)
 // и отдельный ночной: дневное фото под одной вуалью ночью оставалось дневным,
 // хотя пейзаж перед воротами уже ночной. Ночной кадр — цветокоррекция того же
@@ -44,7 +35,7 @@ export default function GardenBackground({ children, camera }) {
   const { phase, schemeColors } = useAppearance();
   const themed = THEME_GARDENS[schemeColors?.theme];
   const source = themed?.[phase] || themed?.base
-    || GARDEN_BACKGROUNDS[seasonAt(new Date())] || GARDEN_BACKGROUNDS.spring;
+    || THEME_GARDENS.winter.base;
   // Если у фазы свой кадр, вуаль поверх него уже лишняя.
   const ownPhaseImage = !!themed?.[phase];
   // Затемнение для читаемости — в тоне темы (у зимы тёмно-синее), а не

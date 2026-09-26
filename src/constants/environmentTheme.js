@@ -47,30 +47,15 @@ export const THEMES = {
 // keep working; new code should go through THEMES[theme].phases instead.
 export const LIGHT_STATES = THEMES.garden.phases;
 
+// Пока в приложении одна тема (см. SCHEMES в AppearanceContext.js), в бандл
+// идёт только её графика. Файлы архивных тем лежат в assets/tasbih на месте;
+// чтобы вернуть тему, добавьте её записи сюда обратно (история — коммит 4244381).
 export const THEME_BACKGROUNDS = {
   winter: {
     dawn: require('../../assets/tasbih/winter/winter_morning.jpg'),
     day: require('../../assets/tasbih/winter/winter_day.jpg'),
     sunset: require('../../assets/tasbih/winter/winter_evening.jpg'),
     night: require('../../assets/tasbih/winter/winter_night.jpg'),
-  },
-  garden: {
-    dawn: require('../../assets/tasbih/themes/garden/dawn.jpg'),
-    day: require('../../assets/tasbih/themes/garden/day.jpg'),
-    sunset: require('../../assets/tasbih/themes/garden/sunset.jpg'),
-    night: require('../../assets/tasbih/themes/garden/night.jpg'),
-  },
-  oasis: {
-    dawn: require('../../assets/tasbih/themes/oasis/dawn.jpg'),
-    day: require('../../assets/tasbih/themes/oasis/day.jpg'),
-    sunset: require('../../assets/tasbih/themes/oasis/sunset.jpg'),
-    night: require('../../assets/tasbih/themes/oasis/night.jpg'),
-  },
-  highlands: {
-    dawn: require('../../assets/tasbih/themes/highlands/dawn.jpg'),
-    day: require('../../assets/tasbih/themes/highlands/day.jpg'),
-    sunset: require('../../assets/tasbih/themes/highlands/sunset.jpg'),
-    night: require('../../assets/tasbih/themes/highlands/night.jpg'),
   },
 };
 
