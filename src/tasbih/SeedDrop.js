@@ -1,12 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 import Text from '../components/AppText';
 import GlassView from '../components/GlassView';
 import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
-import { SEED_ASSETS } from './assets';
+import SeedIcon from './SeedIcon';
 import { SPECIES } from './model';
 
 const FALL_MS = 900;
@@ -58,17 +58,16 @@ export default function SeedDrop({ drop, reduceMotion, onDone }) {
   const species = SPECIES.find(s => s.id === drop.species);
   const speciesLabel = species ? (ru ? species.ru : species.en) : drop.species;
   const reasonLabel = REASON_LABEL[drop.reason] ? (ru ? REASON_LABEL[drop.reason].ru : REASON_LABEL[drop.reason].en) : '';
-  const icon = SEED_ASSETS[drop.species];
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {!reduceMotion && icon && (
+      {!reduceMotion && (
         <Animated.View style={[styles.seed, {
           opacity: fall.interpolate({ inputRange: [0, 0.05, 1], outputRange: [0, 1, 1] }),
           transform: [{ translateY: fall.interpolate({ inputRange: [0, 1], outputRange: [0, '52%'] }) },
             { scale: fall.interpolate({ inputRange: [0, 1], outputRange: [1, 0.7] }) }],
         }]}>
-          <Image source={icon} style={styles.seedImage} resizeMode="contain" />
+          <SeedIcon size={40} color={accent} />
         </Animated.View>
       )}
       <Animated.View style={[styles.toastWrap, {
@@ -88,7 +87,6 @@ export default function SeedDrop({ drop, reduceMotion, onDone }) {
 
 const styles = StyleSheet.create({
   seed: { position: 'absolute', left: '50%', top: '35%', width: 40, height: 40, marginLeft: -20 },
-  seedImage: { width: '100%', height: '100%' },
   toastWrap: { position: 'absolute', top: 0, left: SPACING.lg, right: SPACING.lg, alignItems: 'center' },
   toast: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, alignItems: 'center' },
   toastTitle: { ...TYPE.callout, fontWeight: '600' },

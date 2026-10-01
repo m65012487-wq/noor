@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
-import { useReduceMotion } from '../components/ScreenWrapper';
+import { ThemedBackground, useReduceMotion } from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import Icon from '../components/Icon';
 import { ARABIC, COLORS, FONTS, RADIUS, SPACING, TYPE } from '../constants/theme';
@@ -13,11 +13,8 @@ import TreeView from './TreeView';
 import SeedDrop from './SeedDrop';
 import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
-import GardenBackground from './GardenBackground';
-import WinterPlantingBed from './WinterPlantingBed';
 import useTasbih from './useTasbih';
 import { activeTree, definition, DHIKR, SPECIES, STAGES, STAGE_NAMES } from './model';
-import EnvironmentDebug from './EnvironmentDebug';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -47,17 +44,24 @@ function growthRatio(tree) {
   return Math.min(progressRatio, daysRatio);
 }
 
+// Экран разбит на полосы постоянной высоты — шапка, слова, счётчик и подпись
+// внизу, — а всё, что осталось между ними, отдано дереву. Раньше каждый блок
+// занимал столько, сколько просил, и на разных телефонах дерево то упиралось
+// в счётчик, то висело в пустоте.
 export default function TasbihScreen({ onClose }) {
   const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
-  const { accent, schemeColors } = useAppearance();
+  const { accent } = useAppearance();
   const reduceMotion = useReduceMotion();
   const [selector, setSelector] = useState(false);
   const [garden, setGarden] = useState(false);
   const [pulse, setPulse] = useState(0);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  // Свайп вправо и вниз закрывает экран — привычный для iOS выход, которым
+  // пользуются чаще кнопки. Жест ловится на захвате, иначе его перехватывает
+  // нажатие по дереву.
   const swipes = useMemo(() => {
     const make = direction => PanResponder.create({
       onMoveShouldSetPanResponderCapture: (_event, gesture) => capturesDismiss(gesture, direction),
@@ -67,18 +71,9 @@ export default function TasbihScreen({ onClose }) {
     return { right: make('right'), down: make('down') };
   }, []);
   const textFade = useRef(new Animated.Value(1)).current;
-  // Экран появляется поверх уже показанного сада (переход из ворот кончается
-  // тем же фоном), поэтому проявляется только содержимое — без рывка.
-  const appear = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const animation = Animated.timing(appear, { toValue: 1, duration: reduceMotion ? 150 : 320, useNativeDriver: true });
-    animation.start();
-    return () => animation.stop();
-  }, [appear, reduceMotion]);
-  // Native-driver-only value (opacity + transform, see TASBIH_V3_SPEC.md's
-  // iOS note): a brief accent flash behind the counter and a small scale
-  // pop mark the end of a circle or a full sequence. reduceMotion keeps the
-  // opacity flash but skips the scale.
+  // Native-driver-only value (opacity + transform): a brief accent flash
+  // behind the counter and a small scale pop mark the end of a circle or a
+  // full sequence. reduceMotion keeps the flash but skips the scale.
   const flash = useRef(new Animated.Value(0)).current;
   const flashScale = flash.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
   const flashGlow = flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] });
@@ -114,15 +109,27 @@ export default function TasbihScreen({ onClose }) {
   const ratio = tree ? growthRatio(tree) : 0;
 
   return (
-    <GardenBackground>
-      <Animated.View style={[styles.appear, { opacity: appear }]}>
+    <ThemedBackground>
       <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose} {...swipes.right.panHandlers}>
+        {/* Шапка: закрыть — режим — сад. Названия экрана нет: о том, где
+            человек находится, говорит дерево, а строка режима нужнее. */}
         <View style={styles.header} {...swipes.down.panHandlers}>
           <Pressable accessibilityRole="button" accessibilityLabel={ru ? 'Закрыть Тасбих' : 'Close Tasbih'}
             onPress={onClose} style={styles.iconButton} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
             <Icon name="close" size={22} color={COLORS.text} />
           </Pressable>
-          <Text style={styles.title}>{ru ? 'Тасбих' : 'Tasbih'}</Text>
+
+          {state ? (
+            <Pressable style={styles.pillWrap} accessibilityRole="button" accessibilityState={{ expanded: selector }}
+              accessibilityLabel={ru ? `Режим: ${modeLabel(state, ru)}. Открыть выбор` : `Mode: ${modeLabel(state, ru)}. Open picker`}
+              onPress={() => setSelector(true)}>
+              <GlassView radius={RADIUS.pill} style={styles.pill}>
+                <Text style={[styles.pillText, { color: accent }]} numberOfLines={1}>{modeLabel(state, ru)}</Text>
+                <Icon name="down" size={14} color={accent} />
+              </GlassView>
+            </Pressable>
+          ) : <View style={styles.pillWrap} />}
+
           <Pressable accessibilityRole="button"
             accessibilityLabel={seedTotal > 0
               ? (ru ? `Сад, зёрен: ${seedTotal}` : `Garden, seeds: ${seedTotal}`)
@@ -141,21 +148,11 @@ export default function TasbihScreen({ onClose }) {
 
         {!state || !tree ? <ActivityIndicator style={{ flex: 1 }} color={accent} /> : (
           <>
-            <View style={styles.pillRow}>
-              <Pressable accessibilityRole="button" accessibilityState={{ expanded: selector }}
-                accessibilityLabel={ru ? `Режим: ${modeLabel(state, ru)}. Открыть выбор` : `Mode: ${modeLabel(state, ru)}. Open picker`}
-                onPress={() => setSelector(true)}>
-                <GlassView radius={RADIUS.pill} style={styles.pill}>
-                  <Text style={[styles.pillText, { color: accent }]} numberOfLines={1}>{modeLabel(state, ru)}</Text>
-                  <Icon name="down" size={14} color={accent} />
-                </GlassView>
-              </Pressable>
-            </View>
-
             <Animated.View style={[styles.words, { opacity: textFade }]}>
-              {!!item.arabic && <Text style={styles.arabic} accessibilityLanguage="ar">{item.arabic}</Text>}
-              <Text style={styles.phrase}>{phrase}</Text>
-              {!!translation && <Text style={styles.translation}>{translation}</Text>}
+              {!!item.arabic && <Text style={styles.arabic} accessibilityLanguage="ar"
+                numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{item.arabic}</Text>}
+              <Text style={styles.phrase} numberOfLines={2}>{phrase}</Text>
+              {!!translation && <Text style={styles.translation} numberOfLines={2}>{translation}</Text>}
             </Animated.View>
 
             <Animated.View style={[styles.counter, { transform: [{ scale: reduceMotion ? 1 : flashScale }] }]}>
@@ -164,32 +161,29 @@ export default function TasbihScreen({ onClose }) {
                 <Text style={[styles.count, { color: accent }]}>{state.currentDhikrCount}</Text>
                 {item.target != null && <Text style={styles.target}>/ {item.target}</Text>}
               </View>
-              {item.target != null && (
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${clamp01(state.currentDhikrCount / item.target) * 100}%`, backgroundColor: accent }]} />
-                </View>
-              )}
-              {state.selectedDhikr === 'sequence' && (
-                <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
-                  {DHIKR.map((d, index) => (
-                    <View key={d.id} style={[styles.dot, { backgroundColor: index === state.currentDhikrIndex ? accent : COLORS.textMuted, opacity: index === state.currentDhikrIndex ? 1 : 0.35 }]} />
-                  ))}
-                </View>
-              )}
+              {/* Полоса и точки держат своё место, даже когда их нечем
+                  заполнить: иначе цифра прыгает при смене режима. */}
+              <View style={styles.progressTrack}>
+                {item.target != null && <View style={[styles.progressFill, {
+                  width: `${clamp01(state.currentDhikrCount / item.target) * 100}%`, backgroundColor: accent,
+                }]} />}
+              </View>
+              <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
+                {state.selectedDhikr === 'sequence' && DHIKR.map((d, index) => (
+                  <View key={d.id} style={[styles.dot, {
+                    backgroundColor: index === state.currentDhikrIndex ? accent : COLORS.textMuted,
+                    opacity: index === state.currentDhikrIndex ? 1 : 0.35,
+                  }]} />
+                ))}
+              </View>
             </Animated.View>
 
             <Pressable onPress={onTap} style={styles.treeArea}
               accessibilityRole="button"
               accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${ru ? 'из' : 'of'} ${item.target}` : ''}`}
               accessibilityHint={ru ? 'Нажмите дважды, чтобы засчитать одно поминание' : 'Double tap to count one remembrance'}>
-              {/* У зимы под деревом своя клумба — старая эллиптическая тень
-                  рисовалась бы под ней второй тенью. */}
-              {schemeColors?.theme === 'winter'
-                ? <WinterPlantingBed />
-                : <View style={styles.treeShadow} pointerEvents="none" />}
               <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />
               {drop && <SeedDrop key={dropKey} drop={drop} reduceMotion={reduceMotion} onDone={ackDrop} />}
-              <EnvironmentDebug state={state} animation={pulse ? 'tap' : 'idle'} label="tree hit area" />
             </Pressable>
 
             <View style={styles.footer}>
@@ -206,54 +200,53 @@ export default function TasbihScreen({ onClose }) {
             </View>
           </>
         )}
-        <EnvironmentDebug state={state} animation="ready" label="safe content" anchor={false} />
       </SafeAreaView>
-      </Animated.View>
 
       <DhikrSheet visible={selector} onClose={() => setSelector(false)} state={state}
         select={select} addCustom={addCustom} removeCustom={removeCustom} setCircleLimit={setCircleLimit} />
 
       <GardenSheet visible={garden} onClose={() => setGarden(false)} state={state} plant={plant} setActive={setActive} />
-    </GardenBackground>
+    </ThemedBackground>
   );
 }
-// Фон — светлая картина (рассвет, день), поэтому текст над ним получает мягкую тень.
+
+// Фон экрана — обои приложения, и у сцен есть светлые места: текст над ними
+// получает ту же мягкую тень, что и на главном экране.
 const LEGIBLE = { textShadowColor: 'rgba(8,18,16,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
+
 const styles = StyleSheet.create({
-  appear: { flex: 1 },
-  safe: { flex: 1, paddingHorizontal: SPACING.lg, paddingTop: 8, paddingBottom: 8 },
-  header: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(180,205,188,0.1)' },
-  title: { ...LEGIBLE, ...TYPE.subhead, color: COLORS.text },
+  safe: { flex: 1, paddingHorizontal: SPACING.lg },
+  header: { height: 48, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface },
+  pillWrap: { flex: 1, alignItems: 'center' },
+  pill: { height: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: SPACING.md, maxWidth: '100%' },
+  pillText: { ...TYPE.callout, fontWeight: '600', flexShrink: 1 },
   badge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   badgeText: { ...TYPE.caption, fontSize: 10, lineHeight: 12, color: COLORS.navy, fontWeight: '700' },
-  pillRow: { alignItems: 'center', paddingTop: SPACING.sm },
-  pill: { height: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: SPACING.md },
-  pillText: { ...TYPE.callout, fontWeight: '600' },
-  words: { alignItems: 'center', justifyContent: 'center', paddingTop: SPACING.md, height: 150 },
+
+  words: { alignItems: 'center', justifyContent: 'center', height: 146, overflow: 'hidden' },
   arabic: { ...LEGIBLE, ...ARABIC.lg, fontFamily: FONTS.arabic, color: COLORS.text, textAlign: 'center' },
   phrase: { ...LEGIBLE, ...TYPE.subhead, color: COLORS.text, textAlign: 'center', marginTop: SPACING.xs },
-  translation: { ...LEGIBLE, ...TYPE.callout, color: COLORS.text, opacity: 0.85, textAlign: 'center', marginTop: 2 },
-  counter: { alignItems: 'center', paddingTop: SPACING.sm },
+  translation: { ...LEGIBLE, ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center', marginTop: 2 },
+
+  counter: { alignItems: 'center', height: 92, justifyContent: 'center' },
   counterRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   counterGlow: {
     position: 'absolute', left: -SPACING.lg, right: -SPACING.lg, top: -SPACING.sm, bottom: -SPACING.sm,
     borderRadius: RADIUS.lg,
   },
   count: { ...LEGIBLE, ...TYPE.display, ...TYPE.mono },
-  target: { ...LEGIBLE, ...TYPE.subhead, color: COLORS.textMuted, marginBottom: 4 },
-  progressTrack: { width: 160, height: 3, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.14)', marginTop: SPACING.xs, overflow: 'hidden' },
+  target: { ...TYPE.subhead, color: COLORS.textMuted, marginBottom: 4 },
+  progressTrack: { width: 160, height: 3, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.14)', marginTop: SPACING.sm, marginBottom: SPACING.sm, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: RADIUS.pill },
-  dots: { flexDirection: 'row', gap: 6, marginTop: SPACING.xs },
+  dots: { flexDirection: 'row', gap: 6, height: 6, alignItems: 'center' },
   dot: { width: 5, height: 5, borderRadius: 3 },
-  treeArea: { flex: 1, width: '100%', alignSelf: 'center', marginTop: SPACING.sm },
-  treeShadow: {
-    position: 'absolute', left: '35%', right: '35%', top: '87%', height: 10,
-    borderRadius: RADIUS.pill, backgroundColor: 'rgba(10,20,16,0.35)',
-  },
-  footer: { alignItems: 'center', paddingTop: SPACING.sm, paddingBottom: SPACING.xs, minHeight: 40, justifyContent: 'center' },
-  hint: { ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center' },
-  stageLine: { ...TYPE.callout, color: COLORS.text },
+
+  treeArea: { flex: 1, width: '100%', alignSelf: 'center', minHeight: 180 },
+
+  footer: { alignItems: 'center', height: 52, justifyContent: 'center' },
+  hint: { ...LEGIBLE, ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center' },
+  stageLine: { ...LEGIBLE, ...TYPE.callout, color: COLORS.text },
   growthTrack: { width: 160, height: 3, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.14)', marginTop: SPACING.xs, overflow: 'hidden' },
   growthFill: { height: '100%', borderRadius: RADIUS.pill },
   caption: { ...TYPE.callout, color: COLORS.text },

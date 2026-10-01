@@ -47,32 +47,36 @@ test('dismiss gestures distinguish deliberate exit from taps and vertical scroll
   assert.equal(capturesDismiss({ dx: 4, dy: 30, numberActiveTouches: 1 }, 'down'), true);
   assert.equal(finishesDismiss({ dx: 4, dy: 110, vx: 0, vy: 0.2 }, 'down'), true);
 });
-test('lighting boundaries preserve one shared environment configuration', () => {
-  const { lightStateAt, LIGHT_STATES, ENVIRONMENT } = load('src/constants/environmentTheme.js');
-  for (const [hour, expected] of [[0,'night'],[4,'dawn'],[7,'day'],[17,'sunset'],[20,'night']]) {
-    assert.equal(lightStateAt(new Date(2026, 8, 14, hour)), expected);
-    assert.equal(LIGHT_STATES[expected].bg.length, 2);
-  }
-  assert.equal(ENVIRONMENT.debug, false);
-  assert.deepEqual(ENVIRONMENT.treeAnchor, { x: 0.5, y: 0.9 });
-});
-test('gate hint survives restoration and stage configuration can grow beyond eight entries', () => {
-  assert.equal(model.restoreState({ ...model.initialState(), hasSeenGateHint: true }).hasSeenGateHint, true);
+test('stage configuration can grow beyond eight entries', () => {
   const stages = Array.from({ length: 30 }, (_, i) => ({ requiredProgress: i * 100, minimumDays: i }));
   assert.equal(model.chooseStage(2900, 29, stages), 29);
   assert.equal(model.chooseStage(2900, 2, stages), 2);
 });
-test('olive artwork shares a transparent vector canvas', () => {
-  const root = path.resolve(__dirname, '..');
-  const olive = path.join(root, 'assets/garden/plants/olive');
-  const files = fs.readdirSync(olive).filter(name => name.endsWith('.svg'));
-  assert.equal(files.length, 5);
-  const canvases = new Set(files.map(name => {
-    const xml = fs.readFileSync(path.join(olive, name), 'utf8');
-    assert.doesNotMatch(xml, /<(image|text)\b|(?:href|url)\s*=/i);
-    return xml.match(/viewBox="([^"]+)"/)[1];
-  }));
-  assert.equal(canvases.size, 1);
+test('tree silhouettes cover every species and stage and stay inside the canvas', () => {
+  const { TREE_CANVAS, TREE_SHAPES, TREE_BOUNDS } = load('src/tasbih/treeShapes.js');
+  assert.deepEqual(Object.keys(TREE_SHAPES).sort(), model.SPECIES.map(s => s.id).sort());
+  for (const species of Object.keys(TREE_SHAPES)) {
+    assert.equal(TREE_SHAPES[species].length, model.STAGES.length);
+    assert.equal(TREE_BOUNDS[species].length, model.STAGES.length);
+    TREE_SHAPES[species].forEach((shapes, stage) => {
+      assert.ok(shapes.length > 0, `${species}:${stage} пустая стадия`);
+      for (const shape of shapes) {
+        const numbers = shape.t === 'e'
+          ? [shape.cx - shape.rx, shape.cx + shape.rx, shape.cy - shape.ry, shape.cy + shape.ry]
+          : shape.d.match(/-?\d+(?:\.\d+)?/g).map(Number);
+        assert.ok(numbers.every(Number.isFinite), `${species}:${stage} нечисловая координата`);
+        // Фигуры лежат в холсте: иначе Svg обрежет крону плоской линией.
+        const xs = shape.t === 'e' ? numbers.slice(0, 2) : numbers.filter((_, i) => i % 2 === 0);
+        const ys = shape.t === 'e' ? numbers.slice(2) : numbers.filter((_, i) => i % 2 === 1);
+        assert.ok(Math.min(...xs) >= 0 && Math.max(...xs) <= TREE_CANVAS.width, `${species}:${stage} вышла по горизонтали`);
+        assert.ok(Math.min(...ys) >= 0 && Math.max(...ys) <= TREE_CANVAS.height, `${species}:${stage} вышла по вертикали`);
+      }
+      const b = TREE_BOUNDS[species][stage];
+      assert.ok(b.width > 0 && b.height > 0 && b.x >= 0 && b.y >= 0
+        && b.x + b.width <= TREE_CANVAS.width && b.y + b.height <= TREE_CANVAS.height,
+      `${species}:${stage} границы вне холста`);
+    });
+  }
 });
 function taps(n, state = model.initialState(), key = day) {
   for (let i = 0; i < n; i++) state = model.registerDhikr(state, key);
@@ -127,7 +131,7 @@ test('stage configuration can grow beyond the built-in eight entries', () => {
 test('v1 saves migrate into a single olive tree and reset the v2 garden fields', () => {
   const v1 = { version: 1, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 5,
     totalDhikrCount: 40, perDhikrCounts: { subhanallah: 40 }, treeGrowthProgress: 500, treeStage: 'olive_stage_03',
-    lastActiveDate: day, activeDays: 4, dailyDhikrCounts: { [day]: 40 }, hasSeenTasbihHint: true, hasSeenGateHint: false };
+    lastActiveDate: day, activeDays: 4, dailyDhikrCounts: { [day]: 40 }, hasSeenTasbihHint: true };
   const state = model.restoreState(v1);
   assert.equal(state.version, 2);
   assert.equal(state.trees.length, 1);
@@ -327,7 +331,7 @@ test('restoreState validates circleLimit, customDhikr entries, and mode referenc
 test('v1 saves migrate with v3 mode defaults (circleLimit on, no custom dhikr)', () => {
   const v1 = { version: 1, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 0,
     totalDhikrCount: 0, perDhikrCounts: {}, treeGrowthProgress: 0, treeStage: 'olive_stage_01',
-    lastActiveDate: null, activeDays: 0, dailyDhikrCounts: {}, hasSeenTasbihHint: false, hasSeenGateHint: false };
+    lastActiveDate: null, activeDays: 0, dailyDhikrCounts: {}, hasSeenTasbihHint: false };
   const state = model.restoreState(v1);
   assert.equal(state.circleLimit, true);
   assert.deepEqual(state.customDhikr, []);

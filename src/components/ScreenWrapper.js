@@ -6,7 +6,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeviceMotion } from 'expo-sensors';
 import { SPACING } from '../constants/theme';
-import EnvironmentScene from './EnvironmentScene';
 import {
   useAppearance, PATTERN_TILES, SCENE_LAYERS, patternKind,
 } from '../utils/AppearanceContext';
@@ -102,19 +101,15 @@ function shift(value, distance, factor = 1) {
 //
 // `plain` — спокойный градиент без узора. Для длинного чтения любой рисунок
 // под текстом мешает: узор просвечивает между строк.
-export function ThemedBackground({ children, plain = false, style, camera }) {
+export function ThemedBackground({ children, plain = false, style }) {
   const appearance = useAppearance();
   const reduceMotion = useReduceMotion();
   const kind = patternKind(appearance?.pattern);
-  const wanted = appearance?.parallax !== false && !reduceMotion && !plain && (kind !== 'none' || appearance?.schemeColors?.environment);
+  const wanted = appearance?.parallax !== false && !reduceMotion && !plain && kind !== 'none';
   const { tx, ty } = useTilt(wanted);
 
   const sc = appearance?.schemeColors;
   const bg = sc ? sc.bg : ['#1b2430', '#0d131b'];
-  if (sc?.environment) {
-    return <EnvironmentScene colors={sc} plain={plain} style={style} camera={reduceMotion ? null : camera} tx={tx} ty={ty}>{children}</EnvironmentScene>;
-  }
-
   // Экраны чтения и вариант «без узора» получают чистый градиент.
   if (plain || kind === 'none') {
     return (

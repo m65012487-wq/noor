@@ -60,7 +60,6 @@ function useTasbihState() {
     addCustom: payload => { if (current.current) persist(addCustomDhikr(current.current, payload)); },
     removeCustom: id => { if (current.current) persist(removeCustomDhikr(current.current, id)); },
     setCircleLimit: value => { if (current.current) persist(setCircleLimit(current.current, value)); },
-    sawGate: () => { if (current.current && !current.current.hasSeenGateHint) persist({ ...current.current, hasSeenGateHint: true }); },
     retry: () => current.current ? persist(current.current) : load(),
   };
 }

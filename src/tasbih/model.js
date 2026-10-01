@@ -6,7 +6,7 @@ export const DHIKR = [
 // Prototype coefficients are separate from the counter and artwork.
 export const GROWTH = { dailyCap: 100, firstBand: 33, secondBand: 99, laterWeight: 0.05, secondWeight: 0.35, activeDayContribution: 65 };
 
-// 8 stages shared by every species; art is resolved by (species, stage index) in assets.js.
+// 8 stages shared by every species; the silhouette is resolved by (species, stage index) in treeShapes.js.
 export const STAGES = [
   { requiredProgress: 0, minimumDays: 0 },
   { requiredProgress: 72, minimumDays: 1 },
@@ -44,7 +44,7 @@ export function initialState() {
     version: 2, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 0,
     totalDhikrCount: 0, perDhikrCounts: {}, dailyDhikrCounts: {},
     lastActiveDate: null, activeDays: 0,
-    hasSeenTasbihHint: false, hasSeenGateHint: false,
+    hasSeenTasbihHint: false,
     trees: [{ id: 't1', species: 'olive', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false }],
     activeTreeId: 't1',
     seeds: {},

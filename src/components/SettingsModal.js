@@ -75,14 +75,14 @@ function Section({ id, icon, title, open, onToggle, children }) {
   );
 }
 
-export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onOpenGarden }) {
+export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
     adhanNotifSound, chooseAdhanNotifSound, hijriOffset, chooseHijriOffset,
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
     fontSet, chooseFontSet, FONT_SETS, parallax, toggleParallax,
-    tint, accent, lighting, chooseLighting } = useAppearance();
+    tint, accent } = useAppearance();
   const tintRgb = tint || '180,215,230';
   const accentColor = accent || COLORS.accent;
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
@@ -223,9 +223,6 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
         <Section id="appearance" icon="options" title={t("sec_appearance")}
           open={openSection === 'appearance'} onToggle={toggle}>
 
-          {/* Узор действует только на простые цветовые схемы: пейзажная тема
-              рисует свой фон и узор игнорирует — выбор там лишь путал бы. */}
-          {!SCHEMES.find((s) => s.id === scheme)?.environment && <>
           <Text style={styles.label}>{t("pattern")}</Text>
           <View style={styles.themeRow}>
             {PATTERNS.map((p) => (
@@ -238,7 +235,6 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
               </TouchableOpacity>
             ))}
           </View>
-          </>}
 
           {/* Параллакс касается только сцен: у плитки нет переднего плана,
               и сносить её целиком незачем. Выключатель нужен потому, что
@@ -253,9 +249,6 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
             {parallax && <Icon name="check" size={17} color={COLORS.white} />}
           </TouchableOpacity>
 
-          {/* Пока тема одна, выбирать не из чего — секция вернётся сама,
-              как только в SCHEMES появится второй вариант. */}
-          {SCHEMES.length > 1 && <>
           <Text style={styles.label}>{t("color_scheme")}</Text>
           <View style={styles.themeRow}>
             {SCHEMES.map((s) => (
@@ -269,18 +262,6 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
               </TouchableOpacity>
             ))}
           </View>
-          </>}
-
-          {SCHEMES.find((s) => s.id === scheme)?.environment && <>
-            <Text style={styles.label}>{lang === 'ru' ? 'Освещение' : 'Lighting'}</Text>
-            <View style={styles.themeRow}>
-              {['auto', 'dawn', 'day', 'sunset', 'night'].map((id, index) => <TouchableOpacity key={id}
-                accessibilityRole="radio" accessibilityState={{ checked: lighting === id }}
-                onPress={() => chooseLighting(id)} style={[styles.themeChip, lighting === id && activeBg]}>
-                <Text style={styles.themeText}>{(lang === 'ru' ? ['По времени', 'Рассвет', 'День', 'Закат', 'Ночь'] : ['Automatic', 'Dawn', 'Day', 'Sunset', 'Night'])[index]}</Text>
-              </TouchableOpacity>)}
-            </View>
-          </>}
 
           {/* Образец набирается тем самым шрифтом: название семейства
               ничего не говорит, пока не увидишь буквы. */}
@@ -322,17 +303,6 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, onO
               </TouchableOpacity>
             ))}
           </View>
-
-          {/* Вход в прототип сада. Спрятан в «Общих», пока это демонстрация,
-              а не раздел приложения: навигацию ради него не трогаем. */}
-          {onOpenGarden && (
-            <TouchableOpacity style={[styles.row, { marginTop: SPACING.md }]}
-              onPress={() => { stopAudio(); setPreviewing(null); onOpenGarden(); }}>
-              <Text style={styles.rowText}>{t('garden_open')}</Text>
-              <Icon name="back" size={18} color={COLORS.accentSoft}
-                style={{ transform: [{ rotate: '180deg' }] }} />
-            </TouchableOpacity>
-          )}
         </Section>
 
       <TouchableOpacity style={styles.doneBtn} onPress={close}>

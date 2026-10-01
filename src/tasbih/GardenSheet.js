@@ -1,12 +1,13 @@
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Text from '../components/AppText';
 import DraggableSheet from '../components/DraggableSheet';
 import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
-import { SEED_ASSETS, TREE_ASSETS } from './assets';
+import SeedIcon from './SeedIcon';
+import { TreeSilhouette } from './TreeView';
 import { SPECIES, STAGE_NAMES } from './model';
 
 const RULES = [
@@ -37,14 +38,13 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {trees.map(tree => {
           const active = tree.id === state.activeTreeId;
-          const art = TREE_ASSETS[tree.species]?.[tree.stage];
           const label = ru ? STAGE_NAMES[tree.stage]?.ru : STAGE_NAMES[tree.stage]?.en;
           return (
             <Pressable key={tree.id} onPress={() => { if (!active) { hapticLight(); setActive(tree.id); } }}
               accessibilityRole="button" accessibilityState={{ selected: active }}
               accessibilityLabel={`${speciesLabel(tree.species, ru)} · ${label}${active ? (ru ? ' · активно' : ' · active') : ''}`}
               style={[styles.treeCard, active && { borderColor: accent }]}>
-              {art && <Image source={art.source} style={styles.treeImage} resizeMode="contain" />}
+              <View style={styles.treeImage}><TreeSilhouette species={tree.species} stage={tree.stage} color={accent} /></View>
               <Text style={styles.treeSpecies} numberOfLines={1}>{speciesLabel(tree.species, ru)}</Text>
               <Text style={styles.treeStage} numberOfLines={1}>{label}</Text>
             </Pressable>
@@ -62,7 +62,7 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
         <View style={styles.seedList}>
           {seedEntries.map(([species, count]) => (
             <View key={species} style={styles.seedCard}>
-              <Image source={SEED_ASSETS[species]} style={styles.seedImage} resizeMode="contain" />
+              <SeedIcon size={36} color={accent} />
               <View style={styles.seedInfo}>
                 <Text style={styles.seedSpecies}>{speciesLabel(species, ru)}</Text>
                 <Text style={styles.seedCount}>{ru ? `${count} шт.` : `${count} seed${count > 1 ? 's' : ''}`}</Text>
@@ -105,7 +105,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
     backgroundColor: COLORS.surface, borderRadius: RADIUS.md, padding: SPACING.sm,
   },
-  seedImage: { width: 36, height: 36 },
   seedInfo: { flex: 1 },
   seedSpecies: { ...TYPE.callout, color: COLORS.text },
   seedCount: { ...TYPE.caption, color: COLORS.textMuted },
