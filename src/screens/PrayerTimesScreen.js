@@ -4,6 +4,7 @@ import Text from '../components/AppText';
 import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
+import SlideToConfirm from '../components/SlideToConfirm';
 import { Card, SectionTitle } from '../components/ui';
 import LocationPicker from '../components/LocationPicker';
 import SettingsModal from '../components/SettingsModal';
@@ -144,12 +145,18 @@ export default function PrayerTimesScreen() {
   return (
     <ScreenWrapper swipeHandlers={swipe}>
       {alarmWindow && (
-        <GlassView radius={RADIUS.md} style={styles.alarmBanner}>
-          <Text style={styles.alarmText}>⏰ {t('alarm_active')}</Text>
-          <TouchableOpacity style={styles.awakeBtn}
-            onPress={async () => { await updateSchedule(markAwake); setAlarmWindow(false); }}>
-            <Text style={styles.awakeText}>{t('im_awake')}</Text>
-          </TouchableOpacity>
+        <GlassView radius={RADIUS.lg} style={styles.alarmBanner}>
+          <View style={styles.alarmHead}>
+            <View style={styles.alarmIcon}>
+              <Icon name="alarm" size={16} color={accent} />
+            </View>
+            <Text style={styles.alarmText}>{t('alarm_active')}</Text>
+          </View>
+          {/* Если запись не удалась, промис отклоняется — ползунок сам
+              вернётся в начало, и подтверждение можно повторить. */}
+          <SlideToConfirm label={t('slide_awake')} accessibilityLabel={t('im_awake')}
+            accessibilityHint={t('im_awake_hint')}
+            onConfirm={async () => { await updateSchedule(markAwake); setAlarmWindow(false); }} />
         </GlassView>
       )}
       <View style={styles.header}>
@@ -315,10 +322,9 @@ const styles = StyleSheet.create({
   hint: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.md, ...SHADOW },
 
 
-  alarmBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: SPACING.md, marginHorizontal: SPACING.md, marginBottom: SPACING.sm },
-  alarmText: { ...TYPE.callout, color: COLORS.white, flex: 1 },
-  awakeBtn: { backgroundColor: 'rgba(76,175,114,0.45)', paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.success },
-  awakeText: { ...TYPE.callout, color: COLORS.white, fontWeight: '800' },
+  alarmBanner: { padding: SPACING.md, gap: SPACING.md, marginHorizontal: SPACING.md, marginBottom: SPACING.sm },
+  alarmHead: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  alarmIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.surfaceStrong },
+  alarmText: { ...TYPE.callout, fontWeight: '600', color: COLORS.white, flex: 1 },
 });

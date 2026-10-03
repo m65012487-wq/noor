@@ -150,6 +150,21 @@ export function chooseStage(progress, activeDays, stages = STAGES) {
 export function activeTree(state) {
   return state.trees.find(t => t.id === state.activeTreeId) || null;
 }
+// Share (0..1) of the way to the next stage. A stage needs both enough
+// progress and enough active days (see chooseStage), so the ratio reports
+// whichever of the two is further behind. The last stage is always 1.
+export function growthRatio(tree, stages = STAGES) {
+  const cur = stages[tree.stage];
+  const next = stages[tree.stage + 1];
+  if (!cur) return 0;
+  if (!next) return 1;
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const progressRatio = clamp01((tree.progress - cur.requiredProgress) / Math.max(1, next.requiredProgress - cur.requiredProgress));
+  const daysRatio = next.minimumDays > cur.minimumDays
+    ? clamp01((tree.activeDays - cur.minimumDays) / (next.minimumDays - cur.minimumDays))
+    : 1;
+  return Math.min(progressRatio, daysRatio);
+}
 function ownedSpecies(state) {
   const owned = new Set(state.trees.map(t => t.species));
   for (const [species, count] of Object.entries(state.seeds || {})) if (count > 0) owned.add(species);

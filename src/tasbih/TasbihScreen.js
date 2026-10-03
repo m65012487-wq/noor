@@ -14,7 +14,7 @@ import SeedDrop from './SeedDrop';
 import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
 import useTasbih from './useTasbih';
-import { activeTree, definition, DHIKR, SPECIES, STAGES, STAGE_NAMES } from './model';
+import { activeTree, definition, DHIKR, growthRatio, SPECIES, STAGE_NAMES } from './model';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -29,19 +29,6 @@ function modeLabel(state, ru) {
   if (single) return ru ? single.ru : single.en;
   const custom = (state.customDhikr || []).find(d => `custom:${d.id}` === state.selectedDhikr);
   return custom ? custom.text : '';
-}
-
-// Growth toward the next stage needs both enough progress and enough active
-// days (see model.chooseStage); the bar shows whichever is further behind.
-function growthRatio(tree) {
-  const cur = STAGES[tree.stage];
-  const next = STAGES[tree.stage + 1];
-  if (!next) return 1;
-  const progressRatio = clamp01((tree.progress - cur.requiredProgress) / Math.max(1, next.requiredProgress - cur.requiredProgress));
-  const daysRatio = next.minimumDays > cur.minimumDays
-    ? clamp01((tree.activeDays - cur.minimumDays) / (next.minimumDays - cur.minimumDays))
-    : 1;
-  return Math.min(progressRatio, daysRatio);
 }
 
 // Экран разбит на полосы постоянной высоты — шапка, слова, счётчик и подпись

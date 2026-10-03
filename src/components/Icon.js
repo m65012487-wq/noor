@@ -47,6 +47,8 @@ export const ICONS = {
   options:   { sf: 'slider.horizontal.3', ion: 'options-outline' },
   next:      { sf: 'arrow.forward.circle', ion: 'arrow-forward-circle' },
   leaf:      { sf: 'leaf',              ion: 'leaf-outline' },
+  alarm:     { sf: 'alarm',             ion: 'alarm-outline' },
+  sun:       { sf: 'sun.max.fill',      ion: 'sunny' },
 };
 
 const IS_IOS = Platform.OS === 'ios';

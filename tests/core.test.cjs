@@ -61,6 +61,12 @@ test('tree silhouettes cover every species and stage and stay inside the canvas'
     TREE_SHAPES[species].forEach((shapes, stage) => {
       assert.ok(shapes.length > 0, `${species}:${stage} пустая стадия`);
       for (const shape of shapes) {
+        // Путь целиком из команд M/Q/Z с числами: «NaN» или «undefined» внутри d
+        // поиск чисел ниже молча пропустил бы, а Svg на устройстве — нет.
+        if (shape.t === 'p') {
+          assert.match(shape.d, /^(?:M-?\d+(?:\.\d+)? -?\d+(?:\.\d+)?(?:Q(?:-?\d+(?:\.\d+)? ?){4})+Z)+$/,
+            `${species}:${stage} испорченный путь`);
+        }
         const numbers = shape.t === 'e'
           ? [shape.cx - shape.rx, shape.cx + shape.rx, shape.cy - shape.ry, shape.cy + shape.ry]
           : shape.d.match(/-?\d+(?:\.\d+)?/g).map(Number);
@@ -75,6 +81,11 @@ test('tree silhouettes cover every species and stage and stay inside the canvas'
       assert.ok(b.width > 0 && b.height > 0 && b.x >= 0 && b.y >= 0
         && b.x + b.width <= TREE_CANVAS.width && b.y + b.height <= TREE_CANVAS.height,
       `${species}:${stage} границы вне холста`);
+    });
+    // Дерево не должно «усыхать»: силуэт следующей стадии не ниже прежнего.
+    const heights = TREE_BOUNDS[species].map(b => b.height);
+    heights.forEach((h, i) => {
+      if (i) assert.ok(h >= heights[i - 1], `${species}: стадия ${i} ниже стадии ${i - 1} (${h} < ${heights[i - 1]})`);
     });
   }
 });
@@ -393,4 +404,26 @@ test('alarm plans future mornings, and waking cancels only that day', async () =
   assert.ok(scheduled.every(n => n.trigger.date > new Date()));
   await alarm.markAwake();
   assert.equal(scheduled.length, 12);
+});
+test('growthRatio reports the slower of progress and days toward the next stage', () => {
+  const tree = (stage, progress, activeDays) => ({ stage, progress, activeDays });
+  // Stage 0 → 1 needs 72 progress and 1 day.
+  assert.equal(model.growthRatio(tree(0, 0, 0)), 0);
+  assert.equal(model.growthRatio(tree(0, 36, 1)), 0.5);
+  // Plenty of progress, but days are behind: stage 2 → 3 needs 700 and 7 days (from 300 and 3).
+  assert.equal(model.growthRatio(tree(2, 700, 5)), 0.5);
+  // Plenty of days, progress is behind: halfway from 300 to 700.
+  assert.equal(model.growthRatio(tree(2, 500, 30)), 0.5);
+  // Out-of-range values are clamped to 0..1.
+  assert.equal(model.growthRatio(tree(1, 0, 0)), 0);
+  assert.equal(model.growthRatio(tree(1, 99999, 99)), 1);
+  // The last stage is always full; an unknown stage is empty rather than a crash.
+  assert.equal(model.growthRatio(tree(model.STAGES.length - 1, 0, 0)), 1);
+  assert.equal(model.growthRatio(tree(99, 0, 0)), 0);
+  // A real tree after the first tap of the day: 66 of 72 progress, day requirement met.
+  const first = model.activeTree(taps(1));
+  assert.ok(Math.abs(model.growthRatio(first) - 66 / 72) < 1e-9);
+  // Custom stage tables are honoured; equal day thresholds do not cap the ratio.
+  const stages = [{ requiredProgress: 0, minimumDays: 0 }, { requiredProgress: 100, minimumDays: 0 }];
+  assert.equal(model.growthRatio(tree(0, 25, 0), stages), 0.25);
 });
