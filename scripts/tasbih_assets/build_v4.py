@@ -20,13 +20,8 @@ SRC = ROOT / "src" / "tasbih"
 
 # Выбор: порода → (кадр, поворот в градусах против часовой). Лист в приложении
 # стоит черенком вниз, кончиком вверх — поворот это выправляет.
-LEAVES = {
-    'olive': ('olive_4102', 0),
-    'fig': ('fig_4103', 0),
-    'pomegranate': ('pomegranate_4101', 0),
-    'date_palm': ('date_palm_4102', 0),
-    'sidr': ('sidr_4101', 0),
-}
+# Цветные листья v4 заменены силуэтами в цвет темы — их собирает build_v5.py.
+LEAVES = {}
 CAN = 'copper_4202'   # имя кадра лейки (носик влево)
 LEAF_LONG_PX = 240    # длинная сторона листа в файле (на экране ≤ 60 pt, 3x с запасом)
 CAN_W_PX = 420        # ширина лейки в файле (на экране ≤ 122 pt)
@@ -88,7 +83,6 @@ def body_of(im):
 
 def build():
     ASSETS.mkdir(parents=True, exist_ok=True)
-    (ASSETS / "leaves").mkdir(exist_ok=True)
     lines = ["// Сгенерировано scripts/tasbih_assets/build_v4.py — не править руками.",
              "// Листья-вход по породам (Krea-2): черенком вниз, aspect — ширина к высоте.",
              "export const LEAF_ART = {"]
@@ -99,7 +93,8 @@ def build():
                      f"aspect: {im.width / im.height:.3f} }},")
         print(species, im.size)
     lines.append("};")
-    (SRC / "leafArt.js").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if LEAVES:
+        (SRC / "leafArt.js").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     can = trim(cutout(Image.open(RAW / "can" / f"{CAN}.png")))
     k = CAN_W_PX / can.width

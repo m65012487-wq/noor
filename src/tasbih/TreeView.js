@@ -1,36 +1,22 @@
 import React, { memo, useEffect, useRef } from 'react';
-import { Animated, StyleSheet } from 'react-native';
-import Svg, { Ellipse, Path } from 'react-native-svg';
+import { Animated, Image, StyleSheet } from 'react-native';
 import { useAppearance } from '../utils/AppearanceContext';
-import { TREE_BOUNDS, TREE_CANVAS, TREE_SHAPES } from './treeShapes';
+import { TREE_ART, TREE_CANVAS } from './treeArt';
 
-// Дерево — плоский силуэт цвета схемы, как сцены на обоях. Раньше это были
-// сорок нарисованных кадров: другой стиль, два десятка мегабайт в сборке и
-// своя графика под каждую тему. Теперь форма берётся из treeShapes.js
-// (генератор scripts/tasbih/trees.js), а цвет — из оформления, поэтому
-// дерево само собой совпадает с выбранной темой.
+// Дерево — плоский слоистый силуэт цвета схемы, как сцены на обоях. Рисунок —
+// кадр Krea-2 в оттенках серого, переведённый в альфу (build_v5.py): тёмное
+// непрозрачно, светлые дальние слои полупрозрачны, а цвет даёт tintColor из
+// оформления, поэтому дерево само собой совпадает с выбранной темой.
 
 const STAGE_MS = 1200;
 
-// Тень живёт в том же холсте, что и силуэт, и растёт вместе с кроной:
-// отдельной тенью в разметке она разъезжалась со стволом на узких экранах.
-export const TreeSilhouette = memo(function TreeSilhouette({ species, stage, color, shadow = true, crop = false }) {
-  const shapes = TREE_SHAPES[species]?.[stage] || [];
-  const r = 18 + stage * 5;
-  // crop — для превью размером с ноготь: холст обрезается по самой фигуре,
-  // иначе зерно на карточке входа выходит точкой в три пикселя.
-  const b = crop ? TREE_BOUNDS[species]?.[stage] : null;
-  const box = b ? `${b.x} ${b.y} ${b.width} ${b.height}`
-    : `0 0 ${TREE_CANVAS.width} ${TREE_CANVAS.height}`;
-  return (
-    <Svg width="100%" height="100%" viewBox={box}>
-      {shadow && <Ellipse cx={TREE_CANVAS.baseX} cy={TREE_CANVAS.baseY + 3}
-        rx={r} ry={r * 0.16} fill={color} fillOpacity={0.18} />}
-      {shapes.map((s, i) => (s.t === 'p'
-        ? <Path key={i} d={s.d} fill={color} fillOpacity={s.o} />
-        : <Ellipse key={i} cx={s.cx} cy={s.cy} rx={s.rx} ry={s.ry} fill={color} fillOpacity={s.o} />))}
-    </Svg>
-  );
+// Холст 240×300 вписан в рамку по центру (contain) — так же считает
+// treeGeometry, и эффекты поверх дерева попадают в корень и крону. Холмик
+// земли нарисован в самом кадре.
+export const TreeSilhouette = memo(function TreeSilhouette({ species, stage, color }) {
+  const source = TREE_ART[species]?.[stage];
+  if (!source) return null;
+  return <Image source={source} resizeMode="contain" style={[styles.fill, { tintColor: color }]} />;
 });
 
 // Одна стадия одной породы. Смена стадии — перекрёстное проявление: рост
@@ -92,4 +78,6 @@ export default memo(function TreeView({ species, stage, pulse, reduceMotion }) {
 
 const styles = StyleSheet.create({
   tree: { width: '100%', height: '100%' },
+  // Размеры явно: Image без них берёт собственный размер файла.
+  fill: { width: '100%', height: '100%' },
 });

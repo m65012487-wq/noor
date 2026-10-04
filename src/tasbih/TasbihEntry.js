@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Animated, Easing, Image, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, Defs, Ellipse, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReduceMotion } from '../components/ScreenWrapper';
 import { TAB_ISLAND } from '../components/GlassTabBar';
@@ -10,14 +10,14 @@ import { hapticLight } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
 import useTasbih from './useTasbih';
 import TasbihScreen from './TasbihScreen';
-import { activeTree } from './model';
 import { LEAF_ART } from './leafArt';
 
 // Вход в «Сад тасбиха» — листок без единой подписи. При открытии приложения он
 // срывается сверху, кружит в воздухе и ложится на таб-бар в случайном месте;
-// человек нажимает из любопытства и сам открывает сад. Лист — с дерева,
-// которое сейчас растёт (рисунок по породе, Krea-2). Лёжа он не замирает
-// намертво: изредка его трогает ветер и на нём вспыхивает росинка.
+// человек нажимает из любопытства и сам открывает сад. Лист — плоский
+// силуэт цвета схемы, как сцены на обоях, приглушённый, чтобы не кричать;
+// форма каждый раз новая (набор силуэтов Krea-2, leafArt.js). Лёжа он не
+// замирает намертво: изредка его трогает ветер и на нём вспыхивает росинка.
 //
 // Слой лежит поверх всего экрана и касаний не забирает — ловит их только сам
 // листок. Все движения — нативный драйвер, только transform и opacity; полёт
@@ -26,12 +26,14 @@ import { LEAF_ART } from './leafArt';
 // Размер листа задан площадью, а не длинной стороной: узкий лист оливы и
 // широкий инжира тогда весят на экране одинаково. Длинная сторона — не больше
 // LEAF_MAX. Зона нажатия — квадрат HIT, в пунктах.
-const LEAF_AREA = 1300;
-const LEAF_MAX = 60;
+const LEAF_AREA = 1000;
+const LEAF_MAX = 54;
+// Лист в цвете схемы, но тише текста и иконок таб-бара.
+const LEAF_OPACITY = 0.78;
 const HIT = 76;
-const GLOW_R = 46;
+const GLOW_R = 40;
 // Зазор между листом и верхом острова и запас от его скруглённых концов.
-const REST_GAP = 3;
+const REST_GAP = 1;
 const REST_EDGE = 30;
 // Если приложение пролежало в фоне дольше этого, листок падает заново.
 const AWAY_MS = 5 * 60 * 1000;
@@ -44,12 +46,12 @@ const GLOW_LOW = 0.55;
 const GLOW_HIGH = 0.9;
 const GLOW_MS = 4400;
 const BEAT_MS = 1800;
-const DEW = { x: 0.5, y: 0.42, size: 12 };
+const DEW = { x: 0.5, y: 0.42, size: 10 };
 const DEW_GAP_MS = 6100;
 const DEW_GAP_SPAN_MS = 2400;
 const DEW_UP_MS = 360;
 const DEW_DOWN_MS = 540;
-const DEW_PEAK = 0.9;
+const DEW_PEAK = 0.6;
 // Порыв ветра: лист приподнимается и покачивается. Раз в 9–15 секунд.
 const GUST_GAP_MS = 9000;
 const GUST_GAP_SPAN_MS = 6000;
@@ -87,7 +89,8 @@ function leafSize(art) {
 function planRest(width, barTop, size) {
   const islandW = Math.min(width - TAB_ISLAND.sideGap * 2, TAB_ISLAND.maxWidth);
   const left = (width - islandW) / 2;
-  const rot = (Math.random() < 0.5 ? -1 : 1) * rand(66, 114);
+  // Лежит почти плашмя: небольшой разброс угла, без задранного кончика.
+  const rot = (Math.random() < 0.5 ? -1 : 1) * rand(83, 97);
   const a = size.h / 2;
   const b = size.w / 2;
   const s = Math.sin(rad(rot));
@@ -141,12 +144,13 @@ function planFall(width, startY, rest, reduceMotion) {
     y.push(0);
     rot.push(rest.rot + deg);
   });
-  // show — когда проступают свечение и тень: к моменту касания и после.
+  // show — когда проступает свечение: к моменту касания и после.
   const landAt = round4(fallMs / total);
   return { rest, total, input, x, y, rot, show: [[0, Math.max(0.001, round4(landAt - 0.1)), landAt, 1], [0, 0, 0.6, 1]] };
 }
 
-// Свечение позади лежащего листа — приглашение нажать. Дышит прозрачностью.
+// Едва заметное свечение позади лежащего листа — тихое приглашение нажать.
+// Дышит прозрачностью.
 const LeafGlow = memo(function LeafGlow({ accent, reduceMotion, appear }) {
   const [breath] = useState(() => new Animated.Value(GLOW_LOW));
   useEffect(() => {
@@ -161,9 +165,9 @@ const LeafGlow = memo(function LeafGlow({ accent, reduceMotion, appear }) {
       <Svg width={GLOW_R * 2} height={GLOW_R * 2}>
         <Defs>
           <RadialGradient id="tasbihLeafGlow" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={accent} stopOpacity="0.3" />
-            <Stop offset="0.45" stopColor={accent} stopOpacity="0.14" />
-            <Stop offset="0.75" stopColor={accent} stopOpacity="0.04" />
+            <Stop offset="0" stopColor={accent} stopOpacity="0.14" />
+            <Stop offset="0.45" stopColor={accent} stopOpacity="0.06" />
+            <Stop offset="0.75" stopColor={accent} stopOpacity="0.015" />
             <Stop offset="1" stopColor={accent} stopOpacity="0" />
           </RadialGradient>
         </Defs>
@@ -262,11 +266,11 @@ function makeMotion() {
 // Падающий и лежащий лист. Пропсы — примитивы и стабильные объекты: главный
 // экран перерисовывается каждую секунду (часы), и петли не должны
 // перезапускаться.
-const FallingLeaf = memo(function FallingLeaf({ plan, art, accent, hasGift, enabled, reduceMotion, label, hint, onOpen }) {
+const FallingLeaf = memo(function FallingLeaf({ plan, accent, hasGift, enabled, reduceMotion, label, hint, onOpen }) {
   const [motion] = useState(makeMotion);
   const [landed, setLanded] = useState(false);
+  const { rest, art } = plan;
   const size = leafSize(art);
-  const { rest } = plan;
 
   // Весь полёт, посадка и проявление свечения — одна нативная анимация.
   // isInteraction: false — иначе InteractionManager ждал бы конца полёта,
@@ -300,8 +304,8 @@ const FallingLeaf = memo(function FallingLeaf({ plan, art, accent, hasGift, enab
     const { fall, gust, press } = motion;
     const frames = out => fall.interpolate({ inputRange: plan.input, outputRange: out.map(round4) });
     const gustIn = [0, 0.25, 0.55, 0.8, 1];
-    const gustY = gust.interpolate({ inputRange: gustIn, outputRange: [0, -4, -0.5, -1.5, 0] });
-    const gustRot = gust.interpolate({ inputRange: gustIn, outputRange: [0, -7, 4, -1.5, 0] });
+    const gustY = gust.interpolate({ inputRange: gustIn, outputRange: [0, -2.5, -0.3, -1, 0] });
+    const gustRot = gust.interpolate({ inputRange: gustIn, outputRange: [0, -4, 2.5, -1, 0] });
     const show = fall.interpolate({ inputRange: plan.show[0], outputRange: plan.show[1] });
     const rotate = Animated.add(frames(plan.rot), gustRot)
       .interpolate({ inputRange: [-720, 720], outputRange: ['-720deg', '720deg'] });
@@ -313,7 +317,6 @@ const FallingLeaf = memo(function FallingLeaf({ plan, art, accent, hasGift, enab
         transform: [{ translateX: frames(plan.x) }, { translateY: Animated.add(frames(plan.y), gustY) }],
       },
       leaf: { transform: [{ rotate }, { scale: press }] },
-      shadow: { opacity: Animated.multiply(show, 0.3) },
     };
   }, [motion, plan, reduceMotion]);
 
@@ -324,13 +327,6 @@ const FallingLeaf = memo(function FallingLeaf({ plan, art, accent, hasGift, enab
 
   return (
     <>
-      <Animated.View pointerEvents="none" style={[styles.shadow, {
-        left: rest.x - rest.halfW * 0.9, top: rest.barTop - 4, width: rest.halfW * 1.8,
-      }, styleFor.shadow]}>
-        <Svg width="100%" height="100%" viewBox="0 0 100 8" preserveAspectRatio="none">
-          <Ellipse cx={50} cy={4} rx={50} ry={4} fill="#000" />
-        </Svg>
-      </Animated.View>
       <Animated.View pointerEvents="box-none"
         style={[styles.mover, { left: rest.x - HIT / 2, top: rest.y - HIT / 2 }, styleFor.mover]}>
         <Pressable onPress={() => { hapticLight(); onOpen(); }} disabled={!enabled}
@@ -343,7 +339,9 @@ const FallingLeaf = memo(function FallingLeaf({ plan, art, accent, hasGift, enab
             <Animated.View style={[styles.leaf, {
               width: size.w, height: size.h, left: (HIT - size.w) / 2, top: (HIT - size.h) / 2,
             }, styleFor.leaf]}>
-              <Image source={art.source} style={{ width: size.w, height: size.h }} resizeMode="contain" />
+              {/* Силуэт белый с альфой: цвет даёт схема, как сценам на обоях. */}
+              <Image source={art.source} resizeMode="contain"
+                style={{ width: size.w, height: size.h, tintColor: accent, opacity: LEAF_OPACITY }} />
               {reduceMotion ? null : <Dew size={size} />}
             </Animated.View>
             {hasGift ? (
@@ -399,25 +397,31 @@ export default memo(function TasbihEntry() {
     return () => sub.remove();
   }, []);
 
-  const tree = state ? activeTree(state) : null;
-  const art = LEAF_ART[tree?.species] || LEAF_ART.olive;
   const enabled = !!state || !!error;
-  const size = useMemo(() => leafSize(art), [art]);
+  const lastArt = useRef(-1);
 
   // Новый полёт: при первом появлении (когда состояние прочитано и слой
-  // измерен) и после долгой паузы. Смена породы или размеров окна лист не
-  // роняет заново — он остаётся там, где лежит. Системный флаг «Уменьшение
-  // движения» приходит асинхронно: если он сменился, план пересчитывается.
+  // измерен) и после долгой паузы, каждый раз с другим листом. Смена
+  // размеров окна лист не роняет заново — он остаётся там, где лежит.
+  // Системный флаг «Уменьшение движения» приходит асинхронно: если он
+  // сменился, план пересчитывается с тем же листом.
   const ready = enabled && !!frame;
   const planned = useRef(null);
   useEffect(() => {
     const key = `${fallKey}:${reduceMotion}`;
     if (!ready || planned.current === key) return;
+    const fresh = !planned.current?.startsWith(`${fallKey}:`);
     planned.current = key;
+    if (fresh || lastArt.current < 0) {
+      const shift = LEAF_ART.length > 1 ? 1 + Math.floor(Math.random() * (LEAF_ART.length - 1)) : 0;
+      lastArt.current = lastArt.current < 0 ? Math.floor(Math.random() * LEAF_ART.length)
+        : (lastArt.current + shift) % LEAF_ART.length;
+    }
+    const art = LEAF_ART[lastArt.current];
     const barTop = height - insets.bottom - TAB_ISLAND.bottomGap - TAB_ISLAND.height - frame.y;
-    const rest = planRest(frame.w, barTop, size);
-    setPlan(planFall(frame.w, -frame.y - LEAF_MAX, rest, reduceMotion));
-  }, [ready, fallKey, frame, height, insets.bottom, size, reduceMotion]);
+    const rest = planRest(frame.w, barTop, leafSize(art));
+    setPlan({ ...planFall(frame.w, -frame.y - LEAF_MAX, rest, reduceMotion), art });
+  }, [ready, fallKey, frame, height, insets.bottom, reduceMotion]);
 
   const hasGift = !!state && (
     Object.values(state.seeds || {}).reduce((sum, n) => sum + n, 0) > 0 || (state.pendingDrops?.length ?? 0) > 0
@@ -432,7 +436,7 @@ export default memo(function TasbihEntry() {
       {/* Новый полёт — новый экземпляр: его значения анимации стартуют с нуля,
           и лист не мелькает на новом месте посадки до начала падения. */}
       {plan ? (
-        <FallingLeaf key={fallKey} plan={plan} art={art} accent={accent} hasGift={hasGift} enabled={enabled}
+        <FallingLeaf key={fallKey} plan={plan} accent={accent} hasGift={hasGift} enabled={enabled}
           reduceMotion={reduceMotion} label={label} hint={hint} onOpen={openGarden} />
       ) : null}
 
@@ -448,8 +452,8 @@ export default memo(function TasbihEntry() {
 
 // Сколько места снизу прокрутки занимает лежащий лист: главный экран добавляет
 // это к отступу под таб-бар, чтобы последняя строка поднималась выше листа.
-// Лежащий лист не выше ~40 пунктов при любой породе (площадь LEAF_AREA).
-export const LEAF_CLEARANCE = 44;
+// Лежащий лист почти плашмя — не выше ~30 пунктов при любой форме.
+export const LEAF_CLEARANCE = 36;
 
 const styles = StyleSheet.create({
   mover: { position: 'absolute', width: HIT, height: HIT },
@@ -461,5 +465,4 @@ const styles = StyleSheet.create({
   leaf: { position: 'absolute' },
   dew: { position: 'absolute', width: DEW.size, height: DEW.size },
   ember: { position: 'absolute', width: EMBER.size, height: EMBER.size },
-  shadow: { position: 'absolute', height: 8 },
 });

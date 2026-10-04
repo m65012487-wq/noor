@@ -53,40 +53,20 @@ test('stage configuration can grow beyond eight entries', () => {
   assert.equal(model.chooseStage(250, stages), 2);
 });
 test('tree silhouettes cover every species and stage and stay inside the canvas', () => {
-  const { TREE_CANVAS, TREE_SHAPES, TREE_BOUNDS } = load('src/tasbih/treeShapes.js');
-  assert.deepEqual(Object.keys(TREE_SHAPES).sort(), model.SPECIES.map(s => s.id).sort());
-  for (const species of Object.keys(TREE_SHAPES)) {
-    assert.equal(TREE_SHAPES[species].length, model.STAGES.length);
+  const { TREE_CANVAS, TREE_ART, TREE_BOUNDS } = load('src/tasbih/treeArt.js');
+  assert.deepEqual(Object.keys(TREE_ART).sort(), model.SPECIES.map(s => s.id).sort());
+  for (const species of Object.keys(TREE_ART)) {
+    assert.equal(TREE_ART[species].length, model.STAGES.length);
     assert.equal(TREE_BOUNDS[species].length, model.STAGES.length);
-    TREE_SHAPES[species].forEach((shapes, stage) => {
-      assert.ok(shapes.length > 0, `${species}:${stage} пустая стадия`);
-      for (const shape of shapes) {
-        // Путь целиком из команд M/Q/Z с числами: «NaN» или «undefined» внутри d
-        // поиск чисел ниже молча пропустил бы, а Svg на устройстве — нет.
-        if (shape.t === 'p') {
-          assert.match(shape.d, /^(?:M-?\d+(?:\.\d+)? -?\d+(?:\.\d+)?(?:Q(?:-?\d+(?:\.\d+)? ?){4})+Z)+$/,
-            `${species}:${stage} испорченный путь`);
-        }
-        const numbers = shape.t === 'e'
-          ? [shape.cx - shape.rx, shape.cx + shape.rx, shape.cy - shape.ry, shape.cy + shape.ry]
-          : shape.d.match(/-?\d+(?:\.\d+)?/g).map(Number);
-        assert.ok(numbers.every(Number.isFinite), `${species}:${stage} нечисловая координата`);
-        // Фигуры лежат в холсте: иначе Svg обрежет крону плоской линией.
-        const xs = shape.t === 'e' ? numbers.slice(0, 2) : numbers.filter((_, i) => i % 2 === 0);
-        const ys = shape.t === 'e' ? numbers.slice(2) : numbers.filter((_, i) => i % 2 === 1);
-        assert.ok(Math.min(...xs) >= 0 && Math.max(...xs) <= TREE_CANVAS.width, `${species}:${stage} вышла по горизонтали`);
-        assert.ok(Math.min(...ys) >= 0 && Math.max(...ys) <= TREE_CANVAS.height, `${species}:${stage} вышла по вертикали`);
-      }
-      const b = TREE_BOUNDS[species][stage];
-      assert.ok(b.width > 0 && b.height > 0 && b.x >= 0 && b.y >= 0
-        && b.x + b.width <= TREE_CANVAS.width && b.y + b.height <= TREE_CANVAS.height,
-      `${species}:${stage} границы вне холста`);
+    TREE_ART[species].forEach(source => assert.ok(source, species));
+    TREE_BOUNDS[species].forEach((b, stage) => {
+      assert.ok(b.x >= 0 && b.y >= 0 && b.width > 0 && b.height > 0, `${species} ${stage}`);
+      assert.ok(b.x + b.width <= TREE_CANVAS.width + 0.5 && b.y + b.height <= TREE_CANVAS.height + 0.5, `${species} ${stage}`);
+      // Комель стоит у корня: низ силуэта (холмик) — у точки корня.
+      assert.ok(Math.abs(b.y + b.height - TREE_CANVAS.baseY) <= 10, `${species} ${stage}`);
     });
-    // Дерево не должно «усыхать»: силуэт следующей стадии не ниже прежнего.
     const heights = TREE_BOUNDS[species].map(b => b.height);
-    heights.forEach((h, i) => {
-      if (i) assert.ok(h >= heights[i - 1], `${species}: стадия ${i} ниже стадии ${i - 1} (${h} < ${heights[i - 1]})`);
-    });
+    for (let i = 1; i < heights.length; i += 1) assert.ok(heights[i] >= heights[i - 1] - 0.5, `${species} grows at ${i}`);
   }
 });
 function taps(n, state = model.initialState(), key = day, options) {

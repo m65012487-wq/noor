@@ -1,7 +1,7 @@
-import { TREE_BOUNDS, TREE_CANVAS } from './treeShapes';
+import { TREE_BOUNDS, TREE_CANVAS } from './treeArt';
 
-// Силуэт дерева рисуется в Svg с viewBox 0 0 240 300 и preserveAspectRatio по
-// умолчанию (meet): холст вписан в область по центру, масштаб один на обе оси.
+// Силуэт дерева — картинка холста 240×300 с resizeMode contain: холст вписан
+// в область по центру, масштаб один на обе оси.
 // Эффекты поверх дерева (листья, полив) живут в координатах области, поэтому
 // переводят точки холста тем же способом.
 const FALLBACK = { x: 98, y: 240, width: 44, height: 39 };

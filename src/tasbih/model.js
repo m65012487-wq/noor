@@ -26,7 +26,7 @@ export const SEQUENCE_MAX_TARGET = 999;
 // is one unit of growth; the first `bonusTaps` of each day count `bonusMultiplier` times.
 export const GROWTH = { bonusTaps: 33, bonusMultiplier: 2 };
 
-// 8 stages shared by every species; the silhouette is resolved by (species, stage index) in treeShapes.js.
+// 8 stages shared by every species; the silhouette is resolved by (species, stage index) in treeArt.js.
 // Стадию задаёт только накопленный рост — сроков нет: 99 поминаний в день дают
 // плоды примерно за 15 дней, 33 — за месяц, 300 — за неделю.
 export const STAGES = [
