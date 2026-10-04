@@ -121,7 +121,9 @@ export default function TasbihScreen({ onClose }) {
   const breathStyle = useMemo(() => wateringBreath(watering, rootY), [watering, rootY]);
 
   return (
-    <ThemedBackground>
+    // Свой фон — чистый градиент схемы, без сцены обоев: дерево того же
+    // цвета, что и сцены, и на переднем плане пейзажа оно тонуло.
+    <ThemedBackground plain>
       <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose} {...swipes.right.panHandlers}>
         {/* Шапка: закрыть — режим — сад. Названия экрана нет: о том, где
             человек находится, говорит дерево, а строка режима нужнее. */}

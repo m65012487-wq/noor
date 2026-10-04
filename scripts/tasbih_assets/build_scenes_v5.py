@@ -1,4 +1,4 @@
-"""v5: сцены-обои из кадров Krea-2 (prompts_scenes_v5.py, сырьё E:\\AI\\noor_gen\\v5\\scene).
+"""v5: сцены-обои из кадров Krea-2 (prompts_scenes_v5.py, prompts_wall_v5.py; сырьё E:\\AI\\noor_gen\\v5\\{scene,wall}).
 
 Кадр — пейзаж в трёх тонах серого на белом. Тон пикселя говорит, к какому плану
 он принадлежит: светло-серое — дальний, средне-серое — средний, почти чёрное —
@@ -7,7 +7,7 @@
 дальний — оба, поэтому при сдвиге параллакса между ними не открывается дыр,
 а наложение даёт ближнему плану самую плотную заливку.
 
-python build_scenes_v5.py sheet   — превью всех кандидатов на фоне схемы
+python build_scenes_v5.py sheet [scene|wall] — превью кандидатов из папки на фоне схемы
 python build_scenes_v5.py build   — выбранные (SCENES ниже) → assets/scenes/<id>-1..3.png
 """
 import sys, pathlib
@@ -18,7 +18,7 @@ from scipy import ndimage
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from build_v5 import alpha_of
 
-RAW = pathlib.Path(r"E:\AI\noor_gen\v5\scene")
+RAW = pathlib.Path(r"E:\AI\noor_gen\v5")
 OUT = pathlib.Path(__file__).resolve().parents[2] / "assets" / "scenes"
 SIZE = (900, 1950)
 # Прозрачность планов от дальнего к ближнему — по «Пустыне» (0.07–0.15, ~0.25, до 0.45).
@@ -27,11 +27,10 @@ SIZE = (900, 1950)
 LAYER_ALPHA = (0.10, 0.18, 0.26)
 SOFT = 0.07            # ширина мягкого края между тонами
 
-# id сцены → кадр.
+# id сцены → кадр (путь от RAW без расширения).
 SCENES = {
-    "caravan": "caravan_5602", "horses": "horses_5601", "cedars": "cedars_5601", "rocks": "rocks_5601",
-    "olives": "olives_5601",
-    "almond": "almond_5602", "tulips": "tulips_5601", "roses": "roses_5601", "lilies": "lilies_5601",
+    "caravan": "scene/caravan_5602", "cedars": "scene/cedars_5601",
+    "rider": "wall/rider_5703", "blossom": "wall/blossom_5704",
 }
 
 BG = ((27, 36, 48), (13, 19, 27))
@@ -79,15 +78,15 @@ def composite(planes, size=(300, 650)):
     return canvas.convert("RGB")
 
 
-def sheet():
-    files = sorted(RAW.glob("*.png"))
+def sheet(sub="scene"):
+    files = sorted((RAW / sub).glob("*.png"))
     cols = 6
     out = Image.new("RGB", (cols * 300, ((len(files) + cols - 1) // cols) * 670), (10, 14, 20))
     for i, f in enumerate(files):
         cell = composite(layers(f))
         ImageDraw.Draw(cell).text((6, 6), f.stem, fill=(220, 230, 240))
         out.paste(cell, ((i % cols) * 300, (i // cols) * 670))
-    target = RAW.parent / "sheet_scenes.jpg"
+    target = RAW / f"sheet_{sub}.jpg"
     out.save(target, quality=88)
     print(target)
 
@@ -100,4 +99,7 @@ def build():
 
 
 if __name__ == "__main__":
-    {"sheet": sheet, "build": build}[sys.argv[1]]()
+    if sys.argv[1] == "sheet":
+        sheet(*sys.argv[2:3])
+    else:
+        build()

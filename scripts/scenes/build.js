@@ -174,7 +174,7 @@ const SCENES = {
 (async () => {
   // Аркада оставлена в коде как заготовка, но в приложение не подключена —
   // её кадры не пишем, чтобы не плодить неиспользуемые файлы.
-  for (const [name, make] of Object.entries(SCENES).filter(([id]) => id !== 'arcade')) {
+  for (const [name, make] of Object.entries(SCENES).filter(([id]) => id !== 'arcade' && id !== 'crescent')) {
     const planes = make();
     for (let i = 0; i < planes.length; i += 1) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" `

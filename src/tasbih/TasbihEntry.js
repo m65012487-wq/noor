@@ -30,8 +30,11 @@ const TWIG_MAX_H = 84;
 const TUCK = 8;
 // Зазор между веточкой и верхом острова таб-бара.
 const BAR_GAP = 8;
-// Тише текста и иконок: веточка — часть обоев, а не кнопка.
-const TWIG_OPACITY = 0.82;
+// Ветка непрозрачна, а вокруг силуэта — мягкий ореол самым тёмным цветом
+// схемы. Сцена на обоях того же цвета и лежит ровно под веткой: полупрозрачная
+// ветка без ореола в ней тонула. Непрозрачная — всегда ярче полупрозрачных
+// планов сцены, а ореол отделяет её контур, как тень отделяет текст от обоев.
+const HALO = { radius: 6, opacity: 0.95 };
 // Если приложение пролежало в фоне дольше этого, веточка входит заново, другая.
 const AWAY_MS = 5 * 60 * 1000;
 // Экран успевает появиться, и ветка выпадает на глазах.
@@ -120,7 +123,7 @@ function swayLoop(value) {
 // проскакивает свой угол, возвращается и замирает. Потом её едва качает ветер.
 // В RN положительный поворот — по часовой стрелке, и кончик слева от оси от
 // него поднимается; наклон влево, в экран, — уменьшение угла.
-const Twig = memo(function Twig({ art, rise, place, accent, hasGift, enabled, reduceMotion, label, hint, onOpen }) {
+const Twig = memo(function Twig({ art, rise, place, accent, halo, hasGift, enabled, reduceMotion, label, hint, onOpen }) {
   const [motion] = useState(makeMotion);
   const [landed, setLanded] = useState(false);
   const size = twigSize(art);
@@ -193,9 +196,11 @@ const Twig = memo(function Twig({ art, rise, place, accent, hasGift, enabled, re
         hitSlop={8} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
         style={StyleSheet.absoluteFill}>
         {/* Силуэт белый с альфой: цвет даёт схема, как сценам на обоях. */}
-        <Animated.View style={pressStyle}>
+        {/* Тень у вида без фона iOS строит по альфе содержимого — то есть по
+            силуэту ветки, а не по рамке. */}
+        <Animated.View style={[pressStyle, styles.halo, { shadowColor: halo }]}>
           <Image source={art.source} resizeMode="contain"
-            style={{ width: size.w, height: size.h, tintColor: accent, opacity: TWIG_OPACITY }} />
+            style={{ width: size.w, height: size.h, tintColor: accent }} />
         </Animated.View>
         {/* Тёплая точка — только когда ветка уже на месте: во время входа
             она не должна мелькать у края. */}
@@ -211,7 +216,7 @@ export default memo(function TasbihEntry() {
   const { state, error } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
-  const { accent } = useAppearance();
+  const { accent, schemeColors } = useAppearance();
   const reduceMotion = useReduceMotion();
   const [open, setOpen] = useState(false);
   // Модальное окно на iOS живёт в своём UIWindow, и внутри него отступы
@@ -275,7 +280,7 @@ export default memo(function TasbihEntry() {
       {/* Новый вход — новый экземпляр: анимация стартует с нуля. Ждём, пока
           состояние прочитано и слой измерен, чтобы ветка вошла один раз. */}
       {enabled && place && entry ? (
-        <Twig key={entry.key} art={TWIG_ART[entry.index]} rise={entry.rise} place={place} accent={accent} hasGift={hasGift}
+        <Twig key={entry.key} art={TWIG_ART[entry.index]} rise={entry.rise} place={place} accent={accent} halo={schemeColors.bg[1]} hasGift={hasGift}
           enabled={enabled} reduceMotion={reduceMotion} label={label} hint={hint} onOpen={openGarden} />
       ) : null}
 
@@ -296,5 +301,6 @@ export const ENTRY_CLEARANCE = Math.round(TWIG_MAX_H * 0.6 + BAR_GAP);
 
 const styles = StyleSheet.create({
   twig: { position: 'absolute' },
+  halo: { shadowOpacity: HALO.opacity, shadowRadius: HALO.radius, shadowOffset: { width: 0, height: 0 } },
   ember: { position: 'absolute', left: 2, top: -6, width: EMBER.size, height: EMBER.size },
 });

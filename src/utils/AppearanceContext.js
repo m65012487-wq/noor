@@ -14,42 +14,34 @@ export const PATTERNS = [
   { id: 'none',   label_en: 'Plain',   label_ru: 'Без узора' },
   { id: 'bloom',  label_en: 'Bloom',   label_ru: 'Цветок' },
   { id: 'girih',  label_en: 'Girih',   label_ru: 'Гирих' },
-  { id: 'scales', label_en: 'Domes',   label_ru: 'Купола' },
-  { id: 'lanterns', label_en: 'Lanterns', label_ru: 'Фонари' },
 
   // Сцены — не плитки: они не повторяются, а растягиваются на весь экран
   // и разложены на три плана, которые сдвигаются при наклоне телефона.
   // Глубина держится на прозрачности слоёв, поэтому цвет по-прежнему
   // задаётся схемой, и одна картинка работает со всеми.
   // «Город» убран по просьбе пользователя; сцены «Горы», «Оазис», «Сад» и
-  // «Мечеть у воды» пробовали и тоже убрали — не понравились.
+  // «Мечеть у воды» пробовали и тоже убрали — не понравились. Позже по
+  // просьбе убраны узоры «Купола» и «Фонари» и сцены «Полумесяц», «Скакуны»,
+  // «Скалы», «Оливы», «Миндаль», «Тюльпаны», «Розы», «Кувшинки».
   { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
-  { id: 'crescent', label_en: 'Crescent', label_ru: 'Полумесяц', kind: 'scene' },
-  // Сцены Krea-2 (scripts/tasbih_assets/build_scenes_v5.py): пейзаж в трёх тонах
-  // серого разложен по тону на три плана. Сначала строже — караван, скакуны,
-  // кедры, скалы; потом оливы; потом нежнее — миндаль, тюльпаны, розы, кувшинки.
+  // Сцены Krea-2 (scripts/tasbih_assets/build_scenes_v5.py): пейзаж в оттенках
+  // серого разложен по тону на три плана.
   { id: 'caravan',  label_en: 'Caravan',  label_ru: 'Караван',  kind: 'scene' },
-  { id: 'horses',   label_en: 'Horses',   label_ru: 'Скакуны',  kind: 'scene' },
   { id: 'cedars',   label_en: 'Cedars',   label_ru: 'Кедры',    kind: 'scene' },
-  { id: 'rocks',    label_en: 'Rocks',    label_ru: 'Скалы',    kind: 'scene' },
-  { id: 'olives',   label_en: 'Olives',   label_ru: 'Оливы',    kind: 'scene' },
-  { id: 'almond',   label_en: 'Almond',   label_ru: 'Миндаль',  kind: 'scene' },
-  { id: 'tulips',   label_en: 'Tulips',   label_ru: 'Тюльпаны', kind: 'scene' },
-  { id: 'roses',    label_en: 'Roses',    label_ru: 'Розы',     kind: 'scene' },
-  { id: 'lilies',   label_en: 'Lilies',   label_ru: 'Кувшинки', kind: 'scene' },
+  // Детальные обои под раскладку главного экрана (prompts_wall_v5.py): верх и
+  // середина пустые — там заголовок, кольцо и расписание; рисунок внизу слева,
+  // правый нижний угол спокойный — туда входит веточка.
+  { id: 'rider',    label_en: 'Rider',    label_ru: 'Всадник',  kind: 'scene' },
+  { id: 'blossom',  label_en: 'Blossom',  label_ru: 'Цветение', kind: 'scene' },
 ];
 
-// Узор по умолчанию и замена убранных сцен: сохранённый выбор сцены, которой
-// больше нет («город», «горы», «оазис», «сад», «мечеть у воды»), откатывается
-// сюда. «Пустыня», а не «Полумесяц»: крупный полумесяц той сцены стоял бы ровно
-// за кольцом обратного отсчёта, где уже нарисована фаза луны.
+// Узор по умолчанию и замена убранных узоров и сцен: сохранённый выбор, которого
+// больше нет в PATTERNS, откатывается сюда.
 export const DEFAULT_PATTERN = 'desert';
 
 export const PATTERN_TILES = {
   bloom: require('../../assets/patterns/bloom.png'),
   girih: require('../../assets/patterns/girih.png'),
-  scales: require('../../assets/patterns/scales.png'),
-  lanterns: require('../../assets/patterns/lanterns.png'),
 };
 
 // Сцена — не один файл, а три плана от дальнего к ближнему. Разложены они
@@ -61,54 +53,25 @@ export const SCENE_LAYERS = {
     require('../../assets/scenes/desert-2.png'),
     require('../../assets/scenes/desert-3.png'),
   ],
-  crescent: [
-    require('../../assets/scenes/crescent-1.png'),
-    require('../../assets/scenes/crescent-2.png'),
-    require('../../assets/scenes/crescent-3.png'),
-  ],  caravan: [
+  caravan: [
     require('../../assets/scenes/caravan-1.png'),
     require('../../assets/scenes/caravan-2.png'),
     require('../../assets/scenes/caravan-3.png'),
-  ],
-  horses: [
-    require('../../assets/scenes/horses-1.png'),
-    require('../../assets/scenes/horses-2.png'),
-    require('../../assets/scenes/horses-3.png'),
   ],
   cedars: [
     require('../../assets/scenes/cedars-1.png'),
     require('../../assets/scenes/cedars-2.png'),
     require('../../assets/scenes/cedars-3.png'),
   ],
-  rocks: [
-    require('../../assets/scenes/rocks-1.png'),
-    require('../../assets/scenes/rocks-2.png'),
-    require('../../assets/scenes/rocks-3.png'),
+  rider: [
+    require('../../assets/scenes/rider-1.png'),
+    require('../../assets/scenes/rider-2.png'),
+    require('../../assets/scenes/rider-3.png'),
   ],
-  olives: [
-    require('../../assets/scenes/olives-1.png'),
-    require('../../assets/scenes/olives-2.png'),
-    require('../../assets/scenes/olives-3.png'),
-  ],
-  almond: [
-    require('../../assets/scenes/almond-1.png'),
-    require('../../assets/scenes/almond-2.png'),
-    require('../../assets/scenes/almond-3.png'),
-  ],
-  tulips: [
-    require('../../assets/scenes/tulips-1.png'),
-    require('../../assets/scenes/tulips-2.png'),
-    require('../../assets/scenes/tulips-3.png'),
-  ],
-  roses: [
-    require('../../assets/scenes/roses-1.png'),
-    require('../../assets/scenes/roses-2.png'),
-    require('../../assets/scenes/roses-3.png'),
-  ],
-  lilies: [
-    require('../../assets/scenes/lilies-1.png'),
-    require('../../assets/scenes/lilies-2.png'),
-    require('../../assets/scenes/lilies-3.png'),
+  blossom: [
+    require('../../assets/scenes/blossom-1.png'),
+    require('../../assets/scenes/blossom-2.png'),
+    require('../../assets/scenes/blossom-3.png'),
   ],
 };
 
