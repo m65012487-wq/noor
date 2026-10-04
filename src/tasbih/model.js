@@ -2,7 +2,20 @@ export const DHIKR = [
   { id: 'subhanallah', arabic: 'سُبْحَانَ اللَّهِ', ru: 'Субханаллах', en: 'SubhanAllah', translation_ru: 'Пречист Аллах', translation_en: 'Glory be to Allah', target: 33 },
   { id: 'alhamdulillah', arabic: 'الْحَمْدُ لِلَّهِ', ru: 'Альхамдулиллях', en: 'Alhamdulillah', translation_ru: 'Хвала Аллаху', translation_en: 'Praise be to Allah', target: 33 },
   { id: 'allahuakbar', arabic: 'اللَّهُ أَكْبَرُ', ru: 'Аллаху акбар', en: 'Allahu Akbar', translation_ru: 'Аллах превелик', translation_en: 'Allah is the greatest', target: 33 },
+  // Дальше идут отдельные поминания: в «последовательность» они не входят,
+  // её составляют только три первых (см. SEQUENCE).
+  { id: 'la_ilaha_illallah', arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ', ru: 'Ля иляха илляЛлах', en: 'La ilaha illallah', translation_ru: 'Нет божества, кроме Аллаха', translation_en: 'There is no god but Allah', target: 33 },
+  { id: 'astaghfirullah', arabic: 'أَسْتَغْفِرُ اللَّهَ', ru: 'Астагфируллах', en: 'Astaghfirullah', translation_ru: 'Прошу прощения у Аллаха', translation_en: "I seek Allah's forgiveness", target: 33 },
+  { id: 'subhanallahi_wa_bihamdihi', arabic: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', ru: 'Субханаллахи ва бихамдихи', en: 'SubhanAllahi wa bihamdihi', translation_ru: 'Пречист Аллах, и хвала Ему', translation_en: 'Glory and praise be to Allah', target: 33 },
+  { id: 'subhanallahil_azim', arabic: 'سُبْحَانَ اللَّهِ الْعَظِيمِ', ru: 'Субханаллахиль-Азым', en: 'SubhanAllahil-Azim', translation_ru: 'Пречист Аллах Великий', translation_en: 'Glory be to Allah the Magnificent', target: 33 },
+  { id: 'la_hawla', arabic: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', ru: 'Ля хауля ва ля куввата илля билЛях', en: 'La hawla wa la quwwata illa billah', translation_ru: 'Нет мощи и силы, кроме как у Аллаха', translation_en: 'There is no power nor strength except with Allah', target: 33 },
+  { id: 'salawat', arabic: 'اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ', ru: 'Аллахумма салли аля Мухаммад', en: 'Allahumma salli ala Muhammad', translation_ru: 'О Аллах, благослови Мухаммада', translation_en: 'O Allah, send blessings upon Muhammad', target: 33 },
+  { id: 'hasbunallah', arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', ru: 'Хасбуна-Ллаху ва ни‘маль-вакиль', en: "Hasbunallahu wa ni'mal wakil", translation_ru: 'Достаточно нам Аллаха, и Он — лучший Покровитель', translation_en: 'Allah is sufficient for us, and He is the best Disposer of affairs', target: 33 },
 ];
+// «Последовательность» — всегда три первых поминания по кругу. Задаётся
+// явными id, а не длиной DHIKR: список поминаний растёт, а круг остаётся в 99.
+export const SEQUENCE = ['subhanallah', 'alhamdulillah', 'allahuakbar'];
+export const SEQUENCE_DHIKR = SEQUENCE.map(id => DHIKR.find(d => d.id === id));
 // Prototype coefficients are separate from the counter and artwork.
 export const GROWTH = { dailyCap: 100, firstBand: 33, secondBand: 99, laterWeight: 0.05, secondWeight: 0.35, activeDayContribution: 65 };
 
@@ -58,7 +71,7 @@ function customDhikrById(state, id) {
   return (state.customDhikr || []).find(d => `custom:${d.id}` === id);
 }
 // `free` (no fixed phrase) and `custom:<id>` (the user's own remembrances)
-// share the same target rule as the three single dhikr: 33 while
+// share the same target rule as the single dhikr: 33 while
 // `circleLimit` is on, unbounded (target: null) once it's off. `sequence`
 // ignores circleLimit entirely — it is always three circles of 33.
 export function definition(state) {
@@ -77,13 +90,14 @@ export function definition(state) {
   }
   const found = DHIKR.find(d => d.id === state.selectedDhikr);
   if (found) return state.selectedDhikr === 'sequence' ? found : { ...found, target: state.circleLimit ? 33 : null };
-  return DHIKR[state.currentDhikrIndex] || DHIKR[0];
+  // 'sequence' (and any unknown id) resolves through the three-item circle.
+  return SEQUENCE_DHIKR[state.currentDhikrIndex] || SEQUENCE_DHIKR[0];
 }
 export function advance(state) {
   const target = definition(state).target;
   if (target == null || state.currentDhikrCount < target) return state;
   return { ...state, currentDhikrCount: 0,
-    currentDhikrIndex: state.selectedDhikr === 'sequence' ? (state.currentDhikrIndex + 1) % DHIKR.length : state.currentDhikrIndex };
+    currentDhikrIndex: state.selectedDhikr === 'sequence' ? (state.currentDhikrIndex + 1) % SEQUENCE.length : state.currentDhikrIndex };
 }
 export function selectDhikr(state, id) {
   const valid = id === 'sequence' || id === 'free' || DHIKR.some(d => d.id === id) || !!customDhikrById(state, id);
@@ -117,7 +131,7 @@ export function removeCustomDhikr(state, id) {
 // per-dhikr circle limit off, every 99th tap) is the stronger `'complete'`.
 export function tapEvent(prev, next) {
   if (next.selectedDhikr === 'sequence') {
-    if (next.currentDhikrCount === 33) return prev.currentDhikrIndex === 2 ? 'complete' : 'circle';
+    if (next.currentDhikrCount === 33) return prev.currentDhikrIndex === SEQUENCE.length - 1 ? 'complete' : 'circle';
     return 'tap';
   }
   const target = definition(next).target;
@@ -281,7 +295,7 @@ function sanitizeCounters(state, base) {
   for (const key of ['currentDhikrIndex', 'currentDhikrCount', 'totalDhikrCount', 'activeDays']) {
     if (!Number.isFinite(next[key]) || next[key] < 0) next[key] = base[key];
   }
-  next.currentDhikrIndex = Math.floor(next.currentDhikrIndex) % DHIKR.length;
+  next.currentDhikrIndex = Math.floor(next.currentDhikrIndex) % SEQUENCE.length;
   const target = definition(next).target;
   next.currentDhikrCount = target == null ? Math.floor(next.currentDhikrCount) : Math.min(Math.floor(next.currentDhikrCount), target);
   for (const key of ['perDhikrCounts', 'dailyDhikrCounts']) {

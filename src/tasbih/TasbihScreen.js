@@ -10,11 +10,14 @@ import { useAppearance } from '../utils/AppearanceContext';
 import { useLang } from '../i18n/LanguageContext';
 import { hapticHeavy, hapticLight, hapticSuccess } from '../utils/haptics';
 import TreeView from './TreeView';
+import LeafBurst from './LeafBurst';
+import WateringCan, { wateringBreath } from './WateringCan';
+import { treeGeometry } from './treeGeometry';
 import SeedDrop from './SeedDrop';
 import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
 import useTasbih from './useTasbih';
-import { activeTree, definition, DHIKR, growthRatio, SPECIES, STAGE_NAMES } from './model';
+import { activeTree, definition, DHIKR, growthRatio, SEQUENCE_DHIKR, SPECIES, STAGE_NAMES } from './model';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -44,6 +47,12 @@ export default function TasbihScreen({ onClose }) {
   const [selector, setSelector] = useState(false);
   const [garden, setGarden] = useState(false);
   const [pulse, setPulse] = useState(0);
+  // Эффекты поверх дерева: размер области, последнее нажатие (листья) и
+  // последний завершённый круг (полив). Новый объект на каждое событие.
+  const [treeSize, setTreeSize] = useState({ width: 0, height: 0 });
+  const [burst, setBurst] = useState(null);
+  const [water, setWater] = useState(null);
+  const watering = useRef(new Animated.Value(0)).current;
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   // Свайп вправо и вниз закрывает экран — привычный для iOS выход, которым
@@ -84,7 +93,9 @@ export default function TasbihScreen({ onClose }) {
     if (event === 'circle') hapticHeavy();
     else if (event === 'complete') hapticSuccess();
     setPulse(v => v + 1);
+    setBurst({ event });
     if (event !== 'tap') triggerFlash();
+    if (event === 'circle' || event === 'complete') setWater({ rich: event === 'complete' });
   };
   const tree = state ? activeTree(state) : null;
   const drop = state?.pendingDrops?.[0] || null;
@@ -94,6 +105,17 @@ export default function TasbihScreen({ onClose }) {
   const treeSpecies = tree ? SPECIES.find(s => s.id === tree.species) : null;
   const speciesLabel = treeSpecies ? (ru ? treeSpecies.ru : treeSpecies.en) : '';
   const ratio = tree ? growthRatio(tree) : 0;
+  const onTreeLayout = e => {
+    const { width, height } = e.nativeEvent.layout;
+    setTreeSize(prev => (Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5 ? prev : { width, height }));
+  };
+  // Геометрия дерева в координатах области: из неё эффекты знают, где крона и корень.
+  const treeSpeciesId = tree?.species;
+  const treeStage = tree?.stage;
+  const geo = useMemo(() => (treeSpeciesId ? treeGeometry(treeSpeciesId, treeStage, treeSize) : null),
+    [treeSpeciesId, treeStage, treeSize]);
+  const rootY = geo?.root.y;
+  const breathStyle = useMemo(() => wateringBreath(watering, rootY), [watering, rootY]);
 
   return (
     <ThemedBackground>
@@ -137,7 +159,7 @@ export default function TasbihScreen({ onClose }) {
           <>
             <Animated.View style={[styles.words, { opacity: textFade }]}>
               {!!item.arabic && <Text style={styles.arabic} accessibilityLanguage="ar"
-                numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>{item.arabic}</Text>}
+                numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{item.arabic}</Text>}
               <Text style={styles.phrase} numberOfLines={2}>{phrase}</Text>
               {!!translation && <Text style={styles.translation} numberOfLines={2}>{translation}</Text>}
             </Animated.View>
@@ -156,7 +178,7 @@ export default function TasbihScreen({ onClose }) {
                 }]} />}
               </View>
               <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
-                {state.selectedDhikr === 'sequence' && DHIKR.map((d, index) => (
+                {state.selectedDhikr === 'sequence' && SEQUENCE_DHIKR.map((d, index) => (
                   <View key={d.id} style={[styles.dot, {
                     backgroundColor: index === state.currentDhikrIndex ? accent : COLORS.textMuted,
                     opacity: index === state.currentDhikrIndex ? 1 : 0.35,
@@ -165,11 +187,15 @@ export default function TasbihScreen({ onClose }) {
               </View>
             </Animated.View>
 
-            <Pressable onPress={onTap} style={styles.treeArea}
+            <Pressable onPress={onTap} style={styles.treeArea} onLayout={onTreeLayout}
               accessibilityRole="button"
               accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${ru ? 'из' : 'of'} ${item.target}` : ''}`}
               accessibilityHint={ru ? 'Нажмите дважды, чтобы засчитать одно поминание' : 'Double tap to count one remembrance'}>
-              <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />
+              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, reduceMotion ? null : breathStyle]}>
+                <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />
+              </Animated.View>
+              {!!geo && <LeafBurst geo={geo} burst={burst} reduceMotion={reduceMotion} />}
+              {!!geo && <WateringCan geo={geo} water={water} progress={watering} reduceMotion={reduceMotion} />}
               {drop && <SeedDrop key={dropKey} drop={drop} reduceMotion={reduceMotion} onDone={ackDrop} />}
             </Pressable>
 

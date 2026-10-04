@@ -339,6 +339,83 @@ test('restoreState validates circleLimit, customDhikr entries, and mode referenc
 
   assert.equal(model.restoreState({ ...base, selectedDhikr: 'free' }).selectedDhikr, 'free');
 });
+const EXTRA_DHIKR = ['la_ilaha_illallah', 'astaghfirullah', 'subhanallahi_wa_bihamdihi',
+  'subhanallahil_azim', 'la_hawla', 'salawat', 'hasbunallah'];
+test('DHIKR keeps the three classics first, then the extra remembrances, each complete and vocalized', () => {
+  assert.deepEqual(model.DHIKR.map(d => d.id), ['subhanallah', 'alhamdulillah', 'allahuakbar', ...EXTRA_DHIKR]);
+  assert.deepEqual(model.SEQUENCE, ['subhanallah', 'alhamdulillah', 'allahuakbar']);
+  assert.deepEqual(model.SEQUENCE_DHIKR.map(d => d.id), model.SEQUENCE);
+  assert.equal(new Set(model.DHIKR.map(d => d.id)).size, model.DHIKR.length);
+  for (const d of model.DHIKR) {
+    for (const key of ['arabic', 'ru', 'en', 'translation_ru', 'translation_en']) {
+      assert.equal(typeof d[key], 'string', `${d.id}.${key}`);
+      assert.ok(d[key].trim().length > 0, `${d.id}.${key} is empty`);
+    }
+    assert.equal(d.target, 33, d.id);
+    // Только арабские буквы, пробелы и огласовки (фатха…сукун и кинжальный алиф).
+    assert.match(d.arabic, /^[ء-يً-ْٰ ]+$/u, `${d.id} arabic has foreign characters`);
+    assert.match(d.arabic, /[ً-ْ]/u, `${d.id} arabic has no vowel marks`);
+    assert.equal(d.arabic, d.arabic.normalize('NFC'), `${d.id} arabic is not NFC-stable`);
+  }
+});
+test('the sequence stays three circles of 33 over the first three remembrances only', () => {
+  let state = taps(99);
+  assert.deepEqual(state.perDhikrCounts, { subhanallah: 33, alhamdulillah: 33, allahuakbar: 33 });
+  state = taps(1, state);
+  assert.equal(model.definition(state).id, 'subhanallah');
+  assert.equal(state.currentDhikrIndex, 0);
+  // Несколько полных кругов: индекс не выходит за 0..2, лишние поминания не попадают в счёт.
+  state = taps(99 * 3 - 1, state);
+  assert.equal(state.totalDhikrCount, 99 * 4);
+  assert.ok(state.currentDhikrIndex >= 0 && state.currentDhikrIndex <= 2);
+  assert.deepEqual(Object.keys(state.perDhikrCounts).sort(), ['alhamdulillah', 'allahuakbar', 'subhanallah']);
+  assert.deepEqual(Object.values(state.perDhikrCounts), [132, 132, 132]);
+  // Конец третьего круга — единственный 'complete', дальше снова первое поминание.
+  let s = taps(98);
+  const before = s;
+  s = model.registerDhikr(s, day);
+  assert.equal(model.tapEvent(before, s), 'complete');
+  assert.equal(model.definition(model.advance(s)).id, 'subhanallah');
+});
+test('each extra remembrance can be selected and counts a circle of 33 without joining the sequence', () => {
+  for (const id of EXTRA_DHIKR) {
+    let state = model.selectDhikr(taps(10), id);
+    assert.equal(state.selectedDhikr, id);
+    assert.equal(state.currentDhikrCount, 0);
+    assert.equal(state.currentDhikrIndex, 0);
+    assert.equal(model.definition(state).id, id);
+    assert.equal(model.definition(state).target, 33);
+    for (let i = 0; i < 32; i++) state = model.registerDhikr(state, day);
+    const before = state;
+    state = model.registerDhikr(state, day);
+    assert.equal(state.currentDhikrCount, 33, id);
+    assert.equal(model.tapEvent(before, state), 'circle', id);
+    // Следующее нажатие начинает новый круг того же поминания, а не следующего по списку.
+    state = model.registerDhikr(state, day);
+    assert.equal(state.currentDhikrCount, 1, id);
+    assert.equal(state.currentDhikrIndex, 0, id);
+    assert.equal(model.definition(state).id, id);
+    assert.equal(state.perDhikrCounts[id], 34, id);
+    // С выключенным ограничением цели нет.
+    assert.equal(model.definition(model.setCircleLimit(state, false)).target, null, id);
+  }
+  assert.equal(model.selectDhikr(model.initialState(), 'no_such_dhikr').selectedDhikr, 'sequence');
+});
+test('restoreState accepts the extra remembrance ids and still rejects unknown ones', () => {
+  const base = model.initialState();
+  for (const id of EXTRA_DHIKR) {
+    const restored = model.restoreState({ ...base, selectedDhikr: id, currentDhikrCount: 12 });
+    assert.equal(restored.selectedDhikr, id);
+    assert.equal(restored.currentDhikrCount, 12);
+    assert.equal(model.definition(restored).id, id);
+    // Цель 33: сохранённый счёт выше неё обрезается.
+    assert.equal(model.restoreState({ ...base, selectedDhikr: id, currentDhikrCount: 500 }).currentDhikrCount, 33);
+  }
+  assert.equal(model.restoreState({ ...base, selectedDhikr: 'no_such_dhikr' }).selectedDhikr, 'sequence');
+  // Индекс последовательности остаётся в пределах трёх, сколько бы ни было поминаний в списке.
+  assert.equal(model.restoreState({ ...base, currentDhikrIndex: 9 }).currentDhikrIndex, 0);
+  assert.equal(model.definition(model.restoreState({ ...base, currentDhikrIndex: 7 })).id, 'alhamdulillah');
+});
 test('v1 saves migrate with v3 mode defaults (circleLimit on, no custom dhikr)', () => {
   const v1 = { version: 1, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 0,
     totalDhikrCount: 0, perDhikrCounts: {}, treeGrowthProgress: 0, treeStage: 'olive_stage_01',

@@ -183,7 +183,10 @@ export default function PrayerTimesScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      {/* Нижний отступ — под плавающий таб-бар (62 + отступ + безопасная зона),
+          как на остальных вкладках: последний элемент прокрутки, пилюля входа
+          в тасбих, должен подниматься выше него, а не прятаться под ним. */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {loading && <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />}
         {error && (
           <Card style={{ borderColor: COLORS.danger }}>
@@ -259,11 +262,14 @@ export default function PrayerTimesScreen() {
             })}
           </>
         )}
+
+        {/* Вход в «Сад тасбиха» лежит в потоке прокрутки сразу под расписанием
+            (свёрнутым и раскрытым), а не отдельным блоком над таб-баром:
+            фиксированный блок поджимал кольцо и строки расписания на невысоких
+            экранах. В потоке он ни на что не может наехать. */}
+        <TasbihEntry />
       </ScrollView>
 
-      <View style={{ paddingBottom: 94, minHeight: 94 }}>
-        {!scheduleOpen && <TasbihEntry />}
-      </View>
       <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
       <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setRefresh(v => v + 1)} />
       <PrayerReminderSheet prayer={reminderPrayer} onClose={() => setReminderPrayer(null)} />

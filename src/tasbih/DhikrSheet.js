@@ -10,10 +10,13 @@ import { hapticLight } from '../utils/haptics';
 import { DHIKR } from './model';
 
 // Mode picker for the tasbih screen's pill (docs/TASBIH_V3_SPEC.md, A):
-// sequence, the three single dhikr, free dhikr, the user's own remembrances
-// (each deletable), the "circles of 33" switch, and an inline form to add
-// a new custom dhikr. `keyboardAvoiding` on DraggableSheet lifts the whole
-// sheet above the keyboard so the form's fields stay visible.
+// sequence, every single dhikr in DHIKR (each with its translation as a second
+// line), free dhikr, the user's own remembrances (each deletable), the
+// "circles of 33" switch, and an inline form to add a new custom dhikr.
+// The list is longer than a short screen: DraggableSheet scrolls its body
+// (the grab zone with the title stays fixed), so nothing gets cut off.
+// `keyboardAvoiding` lifts the whole sheet above the keyboard so the form's
+// fields stay visible.
 export default function DhikrSheet({ visible, onClose, state, select, addCustom, removeCustom, setCircleLimit }) {
   const { lang } = useLang();
   const ru = lang === 'ru';
@@ -30,7 +33,7 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
 
   const options = [
     { id: 'sequence', label: ru ? 'Последовательность' : 'Sequence' },
-    ...DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en })),
+    ...DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en, sub: ru ? d.translation_ru : d.translation_en })),
     { id: 'free', label: ru ? 'Свободный зикр' : 'Free dhikr' },
     ...(state.customDhikr || []).map(d => ({ id: `custom:${d.id}`, label: d.text, customId: d.id })),
   ];
@@ -50,7 +53,10 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
           <Pressable accessibilityRole="radio" accessibilityState={{ checked: option.id === state.selectedDhikr }}
             style={styles.option} onPress={() => { hapticLight(); select(option.id); close(); }}>
             <View style={[styles.radio, { borderColor: accent }, option.id === state.selectedDhikr && { backgroundColor: accent }]} />
-            <Text style={styles.optionText} numberOfLines={1}>{option.label}</Text>
+            <View style={styles.optionBody}>
+              <Text style={styles.optionText} numberOfLines={2}>{option.label}</Text>
+              {!!option.sub && <Text style={styles.optionSub} numberOfLines={2}>{option.sub}</Text>}
+            </View>
           </Pressable>
           {!!option.customId && (
             <Pressable accessibilityRole="button"
@@ -99,8 +105,10 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  option: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.sm },
-  optionText: { ...TYPE.callout, color: COLORS.text, flexShrink: 1 },
+  option: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
+  optionBody: { flex: 1 },
+  optionText: { ...TYPE.callout, color: COLORS.text },
+  optionSub: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },
   radio: { width: 12, height: 12, borderRadius: 6, borderWidth: 1 },
   deleteButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   switchRow: {

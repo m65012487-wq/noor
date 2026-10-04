@@ -21,10 +21,17 @@ export const PATTERNS = [
   // и разложены на три плана, которые сдвигаются при наклоне телефона.
   // Глубина держится на прозрачности слоёв, поэтому цвет по-прежнему
   // задаётся схемой, и одна картинка работает со всеми.
-  { id: 'city',     label_en: 'Skyline',  label_ru: 'Город',    kind: 'scene' },
-  { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
-  { id: 'crescent', label_en: 'Crescent', label_ru: 'Полумесяц', kind: 'scene' },
+  // «Город» убран: ряды куполов и минаретов спорили с текстом расписания.
+  { id: 'mountains', label_en: 'Mountains', label_ru: 'Горы',     kind: 'scene' },
+  { id: 'oasis',     label_en: 'Oasis',     label_ru: 'Оазис',    kind: 'scene' },
+  { id: 'garden',    label_en: 'Garden',    label_ru: 'Сад',      kind: 'scene' },
+  { id: 'mosque',    label_en: 'Mosque',    label_ru: 'Мечеть у воды', kind: 'scene' },
+  { id: 'desert',    label_en: 'Desert',    label_ru: 'Пустыня',  kind: 'scene' },
+  { id: 'crescent',  label_en: 'Crescent',  label_ru: 'Полумесяц', kind: 'scene' },
 ];
+
+// Узор по умолчанию и замена убранного: сохранённый «город» откатывается сюда.
+export const DEFAULT_PATTERN = 'mountains';
 
 export const PATTERN_TILES = {
   bloom: require('../../assets/patterns/bloom.png'),
@@ -37,10 +44,25 @@ export const PATTERN_TILES = {
 // ради параллакса: при наклоне телефона ближний план уезжает заметно
 // сильнее дальнего, и плоская картинка получает глубину.
 export const SCENE_LAYERS = {
-  city: [
-    require('../../assets/scenes/city-1.png'),
-    require('../../assets/scenes/city-2.png'),
-    require('../../assets/scenes/city-3.png'),
+  mountains: [
+    require('../../assets/scenes/mountains-1.png'),
+    require('../../assets/scenes/mountains-2.png'),
+    require('../../assets/scenes/mountains-3.png'),
+  ],
+  oasis: [
+    require('../../assets/scenes/oasis-1.png'),
+    require('../../assets/scenes/oasis-2.png'),
+    require('../../assets/scenes/oasis-3.png'),
+  ],
+  garden: [
+    require('../../assets/scenes/garden-1.png'),
+    require('../../assets/scenes/garden-2.png'),
+    require('../../assets/scenes/garden-3.png'),
+  ],
+  mosque: [
+    require('../../assets/scenes/mosque-1.png'),
+    require('../../assets/scenes/mosque-2.png'),
+    require('../../assets/scenes/mosque-3.png'),
   ],
   desert: [
     require('../../assets/scenes/desert-1.png'),
@@ -142,7 +164,7 @@ export function fontSetFor(id) {
 }
 
 export function AppearanceProvider({ children }) {
-  const [pattern, setPattern] = useState('city');
+  const [pattern, setPattern] = useState(DEFAULT_PATTERN);
   const [scheme, setScheme] = useState(SCHEMES[0].id);
   const [fontSet, setFontSet] = useState('system');
   const [arabicFont, setArabicFont] = useState('system');
@@ -153,8 +175,12 @@ export function AppearanceProvider({ children }) {
     (async () => {
       // Значения из удалённых наборов откатываются на первое: сохранённый
       // идентификатор старой темы иначе молча тянул бы дефолты.
-      const savedPattern = await loadJSON('pattern', 'city');
-      setPattern(PATTERNS.some((p) => p.id === savedPattern) ? savedPattern : 'city');
+      const savedPattern = await loadJSON('pattern', DEFAULT_PATTERN);
+      const knownPattern = PATTERNS.some((p) => p.id === savedPattern);
+      // Убранная сцена («город») откатывается и записывается сразу: иначе
+      // откат повторялся бы на каждом запуске.
+      if (!knownPattern) await saveJSON('pattern', DEFAULT_PATTERN);
+      setPattern(knownPattern ? savedPattern : DEFAULT_PATTERN);
 
       // Сохранённый выбор убранной темы сводится к первой схеме, иначе
       // после обновления человек остался бы с фоном, которого больше нет.
@@ -202,7 +228,7 @@ export function AppearanceProvider({ children }) {
 }
 
 export const useAppearance = () => useContext(AppearanceContext) || {
-  pattern: 'city', choosePattern: () => {}, PATTERNS,
+  pattern: DEFAULT_PATTERN, choosePattern: () => {}, PATTERNS,
   scheme: SCHEMES[0].id, chooseScheme: () => {}, SCHEMES,
   fontSet: 'system', chooseFontSet: () => {}, FONT_SETS,
   arabicFont: 'system', chooseArabicFont: () => {}, ARABIC_FONTS,
