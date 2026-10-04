@@ -17,7 +17,7 @@ import SeedDrop from './SeedDrop';
 import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
 import useTasbih from './useTasbih';
-import { activeTree, definition, DHIKR, growthRatio, SEQUENCE_DHIKR, SPECIES, STAGE_NAMES } from './model';
+import { activeTree, definition, DHIKR, growthRatio, sequenceSteps, SPECIES, STAGE_NAMES, STAGES } from './model';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -39,7 +39,7 @@ function modeLabel(state, ru) {
 // занимал столько, сколько просил, и на разных телефонах дерево то упиралось
 // в счётчик, то висело в пустоте.
 export default function TasbihScreen({ onClose }) {
-  const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit } = useTasbih();
+  const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit, setSequence } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
   const { accent } = useAppearance();
@@ -106,6 +106,8 @@ export default function TasbihScreen({ onClose }) {
   const treeSpecies = tree ? SPECIES.find(s => s.id === tree.species) : null;
   const speciesLabel = treeSpecies ? (ru ? treeSpecies.ru : treeSpecies.en) : '';
   const ratio = tree ? growthRatio(tree) : 0;
+  // Плодоносящее дерево больше не растёт — рост копится для следующего зерна.
+  const fruiting = !!tree && tree.stage === STAGES.length - 1;
   const onTreeLayout = e => {
     const { width, height } = e.nativeEvent.layout;
     setTreeSize(prev => (Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5 ? prev : { width, height }));
@@ -179,8 +181,8 @@ export default function TasbihScreen({ onClose }) {
                 }]} />}
               </View>
               <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
-                {state.selectedDhikr === 'sequence' && SEQUENCE_DHIKR.map((d, index) => (
-                  <View key={d.id} style={[styles.dot, {
+                {state.selectedDhikr === 'sequence' && sequenceSteps(state).map((d, index) => (
+                  <View key={`${index}:${d.id}`} style={[styles.dot, {
                     backgroundColor: index === state.currentDhikrIndex ? accent : COLORS.textMuted,
                     opacity: index === state.currentDhikrIndex ? 1 : 0.35,
                   }]} />
@@ -206,9 +208,13 @@ export default function TasbihScreen({ onClose }) {
               ) : (
                 <>
                   <Text style={styles.stageLine}>{speciesLabel} · {stageLabel}</Text>
-                  <View style={styles.growthTrack}>
-                    <View style={[styles.growthFill, { width: `${ratio * 100}%`, backgroundColor: accent }]} />
-                  </View>
+                  {fruiting && seedTotal > 0 ? (
+                    <Text style={styles.plantHint} numberOfLines={1}>{ru ? 'Посадите зерно — рост перейдёт к нему' : 'Plant a seed — growth carries over'}</Text>
+                  ) : (
+                    <View style={styles.growthTrack}>
+                      <View style={[styles.growthFill, { width: `${ratio * 100}%`, backgroundColor: accent }]} />
+                    </View>
+                  )}
                 </>
               )}
             </View>
@@ -217,7 +223,7 @@ export default function TasbihScreen({ onClose }) {
       </SafeAreaView>
 
       <DhikrSheet visible={selector} onClose={() => setSelector(false)} state={state}
-        select={select} addCustom={addCustom} removeCustom={removeCustom} setCircleLimit={setCircleLimit} />
+        select={select} addCustom={addCustom} removeCustom={removeCustom} setCircleLimit={setCircleLimit} setSequence={setSequence} />
 
       <GardenSheet visible={garden} onClose={() => setGarden(false)} state={state} plant={plant} setActive={setActive} />
     </ThemedBackground>
@@ -260,6 +266,7 @@ const styles = StyleSheet.create({
 
   footer: { alignItems: 'center', height: 52, justifyContent: 'center' },
   hint: { ...LEGIBLE, ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center' },
+  plantHint: { ...LEGIBLE, ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xs },
   stageLine: { ...LEGIBLE, ...TYPE.callout, color: COLORS.text },
   growthTrack: { width: 160, height: 3, borderRadius: RADIUS.pill, backgroundColor: 'rgba(255,255,255,0.14)', marginTop: SPACING.xs, overflow: 'hidden' },
   growthFill: { height: '100%', borderRadius: RADIUS.pill },

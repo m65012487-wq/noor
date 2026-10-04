@@ -48,9 +48,9 @@ test('dismiss gestures distinguish deliberate exit from taps and vertical scroll
   assert.equal(finishesDismiss({ dx: 4, dy: 110, vx: 0, vy: 0.2 }, 'down'), true);
 });
 test('stage configuration can grow beyond eight entries', () => {
-  const stages = Array.from({ length: 30 }, (_, i) => ({ requiredProgress: i * 100, minimumDays: i }));
-  assert.equal(model.chooseStage(2900, 29, stages), 29);
-  assert.equal(model.chooseStage(2900, 2, stages), 2);
+  const stages = Array.from({ length: 30 }, (_, i) => ({ requiredProgress: i * 100 }));
+  assert.equal(model.chooseStage(2900, stages), 29);
+  assert.equal(model.chooseStage(250, stages), 2);
 });
 test('tree silhouettes cover every species and stage and stay inside the canvas', () => {
   const { TREE_CANVAS, TREE_SHAPES, TREE_BOUNDS } = load('src/tasbih/treeShapes.js');
@@ -89,8 +89,8 @@ test('tree silhouettes cover every species and stage and stay inside the canvas'
     });
   }
 });
-function taps(n, state = model.initialState(), key = day) {
-  for (let i = 0; i < n; i++) state = model.registerDhikr(state, key);
+function taps(n, state = model.initialState(), key = day, options) {
+  for (let i = 0; i < n; i++) state = model.registerDhikr(state, key, options);
   return state;
 }
 
@@ -114,12 +114,64 @@ test('complete sequence wraps, single selection stays selected', () => {
   assert.equal(model.definition(state).id, 'allahuakbar');
   assert.equal(state.currentDhikrCount, 1);
 });
-test('10000 taps in a day cannot bypass consistency', () => {
-  const state = taps(10000);
+test('every remembrance is one unit of growth, the first 33 of the day count double, no daily cap', () => {
+  assert.deepEqual(model.GROWTH, { bonusTaps: 33, bonusMultiplier: 2 });
+  assert.equal(model.growthForCount(0), 0);
+  assert.equal(model.growthForCount(1), 2);
+  assert.equal(model.growthForCount(33), 66);
+  assert.equal(model.growthForCount(34), 67);
+  assert.equal(model.growthForCount(10000), 10033);
+  // Прирост на касание — разность: 2 за каждое из первых 33, затем по 1.
+  let state = taps(33);
+  assert.equal(model.activeTree(state).progress, 66);
+  state = taps(1, state);
+  assert.equal(model.activeTree(state).progress, 67);
+  // Следующий день снова начинается с двойного счёта.
+  state = taps(1, state, '2026-09-14');
+  assert.equal(model.activeTree(state).progress, 69);
+  // Потолка нет: 300 поминаний за день — 333 роста.
+  assert.equal(model.activeTree(taps(300)).progress, 333);
+});
+test('10000 taps in a day give 10033 growth: the tree fruits once, the surplus is kept up to the cap', () => {
+  const state = taps(10000, model.initialState(), day, { rng: () => 0 });
   const tree = model.activeTree(state);
   assert.equal(state.activeDays, 1);
-  assert.ok(tree.progress <= model.GROWTH.dailyCap + model.GROWTH.activeDayContribution + 0.00001);
-  assert.equal(tree.stage, 1);
+  assert.equal(tree.progress, 10033);
+  assert.equal(tree.stage, model.STAGES.length - 1);
+  assert.equal(tree.harvested, true);
+  assert.equal(state.reserve, model.RESERVE_CAP);
+  assert.equal(state.pendingDrops.length, 1);
+});
+test('stages are chosen by growth alone, with no day requirements', () => {
+  assert.deepEqual(model.STAGES.map(s => s.requiredProgress), [0, 40, 160, 360, 640, 1000, 1450, 2000]);
+  assert.ok(model.STAGES.every(s => !('minimumDays' in s)));
+  assert.equal(model.chooseStage(0), 0);
+  assert.equal(model.chooseStage(39), 0);
+  assert.equal(model.chooseStage(40), 1);
+  assert.equal(model.chooseStage(1999), 6);
+  assert.equal(model.chooseStage(2000), 7);
+  // Первый же день может вырастить дерево: нужные дни не копятся.
+  const near = { ...model.initialState(),
+    trees: [{ id: 't1', species: 'olive', progress: 158, activeDays: 0, stage: 1, lastGrowDate: null, plantedOn: null, harvested: false }] };
+  const grown = model.activeTree(taps(1, near));
+  assert.equal(grown.progress, 160);
+  assert.equal(grown.stage, 2);
+  assert.equal(taps(300).activeDays, 1);
+  assert.equal(model.activeTree(taps(300)).stage, 2);
+});
+test('pace: 99 a day fruits in about 15 days, 33 a day in about a month, 300 a day in about a week', () => {
+  const daysToFruit = perDay => {
+    let state = model.initialState();
+    for (let d = 1; d <= 60; d++) {
+      state = taps(perDay, state, new Date(Date.UTC(2026, 9, d)).toISOString().slice(0, 10));
+      if (model.activeTree(state).stage === model.STAGES.length - 1) return d;
+    }
+    return Infinity;
+  };
+  const d99 = daysToFruit(99), d33 = daysToFruit(33), d300 = daysToFruit(300);
+  assert.ok(d99 >= 14 && d99 <= 17, `99/day: ${d99}`);
+  assert.ok(d33 >= 29 && d33 <= 32, `33/day: ${d33}`);
+  assert.ok(d300 >= 6 && d300 <= 8, `300/day: ${d300}`);
 });
 test('new dates count once, revisiting a date does not award another active day', () => {
   let state = taps(7);
@@ -136,71 +188,74 @@ test('absence does not erase growth; resting is a derived state', () => {
   assert.equal(model.isResting(resumed, '2026-10-20'), false);
 });
 test('stage configuration can grow beyond the built-in eight entries', () => {
-  const stages = [...model.STAGES, { requiredProgress: 10000, minimumDays: 90 }];
-  assert.equal(model.chooseStage(20000, 100, stages), stages.length - 1);
+  const stages = [...model.STAGES, { requiredProgress: 10000 }];
+  assert.equal(model.chooseStage(20000, stages), stages.length - 1);
 });
-test('v1 saves migrate into a single olive tree and reset the v2 garden fields', () => {
+test('v1 saves migrate into a single olive tree and reset the garden fields', () => {
   const v1 = { version: 1, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 5,
     totalDhikrCount: 40, perDhikrCounts: { subhanallah: 40 }, treeGrowthProgress: 500, treeStage: 'olive_stage_03',
     lastActiveDate: day, activeDays: 4, dailyDhikrCounts: { [day]: 40 }, hasSeenTasbihHint: true };
   const state = model.restoreState(v1);
-  assert.equal(state.version, 2);
+  assert.equal(state.version, 3);
   assert.equal(state.trees.length, 1);
   const tree = model.activeTree(state);
   assert.equal(tree.species, 'olive');
   assert.equal(tree.progress, 500);
   assert.equal(tree.activeDays, 4);
-  assert.equal(tree.stage, model.chooseStage(500, 4));
+  assert.equal(tree.stage, model.chooseStage(500));
   assert.deepEqual(state.seeds, {});
   assert.deepEqual(state.pendingDrops, []);
-  assert.equal(state.lastCircleDropDate, null);
+  assert.equal(state.reserve, 0);
+  assert.deepEqual(state.sequence, model.DEFAULT_SEQUENCE);
+  assert.ok(!('lastCircleDropDate' in state));
   assert.equal(state.totalDhikrCount, 40);
 });
-test('a seed drops once the 7th distinct active day completes, tagged reason week', () => {
-  let state = model.initialState();
+test('seeds come only from fruit: neither the 7th active day nor a full circle of 99 drops one', () => {
   const rng = () => 0;
-  const days = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06', '2026-09-07'];
-  for (const d of days) state = model.registerDhikr(state, d, { rng });
+  let state = model.initialState();
+  for (let d = 1; d <= 7; d++) state = model.registerDhikr(state, `2026-09-0${d}`, { rng });
   assert.equal(state.activeDays, 7);
-  assert.equal(state.pendingDrops.length, 1);
-  assert.equal(state.pendingDrops[0].reason, 'week');
-  assert.equal(Object.values(state.seeds).reduce((a, b) => a + b, 0), 1);
+  assert.deepEqual(state.pendingDrops, []);
+  assert.deepEqual(state.seeds, {});
+  let circle = model.initialState();
+  for (let i = 0; i < 99 * 3; i++) circle = model.registerDhikr(circle, day, { rng });
+  assert.deepEqual(circle.pendingDrops, []);
+  assert.ok(!('lastCircleDropDate' in circle));
 });
 test('a seed drops with reason harvest exactly when the active tree first reaches the final stage', () => {
   const rng = () => 0;
   const near = { ...model.initialState(),
-    trees: [{ id: 't1', species: 'olive', progress: model.STAGES[7].requiredProgress - 1, activeDays: model.STAGES[7].minimumDays, stage: 6, lastGrowDate: null, plantedOn: null, harvested: false }] };
+    trees: [{ id: 't1', species: 'olive', progress: model.STAGES[7].requiredProgress - 1, activeDays: 3, stage: 6, lastGrowDate: null, plantedOn: null, harvested: false }] };
   const state = model.registerDhikr(near, day, { rng });
   const tree = model.activeTree(state);
   assert.equal(tree.stage, 7);
   assert.equal(tree.harvested, true);
-  assert.equal(state.pendingDrops.filter(d => d.reason === 'harvest').length, 1);
-  const again = model.registerDhikr(state, '2026-09-14', { rng });
-  assert.equal(again.pendingDrops.filter(d => d.reason === 'harvest').length, 1);
+  assert.equal(state.pendingDrops.length, 1);
+  assert.equal(state.pendingDrops[0].reason, 'harvest');
+  assert.equal(Object.values(state.seeds).reduce((a, b) => a + b, 0), 1);
+  // Дальше дерево плодоносит, и новых зёрен нет — сколько бы ни считали.
+  const again = taps(500, state, '2026-09-14');
+  assert.equal(again.pendingDrops.length, 1);
+  assert.equal(Object.values(again.seeds).reduce((a, b) => a + b, 0), 1);
 });
-test('a full circle (multiples of 99) drops at most once per day, gated by probability', () => {
-  const alwaysDrops = () => 0;
-  let state = model.initialState();
-  for (let i = 0; i < 99; i += 1) state = model.registerDhikr(state, day, { rng: alwaysDrops });
-  assert.equal(state.pendingDrops.filter(d => d.reason === 'circle').length, 1);
-  assert.equal(state.lastCircleDropDate, day);
-  for (let i = 0; i < 99; i += 1) state = model.registerDhikr(state, day, { rng: alwaysDrops });
-  assert.equal(state.pendingDrops.filter(d => d.reason === 'circle').length, 1);
-
-  const neverDrops = () => 0.99;
-  let quiet = model.initialState();
-  for (let i = 0; i < 99; i += 1) quiet = model.registerDhikr(quiet, day, { rng: neverDrops });
-  assert.equal(quiet.pendingDrops.filter(d => d.reason === 'circle').length, 0);
-  assert.equal(quiet.lastCircleDropDate, null);
+test('a fruiting tree that was never marked harvested (migrated save) pays out its seed on the next tap, once', () => {
+  const rng = () => 0;
+  const old = { ...model.initialState(),
+    trees: [{ id: 't1', species: 'olive', progress: 2500, activeDays: 40, stage: 7, lastGrowDate: null, plantedOn: null, harvested: false }] };
+  const state = model.registerDhikr(old, day, { rng });
+  assert.equal(state.pendingDrops.filter(d => d.reason === 'harvest').length, 1);
+  assert.equal(model.activeTree(state).harvested, true);
+  assert.equal(model.registerDhikr(state, day, { rng }).pendingDrops.length, 1);
 });
 test('sidr stays out of the drop pool until three distinct species are owned', () => {
-  const base = { ...model.initialState(), activeDays: 6 };
   const rngHigh = () => 0.999999;
+  const nearFruit = (id, species) => ({ id, species, progress: model.STAGES[7].requiredProgress - 1, activeDays: 5, stage: 6, lastGrowDate: null, plantedOn: null, harvested: false });
+  const base = { ...model.initialState(), trees: [nearFruit('t1', 'olive')] };
   const onlyOlive = model.registerDhikr(base, '2026-09-20', { rng: rngHigh });
-  assert.equal(onlyOlive.pendingDrops[0].reason, 'week');
+  assert.equal(onlyOlive.pendingDrops[0].reason, 'harvest');
   assert.notEqual(onlyOlive.pendingDrops[0].species, 'sidr');
   const threeSpecies = { ...base, trees: [
-    { ...base.trees[0] },
+    nearFruit('t1', 'olive'),
     { id: 't2', species: 'fig', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false },
     { id: 't3', species: 'pomegranate', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false },
   ] };
@@ -343,8 +398,8 @@ const EXTRA_DHIKR = ['la_ilaha_illallah', 'astaghfirullah', 'subhanallahi_wa_bih
   'subhanallahil_azim', 'la_hawla', 'salawat', 'hasbunallah'];
 test('DHIKR keeps the three classics first, then the extra remembrances, each complete and vocalized', () => {
   assert.deepEqual(model.DHIKR.map(d => d.id), ['subhanallah', 'alhamdulillah', 'allahuakbar', ...EXTRA_DHIKR]);
-  assert.deepEqual(model.SEQUENCE, ['subhanallah', 'alhamdulillah', 'allahuakbar']);
-  assert.deepEqual(model.SEQUENCE_DHIKR.map(d => d.id), model.SEQUENCE);
+  assert.deepEqual(model.DEFAULT_SEQUENCE, [{ id: 'subhanallah', target: 33 }, { id: 'alhamdulillah', target: 33 }, { id: 'allahuakbar', target: 33 }]);
+  assert.ok(!('SEQUENCE' in model) && !('SEQUENCE_DHIKR' in model));
   assert.equal(new Set(model.DHIKR.map(d => d.id)).size, model.DHIKR.length);
   for (const d of model.DHIKR) {
     for (const key of ['arabic', 'ru', 'en', 'translation_ru', 'translation_en']) {
@@ -482,25 +537,288 @@ test('alarm plans future mornings, and waking cancels only that day', async () =
   await alarm.markAwake();
   assert.equal(scheduled.length, 12);
 });
-test('growthRatio reports the slower of progress and days toward the next stage', () => {
-  const tree = (stage, progress, activeDays) => ({ stage, progress, activeDays });
-  // Stage 0 → 1 needs 72 progress and 1 day.
-  assert.equal(model.growthRatio(tree(0, 0, 0)), 0);
-  assert.equal(model.growthRatio(tree(0, 36, 1)), 0.5);
-  // Plenty of progress, but days are behind: stage 2 → 3 needs 700 and 7 days (from 300 and 3).
-  assert.equal(model.growthRatio(tree(2, 700, 5)), 0.5);
-  // Plenty of days, progress is behind: halfway from 300 to 700.
-  assert.equal(model.growthRatio(tree(2, 500, 30)), 0.5);
+test('growthRatio reports progress toward the next stage, by growth alone', () => {
+  const tree = (stage, progress, activeDays = 0) => ({ stage, progress, activeDays });
+  // Stage 0 → 1 needs 40, stage 2 → 3 goes from 160 to 360.
+  assert.equal(model.growthRatio(tree(0, 0)), 0);
+  assert.equal(model.growthRatio(tree(0, 20)), 0.5);
+  assert.equal(model.growthRatio(tree(2, 260)), 0.5);
+  // Дни не влияют: ни нехватка, ни избыток.
+  assert.equal(model.growthRatio(tree(2, 260, 0)), model.growthRatio(tree(2, 260, 99)));
   // Out-of-range values are clamped to 0..1.
-  assert.equal(model.growthRatio(tree(1, 0, 0)), 0);
-  assert.equal(model.growthRatio(tree(1, 99999, 99)), 1);
+  assert.equal(model.growthRatio(tree(1, 0)), 0);
+  assert.equal(model.growthRatio(tree(1, 99999)), 1);
   // The last stage is always full; an unknown stage is empty rather than a crash.
-  assert.equal(model.growthRatio(tree(model.STAGES.length - 1, 0, 0)), 1);
-  assert.equal(model.growthRatio(tree(99, 0, 0)), 0);
-  // A real tree after the first tap of the day: 66 of 72 progress, day requirement met.
-  const first = model.activeTree(taps(1));
-  assert.ok(Math.abs(model.growthRatio(first) - 66 / 72) < 1e-9);
-  // Custom stage tables are honoured; equal day thresholds do not cap the ratio.
-  const stages = [{ requiredProgress: 0, minimumDays: 0 }, { requiredProgress: 100, minimumDays: 0 }];
-  assert.equal(model.growthRatio(tree(0, 25, 0), stages), 0.25);
+  assert.equal(model.growthRatio(tree(model.STAGES.length - 1, 0)), 1);
+  assert.equal(model.growthRatio(tree(99, 0)), 0);
+  // A real tree after the first tap of the day: 2 of 40.
+  assert.ok(Math.abs(model.growthRatio(model.activeTree(taps(1))) - 2 / 40) < 1e-9);
+  // Custom stage tables are honoured.
+  const stages = [{ requiredProgress: 0 }, { requiredProgress: 100 }];
+  assert.equal(model.growthRatio(tree(0, 25), stages), 0.25);
+});
+
+const CLASSIC = [{ id: 'subhanallah', target: 33 }, { id: 'alhamdulillah', target: 33 }, { id: 'allahuakbar', target: 34 }];
+function eventsOf(count, state) {
+  const events = [];
+  for (let i = 0; i < count; i++) {
+    const prev = state;
+    state = model.registerDhikr(state, day);
+    events.push(model.tapEvent(prev, state));
+  }
+  return { state, events };
+}
+test('a 33 · 33 · 34 sequence goes around the circle and completes on its last step', () => {
+  const start = model.setSequence(model.initialState(), CLASSIC);
+  assert.deepEqual(start.sequence, CLASSIC);
+  assert.deepEqual(model.sequenceSteps(start).map(d => [d.id, d.target]), [['subhanallah', 33], ['alhamdulillah', 33], ['allahuakbar', 34]]);
+  const { state, events } = eventsOf(100, start);
+  assert.deepEqual(events.map((e, i) => [i + 1, e]).filter(([, e]) => e !== 'tap'), [[33, 'circle'], [66, 'circle'], [100, 'complete']]);
+  assert.deepEqual(state.perDhikrCounts, { subhanallah: 33, alhamdulillah: 33, allahuakbar: 34 });
+  assert.equal(model.definition(state).id, 'allahuakbar');
+  assert.equal(state.currentDhikrCount, 34);
+  // Следующее касание начинает круг заново.
+  const again = model.registerDhikr(state, day);
+  assert.equal(model.definition(again).id, 'subhanallah');
+  assert.equal(again.currentDhikrCount, 1);
+  assert.equal(again.currentDhikrIndex, 0);
+  // Второй круг — те же события на тех же местах.
+  const second = eventsOf(99, again);
+  assert.deepEqual(second.events.map((e, i) => [i + 2, e]).filter(([, e]) => e !== 'tap'), [[33, 'circle'], [66, 'circle'], [100, 'complete']]);
+  assert.equal(second.state.perDhikrCounts.allahuakbar, 68);
+});
+test('a one-step sequence completes on every circle; steps with target 1 advance on the next tap', () => {
+  const single = model.setSequence(model.initialState(), [{ id: 'la_hawla', target: 3 }]);
+  const { state, events } = eventsOf(7, single);
+  assert.deepEqual(events, ['tap', 'tap', 'complete', 'tap', 'tap', 'complete', 'tap']);
+  assert.equal(model.definition(state).id, 'la_hawla');
+  assert.equal(state.currentDhikrCount, 1);
+  assert.equal(state.currentDhikrIndex, 0);
+  assert.equal(state.perDhikrCounts.la_hawla, 7);
+  const ones = model.setSequence(model.initialState(), [{ id: 'subhanallah', target: 1 }, { id: 'alhamdulillah', target: 1 }]);
+  const run = eventsOf(3, ones);
+  assert.deepEqual(run.events, ['circle', 'complete', 'circle']);
+  assert.deepEqual(run.state.perDhikrCounts, { subhanallah: 2, alhamdulillah: 1 });
+});
+test('sequence steps resolve built-in and custom remembrances; unresolved steps are skipped', () => {
+  let state = model.addCustomDhikr(model.initialState(), { text: 'Mine', arabic: 'ص', translation: 'Blessings' });
+  const cid = `custom:${state.customDhikr[0].id}`;
+  state = model.setSequence(state, [{ id: cid, target: 10 }, { id: 'astaghfirullah', target: 100 }]);
+  const [mine, istighfar] = model.sequenceSteps(state);
+  assert.equal(mine.id, cid);
+  assert.equal(mine.ru, 'Mine');
+  assert.equal(mine.en, 'Mine');
+  assert.equal(mine.arabic, 'ص');
+  assert.equal(mine.translation_ru, 'Blessings');
+  assert.equal(mine.target, 10);
+  assert.equal(istighfar.id, 'astaghfirullah');
+  assert.ok(istighfar.arabic.length > 0 && istighfar.translation_ru.length > 0);
+  assert.equal(istighfar.target, 100);
+  assert.equal(model.definition(state).id, cid);
+  // Счёт копится по id поминания шага, у своего — `custom:<id>`.
+  state = taps(11, state);
+  assert.equal(state.perDhikrCounts[cid], 10);
+  assert.equal(state.perDhikrCounts.astaghfirullah, 1);
+  assert.equal(model.definition(state).id, 'astaghfirullah');
+
+  const broken = { ...model.initialState(), sequence: [{ id: 'custom:gone', target: 5 }, { id: 'subhanallah', target: 7 }] };
+  assert.deepEqual(model.sequenceSteps(broken).map(d => [d.id, d.target]), [['subhanallah', 7]]);
+  const none = { ...model.initialState(), sequence: [{ id: 'custom:gone', target: 5 }] };
+  assert.deepEqual(model.sequenceSteps(none).map(d => [d.id, d.target]), [['subhanallah', 33], ['alhamdulillah', 33], ['allahuakbar', 33]]);
+  const missing = { ...model.initialState(), sequence: undefined };
+  assert.deepEqual(model.sequenceSteps(missing).map(d => d.id), ['subhanallah', 'alhamdulillah', 'allahuakbar']);
+  // Индекс — по модулю числа шагов.
+  assert.equal(model.definition({ ...broken, currentDhikrIndex: 4 }).id, 'subhanallah');
+});
+test('setSequence cleans its input and restarts the counter only when the steps change', () => {
+  const state = taps(40);
+  assert.equal(state.currentDhikrIndex, 1);
+  assert.equal(state.currentDhikrCount, 7);
+  // Тот же состав — тот же state, счёт не трогается.
+  assert.equal(model.setSequence(state, model.DEFAULT_SEQUENCE), state);
+  assert.equal(model.setSequence(state, [...model.DEFAULT_SEQUENCE, { id: 'zzz', target: 3 }, null]), state);
+
+  const junk = [null, 'str', { id: 'nope', target: 5 }, { id: 'subhanallah', target: 0 }, { id: 'astaghfirullah', target: 12.6 },
+    { id: 'la_hawla', target: 5000 }, { id: 'salawat', target: 'x' }, { id: 'hasbunallah' }, { id: 'allahuakbar', target: -Infinity }];
+  const input = junk.slice();
+  const cleaned = model.setSequence(state, junk);
+  assert.deepEqual(cleaned.sequence, [
+    { id: 'subhanallah', target: 1 }, { id: 'astaghfirullah', target: 13 }, { id: 'la_hawla', target: 999 },
+    { id: 'salawat', target: 33 }, { id: 'hasbunallah', target: 33 }, { id: 'allahuakbar', target: 1 },
+  ]);
+  assert.deepEqual(junk, input);
+  assert.equal(cleaned.currentDhikrIndex, 0);
+  assert.equal(cleaned.currentDhikrCount, 0);
+  assert.equal(cleaned.totalDhikrCount, 40);
+  assert.equal(cleaned.selectedDhikr, 'sequence');
+
+  // Не больше двенадцати шагов; неизвестные поминания места не занимают.
+  const many = Array.from({ length: 20 }, (_, i) => (i % 2 ? { id: 'nope', target: 1 } : { id: 'salawat', target: i + 1 }));
+  assert.equal(model.setSequence(state, many).sequence.length, 10);
+  const long = Array.from({ length: 20 }, () => ({ id: 'salawat', target: 5 }));
+  assert.equal(model.SEQUENCE_MAX_STEPS, 12);
+  assert.equal(model.setSequence(state, long).sequence.length, 12);
+  // Пустой или негодный ввод — по умолчанию.
+  const custom = model.setSequence(state, [{ id: 'salawat', target: 5 }]);
+  for (const bad of [[], 'x', null, undefined, [{ id: 'zzz', target: 3 }]]) {
+    const back = model.setSequence(custom, bad);
+    assert.deepEqual(back.sequence, model.DEFAULT_SEQUENCE);
+    assert.equal(back.currentDhikrCount, 0);
+  }
+  assert.equal(model.setSequence(state, []), state);
+  // Результат не делит объекты ни с входом, ни с DEFAULT_SEQUENCE.
+  const copy = model.setSequence(state, [{ id: 'salawat', target: 5 }, ...model.DEFAULT_SEQUENCE]);
+  assert.notEqual(copy.sequence[1], model.DEFAULT_SEQUENCE[0]);
+  assert.notEqual(model.initialState().sequence[0], model.DEFAULT_SEQUENCE[0]);
+
+  // Вне режима последовательности счёт текущего поминания остаётся.
+  const free = taps(5, model.selectDhikr(model.initialState(), 'free'));
+  const edited = model.setSequence(free, CLASSIC);
+  assert.deepEqual(edited.sequence, CLASSIC);
+  assert.equal(edited.selectedDhikr, 'free');
+  assert.equal(edited.currentDhikrCount, 5);
+});
+test('removing a custom remembrance drops its steps from the sequence', () => {
+  let state = model.addCustomDhikr(model.initialState(), { text: 'Mine' });
+  const id = state.customDhikr[0].id;
+  const cid = `custom:${id}`;
+  state = model.setSequence(state, [{ id: 'subhanallah', target: 33 }, { id: cid, target: 5 }, { id: 'allahuakbar', target: 34 }, { id: cid, target: 9 }]);
+  state = taps(36, state);
+  assert.equal(state.currentDhikrIndex, 1);
+  const removed = model.removeCustomDhikr(state, id);
+  assert.deepEqual(removed.sequence, [{ id: 'subhanallah', target: 33 }, { id: 'allahuakbar', target: 34 }]);
+  assert.deepEqual(removed.customDhikr, []);
+  assert.equal(removed.selectedDhikr, 'sequence');
+  assert.equal(removed.currentDhikrIndex, 0);
+  assert.equal(removed.currentDhikrCount, 0);
+
+  // Единственный шаг — возвращается последовательность по умолчанию.
+  let solo = model.addCustomDhikr(model.initialState(), { text: 'Mine' });
+  const soloId = solo.customDhikr[0].id;
+  solo = taps(3, model.setSequence(solo, [{ id: `custom:${soloId}`, target: 5 }]));
+  assert.equal(solo.currentDhikrCount, 3);
+  const only = model.removeCustomDhikr(solo, soloId);
+  assert.deepEqual(only.sequence, model.DEFAULT_SEQUENCE);
+  assert.equal(only.currentDhikrCount, 0);
+
+  // Поминания нет в последовательности — шаги и счёт не меняются.
+  const plain = taps(40, model.addCustomDhikr(model.initialState(), { text: 'Other' }));
+  const kept = model.removeCustomDhikr(plain, plain.customDhikr[0].id);
+  assert.deepEqual(kept.sequence, model.DEFAULT_SEQUENCE);
+  assert.equal(kept.currentDhikrIndex, 1);
+  assert.equal(kept.currentDhikrCount, 7);
+
+  // Выбрано другое поминание: шаги чистятся, текущий счёт остаётся.
+  let single = model.addCustomDhikr(model.initialState(), { text: 'Mine' });
+  const sid = single.customDhikr[0].id;
+  single = taps(5, model.selectDhikr(model.setSequence(single, [{ id: 'subhanallah', target: 3 }, { id: `custom:${sid}`, target: 4 }]), 'astaghfirullah'));
+  const after = model.removeCustomDhikr(single, sid);
+  assert.deepEqual(after.sequence, [{ id: 'subhanallah', target: 3 }]);
+  assert.equal(after.selectedDhikr, 'astaghfirullah');
+  assert.equal(after.currentDhikrCount, 5);
+});
+test('restoreState cleans the sequence and keeps the index inside its steps', () => {
+  const base = model.initialState();
+  const withoutSequence = { ...base };
+  delete withoutSequence.sequence;
+  assert.deepEqual(model.restoreState(withoutSequence).sequence, model.DEFAULT_SEQUENCE);
+  for (const junk of ['x', 5, {}, [], [{ id: 'zzz', target: 3 }], null]) {
+    assert.deepEqual(model.restoreState({ ...base, sequence: junk }).sequence, model.DEFAULT_SEQUENCE);
+  }
+  // Свои поминания проверяются по сохранённому списку.
+  const raw = { ...base, customDhikr: [{ id: 'c1', text: 'Mine' }], currentDhikrIndex: 5, currentDhikrCount: 3,
+    sequence: [{ id: 'custom:c1', target: 7 }, { id: 'custom:c2', target: 7 }, { id: 'subhanallah', target: 2000 }] };
+  const state = model.restoreState(raw);
+  assert.deepEqual(state.sequence, [{ id: 'custom:c1', target: 7 }, { id: 'subhanallah', target: 999 }]);
+  assert.equal(state.currentDhikrIndex, 1);
+  assert.equal(state.currentDhikrCount, 3);
+  assert.equal(model.definition(state).id, 'subhanallah');
+  // Сохранённый счёт обрезается по цели своего шага.
+  assert.equal(model.restoreState({ ...raw, currentDhikrIndex: 0, currentDhikrCount: 500 }).currentDhikrCount, 7);
+  // Нормальная последовательность проходит как есть.
+  assert.deepEqual(model.restoreState({ ...base, sequence: CLASSIC }).sequence, CLASSIC);
+});
+
+const fruitingTree = (id = 't1', species = 'olive') => ({ id, species, progress: 2500, activeDays: 40, stage: 7, lastGrowDate: null, plantedOn: null, harvested: true });
+test('growth of a fruiting tree is kept in the reserve up to the cap, then goes to the next planted seed', () => {
+  assert.equal(model.RESERVE_CAP, model.STAGES[5].requiredProgress);
+  assert.equal(model.RESERVE_CAP, 1000);
+  assert.equal(model.initialState().reserve, 0);
+  assert.equal(taps(50).reserve, 0);
+  const fruiting = { ...model.initialState(), seeds: { fig: 2 }, trees: [fruitingTree()] };
+  let state = taps(10, fruiting);
+  assert.equal(state.reserve, 20);
+  assert.equal(model.activeTree(state).stage, 7);
+  assert.equal(state.pendingDrops.length, 0);
+  state = taps(2000, state);
+  assert.equal(state.reserve, model.RESERVE_CAP);
+
+  const planted = model.plantSeed(state, 'fig', day);
+  const tree = model.activeTree(planted);
+  assert.equal(tree.species, 'fig');
+  assert.equal(tree.progress, 1000);
+  assert.equal(tree.stage, 5);
+  assert.equal(tree.harvested, false);
+  assert.equal(tree.activeDays, 0);
+  assert.equal(planted.reserve, 0);
+  assert.equal(planted.seeds.fig, 1);
+  // Запас отдан один раз: следующее дерево начинает с нуля.
+  const second = model.activeTree(model.plantSeed(planted, 'fig', day));
+  assert.equal(second.progress, 0);
+  assert.equal(second.stage, 0);
+  // Небольшой запас даёт ту стадию, которую заслуживает.
+  assert.equal(model.activeTree(model.plantSeed({ ...fruiting, reserve: 20 }, 'fig', day)).stage, 0);
+  assert.equal(model.activeTree(model.plantSeed({ ...fruiting, reserve: 40 }, 'fig', day)).stage, 1);
+  // Посаженное дерево растёт дальше и обычным порядком, запас больше не копится.
+  const grown = taps(1, planted, '2026-09-14');
+  assert.equal(model.activeTree(grown).progress, 1002);
+  assert.equal(grown.reserve, 0);
+});
+test('reserve only grows while the active tree is fruiting; a younger active tree grows itself', () => {
+  const young = { id: 't2', species: 'fig', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false };
+  const state = { ...model.initialState(), trees: [fruitingTree(), young], activeTreeId: 't2' };
+  const next = taps(5, state);
+  assert.equal(next.reserve, 0);
+  assert.equal(next.trees.find(t => t.id === 't2').progress, 10);
+  assert.equal(next.trees.find(t => t.id === 't1').progress, 2500);
+});
+test('v2 saves migrate to v3: default sequence, empty reserve, trees catch up to the new thresholds, old drops stay', () => {
+  const tree = (id, species, progress, stage, harvested = false) => ({ id, species, progress, activeDays: 7, stage, lastGrowDate: day, plantedOn: null, harvested });
+  const v2 = { version: 2, selectedDhikr: 'allahuakbar', currentDhikrIndex: 2, currentDhikrCount: 12, totalDhikrCount: 500,
+    perDhikrCounts: { subhanallah: 400 }, dailyDhikrCounts: { [day]: 20 }, lastActiveDate: day, activeDays: 5, hasSeenTasbihHint: true,
+    trees: [tree('t1', 'olive', 700, 3), tree('t2', 'fig', 10, 1), tree('t3', 'sidr', 5300, 6)], activeTreeId: 't1',
+    seeds: { fig: 2 }, lastCircleDropDate: '2026-09-10', reserve: 500,
+    pendingDrops: [{ species: 'fig', reason: 'week' }, { species: 'olive', reason: 'circle' }],
+    circleLimit: false, customDhikr: [{ id: 'c1', text: 'Mine' }] };
+  const state = model.restoreState(v2);
+  assert.equal(state.version, 3);
+  assert.deepEqual(state.sequence, model.DEFAULT_SEQUENCE);
+  assert.equal(state.reserve, 0);
+  assert.ok(!('lastCircleDropDate' in state));
+  assert.deepEqual(state.trees.map(t => [t.id, t.stage, t.progress]), [['t1', 4, 700], ['t2', 1, 10], ['t3', 7, 5300]]);
+  assert.equal(state.activeTreeId, 't1');
+  assert.deepEqual(state.pendingDrops, [{ species: 'fig', reason: 'week' }, { species: 'olive', reason: 'circle' }]);
+  assert.deepEqual(state.seeds, { fig: 2 });
+  assert.equal(state.selectedDhikr, 'allahuakbar');
+  assert.equal(state.currentDhikrIndex, 2);
+  assert.equal(state.currentDhikrCount, 12);
+  assert.equal(state.circleLimit, false);
+  assert.equal(state.customDhikr.length, 1);
+  assert.equal(state.totalDhikrCount, 500);
+  assert.equal(state.activeDays, 5);
+  // Дерево, дошедшее до плодов только по новым порогам, зерно ещё не отдавало: оно выдаётся на касании.
+  const fruited = model.restoreState({ ...v2, activeTreeId: 't3' });
+  assert.equal(model.activeTree(fruited).harvested, false);
+  const paid = model.registerDhikr(fruited, '2026-09-14', { rng: () => 0 });
+  assert.deepEqual(paid.pendingDrops.map(d => d.reason), ['week', 'circle', 'harvest']);
+
+  // Сохранение v3 стадии не подтягивает, а запас чистит.
+  const v3 = model.restoreState({ ...model.initialState(), trees: [tree('t1', 'olive', 700, 3)] });
+  assert.equal(model.activeTree(v3).stage, 3);
+  const reserveOf = reserve => model.restoreState({ ...model.initialState(), reserve }).reserve;
+  assert.equal(reserveOf(12.5), 12.5);
+  assert.equal(reserveOf(5000), model.RESERVE_CAP);
+  for (const bad of [-3, 'x', NaN, Infinity, null, undefined]) assert.equal(reserveOf(bad), 0);
+  assert.deepEqual(model.restoreState({ version: 4 }), model.initialState());
+  assert.deepEqual(model.restoreState(JSON.parse(JSON.stringify(state))), state);
 });

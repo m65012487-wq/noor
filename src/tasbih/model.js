@@ -2,8 +2,8 @@ export const DHIKR = [
   { id: 'subhanallah', arabic: 'سُبْحَانَ اللَّهِ', ru: 'Субханаллах', en: 'SubhanAllah', translation_ru: 'Пречист Аллах', translation_en: 'Glory be to Allah', target: 33 },
   { id: 'alhamdulillah', arabic: 'الْحَمْدُ لِلَّهِ', ru: 'Альхамдулиллях', en: 'Alhamdulillah', translation_ru: 'Хвала Аллаху', translation_en: 'Praise be to Allah', target: 33 },
   { id: 'allahuakbar', arabic: 'اللَّهُ أَكْبَرُ', ru: 'Аллаху акбар', en: 'Allahu Akbar', translation_ru: 'Аллах превелик', translation_en: 'Allah is the greatest', target: 33 },
-  // Дальше идут отдельные поминания: в «последовательность» они не входят,
-  // её составляют только три первых (см. SEQUENCE).
+  // Дальше идут отдельные поминания: в последовательность по умолчанию они не
+  // входят (см. DEFAULT_SEQUENCE), но их можно добавить в редакторе.
   { id: 'la_ilaha_illallah', arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ', ru: 'Ля иляха илляЛлах', en: 'La ilaha illallah', translation_ru: 'Нет божества, кроме Аллаха', translation_en: 'There is no god but Allah', target: 33 },
   { id: 'astaghfirullah', arabic: 'أَسْتَغْفِرُ اللَّهَ', ru: 'Астагфируллах', en: 'Astaghfirullah', translation_ru: 'Прошу прощения у Аллаха', translation_en: "I seek Allah's forgiveness", target: 33 },
   { id: 'subhanallahi_wa_bihamdihi', arabic: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', ru: 'Субханаллахи ва бихамдихи', en: 'SubhanAllahi wa bihamdihi', translation_ru: 'Пречист Аллах, и хвала Ему', translation_en: 'Glory and praise be to Allah', target: 33 },
@@ -12,24 +12,36 @@ export const DHIKR = [
   { id: 'salawat', arabic: 'اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ', ru: 'Аллахумма салли аля Мухаммад', en: 'Allahumma salli ala Muhammad', translation_ru: 'О Аллах, благослови Мухаммада', translation_en: 'O Allah, send blessings upon Muhammad', target: 33 },
   { id: 'hasbunallah', arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', ru: 'Хасбуна-Ллаху ва ни‘маль-вакиль', en: "Hasbunallahu wa ni'mal wakil", translation_ru: 'Достаточно нам Аллаха, и Он — лучший Покровитель', translation_en: 'Allah is sufficient for us, and He is the best Disposer of affairs', target: 33 },
 ];
-// «Последовательность» — всегда три первых поминания по кругу. Задаётся
-// явными id, а не длиной DHIKR: список поминаний растёт, а круг остаётся в 99.
-export const SEQUENCE = ['subhanallah', 'alhamdulillah', 'allahuakbar'];
-export const SEQUENCE_DHIKR = SEQUENCE.map(id => DHIKR.find(d => d.id === id));
-// Prototype coefficients are separate from the counter and artwork.
-export const GROWTH = { dailyCap: 100, firstBand: 33, secondBand: 99, laterWeight: 0.05, secondWeight: 0.35, activeDayContribution: 65 };
+// «Последовательность» — шаги { id, target } по кругу; по умолчанию три первых
+// поминания по 33. Задаётся явными id, а не длиной DHIKR: список поминаний
+// растёт, а круг остаётся в 99. id — из DHIKR или `custom:<id>` своего поминания.
+export const DEFAULT_SEQUENCE = [
+  { id: 'subhanallah', target: 33 },
+  { id: 'alhamdulillah', target: 33 },
+  { id: 'allahuakbar', target: 33 },
+];
+export const SEQUENCE_MAX_STEPS = 12;
+export const SEQUENCE_MAX_TARGET = 999;
+// Prototype coefficients are separate from the counter and artwork. Every dhikr
+// is one unit of growth; the first `bonusTaps` of each day count `bonusMultiplier` times.
+export const GROWTH = { bonusTaps: 33, bonusMultiplier: 2 };
 
 // 8 stages shared by every species; the silhouette is resolved by (species, stage index) in treeShapes.js.
+// Стадию задаёт только накопленный рост — сроков нет: 99 поминаний в день дают
+// плоды примерно за 15 дней, 33 — за месяц, 300 — за неделю.
 export const STAGES = [
-  { requiredProgress: 0, minimumDays: 0 },
-  { requiredProgress: 72, minimumDays: 1 },
-  { requiredProgress: 300, minimumDays: 3 },
-  { requiredProgress: 700, minimumDays: 7 },
-  { requiredProgress: 1500, minimumDays: 15 },
-  { requiredProgress: 2800, minimumDays: 30 },
-  { requiredProgress: 5200, minimumDays: 50 },
-  { requiredProgress: 8500, minimumDays: 75 },
+  { requiredProgress: 0 },
+  { requiredProgress: 40 },
+  { requiredProgress: 160 },
+  { requiredProgress: 360 },
+  { requiredProgress: 640 },
+  { requiredProgress: 1000 },
+  { requiredProgress: 1450 },
+  { requiredProgress: 2000 },
 ];
+// Пока активное дерево плодоносит, прирост копится в запасе и достаётся
+// следующему посаженному зерну; новое дерево стартует не дальше «Крепкого дерева».
+export const RESERVE_CAP = STAGES[5].requiredProgress;
 export const STAGE_NAMES = [
   { ru: 'Зерно', en: 'Seed' },
   { ru: 'Росток', en: 'Sprout' },
@@ -52,52 +64,71 @@ export const SPECIES = [
 ];
 const SPECIES_IDS = new Set(SPECIES.map(s => s.id));
 
+function defaultSequence() {
+  return DEFAULT_SEQUENCE.map(step => ({ ...step }));
+}
 export function initialState() {
   return {
-    version: 2, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 0,
+    version: 3, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 0,
     totalDhikrCount: 0, perDhikrCounts: {}, dailyDhikrCounts: {},
     lastActiveDate: null, activeDays: 0,
     hasSeenTasbihHint: false,
     trees: [{ id: 't1', species: 'olive', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false }],
     activeTreeId: 't1',
     seeds: {},
-    lastCircleDropDate: null,
+    reserve: 0,
     pendingDrops: [],
     circleLimit: true,
     customDhikr: [],
+    sequence: defaultSequence(),
   };
 }
 function customDhikrById(state, id) {
   return (state.customDhikr || []).find(d => `custom:${d.id}` === id);
 }
+// Definition of one remembrance (built-in or custom) with the given target, or
+// null when the id doesn't resolve. Shared by single mode and sequence steps.
+function dhikrDefinition(state, id, target) {
+  if (typeof id === 'string' && id.startsWith('custom:')) {
+    const custom = customDhikrById(state, id);
+    if (!custom) return null;
+    return { id, arabic: custom.arabic || '', ru: custom.text, en: custom.text,
+      translation_ru: custom.translation || '', translation_en: custom.translation || '', target };
+  }
+  const found = DHIKR.find(d => d.id === id);
+  return found ? { ...found, target } : null;
+}
+// Resolved steps of the sequence: each is what definition() would return for
+// that single remembrance, but with the step's own target. Steps that no longer
+// resolve are skipped; with none left the default three circles apply.
+export function sequenceSteps(state) {
+  const steps = (Array.isArray(state.sequence) ? state.sequence : [])
+    .map(step => (step ? dhikrDefinition(state, step.id, step.target) : null)).filter(Boolean);
+  return steps.length ? steps : DEFAULT_SEQUENCE.map(step => dhikrDefinition(state, step.id, step.target));
+}
 // `free` (no fixed phrase) and `custom:<id>` (the user's own remembrances)
 // share the same target rule as the single dhikr: 33 while
 // `circleLimit` is on, unbounded (target: null) once it's off. `sequence`
-// ignores circleLimit entirely — it is always three circles of 33.
+// ignores circleLimit entirely — every step has its own target.
 export function definition(state) {
   if (state.selectedDhikr === 'free') {
     return { id: 'free', arabic: '', ru: 'Свободный зикр', en: 'Free dhikr',
       translation_ru: 'Любые поминания — просто считайте', translation_en: 'Any remembrance — just count',
       target: state.circleLimit ? 33 : null };
   }
-  if (typeof state.selectedDhikr === 'string' && state.selectedDhikr.startsWith('custom:')) {
-    const custom = customDhikrById(state, state.selectedDhikr);
-    if (custom) {
-      return { id: state.selectedDhikr, arabic: custom.arabic || '', ru: custom.text, en: custom.text,
-        translation_ru: custom.translation || '', translation_en: custom.translation || '',
-        target: state.circleLimit ? 33 : null };
-    }
+  if (state.selectedDhikr !== 'sequence') {
+    const single = dhikrDefinition(state, state.selectedDhikr, state.circleLimit ? 33 : null);
+    if (single) return single;
   }
-  const found = DHIKR.find(d => d.id === state.selectedDhikr);
-  if (found) return state.selectedDhikr === 'sequence' ? found : { ...found, target: state.circleLimit ? 33 : null };
-  // 'sequence' (and any unknown id) resolves through the three-item circle.
-  return SEQUENCE_DHIKR[state.currentDhikrIndex] || SEQUENCE_DHIKR[0];
+  // 'sequence' (and any unknown id) resolves through the sequence steps.
+  const steps = sequenceSteps(state);
+  return steps[state.currentDhikrIndex % steps.length];
 }
 export function advance(state) {
   const target = definition(state).target;
   if (target == null || state.currentDhikrCount < target) return state;
   return { ...state, currentDhikrCount: 0,
-    currentDhikrIndex: state.selectedDhikr === 'sequence' ? (state.currentDhikrIndex + 1) % SEQUENCE.length : state.currentDhikrIndex };
+    currentDhikrIndex: state.selectedDhikr === 'sequence' ? (state.currentDhikrIndex + 1) % sequenceSteps(state).length : state.currentDhikrIndex };
 }
 export function selectDhikr(state, id) {
   const valid = id === 'sequence' || id === 'free' || DHIKR.some(d => d.id === id) || !!customDhikrById(state, id);
@@ -117,22 +148,61 @@ export function addCustomDhikr(state, { text, arabic, translation } = {}) {
     arabic: trimTo(arabic, 120), translation: trimTo(translation, 120) };
   return { ...state, customDhikr: [...(state.customDhikr || []), entry] };
 }
+// Cleans a list of steps: unknown ids are dropped, target is rounded and
+// clamped to 1..SEQUENCE_MAX_TARGET (junk falls back to 33), the list is cut to
+// SEQUENCE_MAX_STEPS; nothing left means DEFAULT_SEQUENCE. Custom ids are
+// checked against `state.customDhikr`.
+function cleanSequence(state, steps) {
+  const out = [];
+  for (const step of Array.isArray(steps) ? steps : []) {
+    if (out.length >= SEQUENCE_MAX_STEPS) break;
+    if (!step || typeof step.id !== 'string') continue;
+    if (!DHIKR.some(d => d.id === step.id) && !customDhikrById(state, step.id)) continue;
+    const raw = typeof step.target === 'number' && !Number.isNaN(step.target) ? Math.round(step.target) : 33;
+    out.push({ id: step.id, target: Math.min(SEQUENCE_MAX_TARGET, Math.max(1, raw)) });
+  }
+  return out.length ? out : defaultSequence();
+}
+function sameSequence(a, b) {
+  return Array.isArray(a) && Array.isArray(b) && a.length === b.length
+    && a.every((step, i) => step.id === b[i].id && step.target === b[i].target);
+}
+// The sequence's own counter restarts whenever its steps change: the old index
+// and count could point past the new list or at another step's target.
+function resetSequenceCounter(state) {
+  return state.selectedDhikr === 'sequence' ? { ...state, currentDhikrIndex: 0, currentDhikrCount: 0 } : state;
+}
+export function setSequence(state, steps) {
+  const sequence = cleanSequence(state, steps);
+  if (sameSequence(sequence, state.sequence)) return state;
+  return resetSequenceCounter({ ...state, sequence });
+}
 export function removeCustomDhikr(state, id) {
   const customDhikr = (state.customDhikr || []).filter(d => d.id !== id);
   if (customDhikr.length === (state.customDhikr || []).length) return state;
+  let next = { ...state, customDhikr };
   if (state.selectedDhikr === `custom:${id}`) {
-    return { ...state, customDhikr, selectedDhikr: 'free', currentDhikrIndex: 0, currentDhikrCount: 0 };
+    next = { ...next, selectedDhikr: 'free', currentDhikrIndex: 0, currentDhikrCount: 0 };
   }
-  return { ...state, customDhikr };
+  const steps = Array.isArray(state.sequence) ? state.sequence : [];
+  const kept = steps.filter(step => step?.id !== `custom:${id}`);
+  if (kept.length !== steps.length) {
+    next = resetSequenceCounter({ ...next, sequence: kept.length ? kept : defaultSequence() });
+  }
+  return next;
 }
 // Which haptic/visual reaction a completed tap deserves. `prev` is the state
-// right before the tap, `next` is registerDhikr's result. Every 33rd tap of
-// a circle is `'circle'`; the third circle of a full sequence (or, with the
-// per-dhikr circle limit off, every 99th tap) is the stronger `'complete'`.
+// right before the tap, `next` is registerDhikr's result. Every completed
+// circle is `'circle'`; the last step of the sequence (or, with the per-dhikr
+// circle limit off, every 99th tap) is the stronger `'complete'`.
 export function tapEvent(prev, next) {
   if (next.selectedDhikr === 'sequence') {
-    if (next.currentDhikrCount === 33) return prev.currentDhikrIndex === SEQUENCE.length - 1 ? 'complete' : 'circle';
-    return 'tap';
+    // registerDhikr has already moved on from a finished step, so the index in
+    // `next` is the step that was just counted (not `prev`'s, which may be the old one).
+    const steps = sequenceSteps(next);
+    const index = next.currentDhikrIndex % steps.length;
+    if (next.currentDhikrCount !== steps[index].target) return 'tap';
+    return index === steps.length - 1 ? 'complete' : 'circle';
   }
   const target = definition(next).target;
   if (target != null) return next.currentDhikrCount === target ? 'circle' : 'tap';
@@ -148,36 +218,30 @@ export function seasonAt(date = new Date()) {
   if (month >= 9 && month <= 11) return 'autumn';
   return 'winter';
 }
+// Growth for the day's first `count` remembrances: each is one unit, the first
+// `bonusTaps` count `bonusMultiplier` times. No daily cap.
 export function growthForCount(count, config = GROWTH) {
-  return Math.min(config.dailyCap,
-    Math.min(count, config.firstBand) + Math.max(0, Math.min(count, config.secondBand) - config.firstBand) * config.secondWeight
-      + Math.max(0, count - config.secondBand) * config.laterWeight);
+  return count + Math.min(count, config.bonusTaps) * (config.bonusMultiplier - 1);
 }
-// Returns the highest stage index whose thresholds are met; stages must be sorted ascending.
-export function chooseStage(progress, activeDays, stages = STAGES) {
+// Returns the highest stage index whose threshold is met; stages must be sorted ascending.
+export function chooseStage(progress, stages = STAGES) {
   let index = 0;
   for (let i = 0; i < stages.length; i += 1) {
-    if (progress >= stages[i].requiredProgress && activeDays >= (stages[i].minimumDays || 0)) index = i;
+    if (progress >= stages[i].requiredProgress) index = i;
   }
   return index;
 }
 export function activeTree(state) {
   return state.trees.find(t => t.id === state.activeTreeId) || null;
 }
-// Share (0..1) of the way to the next stage. A stage needs both enough
-// progress and enough active days (see chooseStage), so the ratio reports
-// whichever of the two is further behind. The last stage is always 1.
+// Share (0..1) of the way to the next stage, by growth alone.
+// The last stage is always 1.
 export function growthRatio(tree, stages = STAGES) {
   const cur = stages[tree.stage];
   const next = stages[tree.stage + 1];
   if (!cur) return 0;
   if (!next) return 1;
-  const clamp01 = v => Math.max(0, Math.min(1, v));
-  const progressRatio = clamp01((tree.progress - cur.requiredProgress) / Math.max(1, next.requiredProgress - cur.requiredProgress));
-  const daysRatio = next.minimumDays > cur.minimumDays
-    ? clamp01((tree.activeDays - cur.minimumDays) / (next.minimumDays - cur.minimumDays))
-    : 1;
-  return Math.min(progressRatio, daysRatio);
+  return Math.max(0, Math.min(1, (tree.progress - cur.requiredProgress) / Math.max(1, next.requiredProgress - cur.requiredProgress)));
 }
 function ownedSpecies(state) {
   const owned = new Set(state.trees.map(t => t.species));
@@ -204,39 +268,41 @@ export function registerDhikr(previous, dateKey, { rng = Math.random } = {}) {
   const isFirstToday = todayCount === 0;
   const activeDays = state.activeDays + (isFirstToday ? 1 : 0);
   const totalDhikrCount = state.totalDhikrCount + 1;
-  const dailyDelta = growthForCount(todayCount + 1) - growthForCount(todayCount);
+  const delta = growthForCount(todayCount + 1) - growthForCount(todayCount);
 
+  const finalStage = STAGES.length - 1;
   let harvested = false;
+  let reserve = Number.isFinite(state.reserve) ? state.reserve : 0;
   const trees = state.trees.map(tree => {
     if (tree.id !== state.activeTreeId) return tree;
-    const treeFirstToday = tree.lastGrowDate !== dateKey;
-    const progress = tree.progress + dailyDelta + (treeFirstToday ? GROWTH.activeDayContribution : 0);
-    const treeActiveDays = tree.activeDays + (treeFirstToday ? 1 : 0);
-    const stage = Math.max(tree.stage, chooseStage(progress, treeActiveDays));
-    if (stage === STAGES.length - 1 && !tree.harvested) harvested = true;
-    return { ...tree, progress, activeDays: treeActiveDays, stage, lastGrowDate: dateKey, harvested: tree.harvested || stage === STAGES.length - 1 };
+    const treeActiveDays = tree.activeDays + (tree.lastGrowDate !== dateKey ? 1 : 0);
+    // A fruiting tree has no stages left to earn: the same growth is also kept in
+    // the reserve for the next seed. A tree that fruits but was never marked
+    // harvested (old saves) pays out its seed now.
+    if (tree.stage === finalStage) {
+      reserve = Math.min(RESERVE_CAP, reserve + delta);
+      if (!tree.harvested) harvested = true;
+      return { ...tree, progress: tree.progress + delta, activeDays: treeActiveDays, lastGrowDate: dateKey, harvested: true };
+    }
+    const progress = tree.progress + delta;
+    const stage = Math.max(tree.stage, chooseStage(progress));
+    if (stage === finalStage && !tree.harvested) harvested = true;
+    return { ...tree, progress, activeDays: treeActiveDays, stage, lastGrowDate: dateKey, harvested: tree.harvested || stage === finalStage };
   });
 
+  // One seed per grown tree: only the first time the active tree fruits.
   let seeds = { ...state.seeds };
   const pendingDrops = [...state.pendingDrops];
-  let lastCircleDropDate = state.lastCircleDropDate;
-  const grant = (partial, reason) => {
-    const species = pickSpecies({ ...partial, seeds }, rng);
+  if (harvested) {
+    const species = pickSpecies({ trees, seeds }, rng);
     seeds = { ...seeds, [species]: (seeds[species] || 0) + 1 };
-    pendingDrops.push({ species, reason });
-  };
-  if (isFirstToday && activeDays > 0 && activeDays % 7 === 0) grant({ trees }, 'week');
-  if (harvested) grant({ trees }, 'harvest');
-  const todayTotal = todayCount + 1;
-  if (todayTotal % 99 === 0 && lastCircleDropDate !== dateKey && rng() < 0.12) {
-    grant({ trees }, 'circle');
-    lastCircleDropDate = dateKey;
+    pendingDrops.push({ species, reason: 'harvest' });
   }
 
   return { ...state, currentDhikrCount: state.currentDhikrCount + 1, totalDhikrCount,
     perDhikrCounts: { ...state.perDhikrCounts, [dhikr.id]: (state.perDhikrCounts[dhikr.id] || 0) + 1 },
-    dailyDhikrCounts: { ...state.dailyDhikrCounts, [dateKey]: todayTotal },
-    lastActiveDate: dateKey, activeDays, trees, seeds, lastCircleDropDate, pendingDrops,
+    dailyDhikrCounts: { ...state.dailyDhikrCounts, [dateKey]: todayCount + 1 },
+    lastActiveDate: dateKey, activeDays, trees, seeds, reserve, pendingDrops,
     hasSeenTasbihHint: state.hasSeenTasbihHint || totalDhikrCount >= 5 };
 }
 function nextTreeId(trees) {
@@ -247,14 +313,16 @@ function nextTreeId(trees) {
   }
   return `t${max + 1}`;
 }
+// The new tree takes over all growth kept while the previous one was fruiting.
 export function plantSeed(state, species, dateKey = null) {
   const available = state.seeds?.[species] || 0;
   if (available <= 0) return state;
   const seeds = { ...state.seeds, [species]: available - 1 };
   if (seeds[species] <= 0) delete seeds[species];
   const id = nextTreeId(state.trees);
-  const tree = { id, species, progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: dateKey, harvested: false };
-  return { ...state, seeds, trees: [...state.trees, tree], activeTreeId: id };
+  const progress = Number.isFinite(state.reserve) ? state.reserve : 0;
+  const tree = { id, species, progress, activeDays: 0, stage: chooseStage(progress), lastGrowDate: null, plantedOn: dateKey, harvested: false };
+  return { ...state, seeds, trees: [...state.trees, tree], activeTreeId: id, reserve: 0 };
 }
 export function setActiveTree(state, id) {
   if (!state.trees.some(t => t.id === id)) return state;
@@ -278,13 +346,14 @@ function sanitizeCustomDhikr(list) {
   }
   return out;
 }
-// Validates circleLimit/customDhikr and, transitively, selectedDhikr (which
-// may now point at 'free' or a 'custom:<id>' entry) before sanitizeCounters
-// clamps currentDhikrCount against the resulting target.
+// Validates circleLimit/customDhikr/sequence and, transitively, selectedDhikr
+// (which may now point at 'free' or a 'custom:<id>' entry) before
+// sanitizeCounters clamps currentDhikrCount against the resulting target.
 function sanitizeModes(state, base) {
   const next = { ...state };
   next.circleLimit = typeof next.circleLimit === 'boolean' ? next.circleLimit : base.circleLimit;
   next.customDhikr = sanitizeCustomDhikr(next.customDhikr);
+  next.sequence = cleanSequence(next, next.sequence);
   const validSelected = next.selectedDhikr === 'sequence' || next.selectedDhikr === 'free'
     || DHIKR.some(d => d.id === next.selectedDhikr) || !!customDhikrById(next, next.selectedDhikr);
   if (!validSelected) next.selectedDhikr = base.selectedDhikr;
@@ -295,7 +364,7 @@ function sanitizeCounters(state, base) {
   for (const key of ['currentDhikrIndex', 'currentDhikrCount', 'totalDhikrCount', 'activeDays']) {
     if (!Number.isFinite(next[key]) || next[key] < 0) next[key] = base[key];
   }
-  next.currentDhikrIndex = Math.floor(next.currentDhikrIndex) % SEQUENCE.length;
+  next.currentDhikrIndex = Math.floor(next.currentDhikrIndex) % sequenceSteps(next).length;
   const target = definition(next).target;
   next.currentDhikrCount = target == null ? Math.floor(next.currentDhikrCount) : Math.min(Math.floor(next.currentDhikrCount), target);
   for (const key of ['perDhikrCounts', 'dailyDhikrCounts']) {
@@ -326,37 +395,47 @@ function sanitizeGarden(state, base) {
     }
   }
   next.seeds = seeds;
-  next.lastCircleDropDate = typeof next.lastCircleDropDate === 'string' ? next.lastCircleDropDate : null;
+  next.reserve = Number.isFinite(next.reserve) && next.reserve >= 0 ? Math.min(next.reserve, RESERVE_CAP) : 0;
+  delete next.lastCircleDropDate;
   next.pendingDrops = Array.isArray(next.pendingDrops)
     ? next.pendingDrops.filter(d => d && SPECIES_IDS.has(d.species) && typeof d.reason === 'string').map(d => ({ species: d.species, reason: d.reason }))
     : [];
   return next;
 }
 function migrateFromV1(raw, base) {
-  const merged = { ...base, ...raw, version: 2 };
+  const merged = { ...base, ...raw, version: 3 };
   const progress = Number.isFinite(raw.treeGrowthProgress) && raw.treeGrowthProgress >= 0 ? raw.treeGrowthProgress : 0;
   const activeDays = Number.isSafeInteger(raw.activeDays) && raw.activeDays >= 0 ? raw.activeDays : 0;
-  const stage = chooseStage(progress, activeDays);
+  const stage = chooseStage(progress);
   merged.trees = [{ id: 't1', species: 'olive', progress, activeDays, stage,
     lastGrowDate: typeof merged.lastActiveDate === 'string' ? merged.lastActiveDate : null,
     plantedOn: null, harvested: stage === STAGES.length - 1 }];
   merged.activeTreeId = 't1';
   merged.seeds = {};
-  merged.lastCircleDropDate = null;
   merged.pendingDrops = [];
   merged.circleLimit = true;
   merged.customDhikr = [];
+  merged.sequence = defaultSequence();
+  merged.reserve = 0;
   delete merged.treeGrowthProgress;
   delete merged.treeStage;
   return merged;
 }
+// v2 → v3: the sequence is configurable, growth has no day limits and is kept in
+// `reserve`; the old growth thresholds were higher, so a tree never ends up
+// below the stage its progress now earns (see restoreState).
+function migrateFromV2(raw, base) {
+  return { ...base, ...raw, version: 3, sequence: defaultSequence(), reserve: 0 };
+}
 export function restoreState(raw) {
   const base = initialState();
-  if (!raw || (raw.version !== 1 && raw.version !== 2)) return base;
-  const merged = raw.version === 1 ? migrateFromV1(raw, base) : { ...base, ...raw, version: 2 };
+  if (!raw || ![1, 2, 3].includes(raw.version)) return base;
+  const merged = raw.version === 1 ? migrateFromV1(raw, base) : raw.version === 2 ? migrateFromV2(raw, base) : { ...base, ...raw, version: 3 };
   const modes = sanitizeModes(merged, base);
   const counters = sanitizeCounters(modes, base);
-  return sanitizeGarden(counters, base);
+  const garden = sanitizeGarden(counters, base);
+  if (raw.version === 3) return garden;
+  return { ...garden, trees: garden.trees.map(t => ({ ...t, stage: Math.max(t.stage, chooseStage(t.progress)) })) };
 }
 export function isResting(state, dateKey) {
   return !!state.lastActiveDate && (Date.parse(dateKey) - Date.parse(state.lastActiveDate)) / 86400000 >= 7;

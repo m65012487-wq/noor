@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { ackDrop, addCustomDhikr, advance, definition, plantSeed, registerDhikr, removeCustomDhikr, selectDhikr,
-  setActiveTree, setCircleLimit, tapEvent } from './model';
+  setActiveTree, setCircleLimit, setSequence, tapEvent } from './model';
 import { tasbihPersistence } from './persistence';
 import { localDateKey } from '../utils/calendarDate';
 const TasbihContext = createContext(null);
@@ -60,6 +60,7 @@ function useTasbihState() {
     addCustom: payload => { if (current.current) persist(addCustomDhikr(current.current, payload)); },
     removeCustom: id => { if (current.current) persist(removeCustomDhikr(current.current, id)); },
     setCircleLimit: value => { if (current.current) persist(setCircleLimit(current.current, value)); },
+    setSequence: steps => { if (current.current) persist(setSequence(current.current, steps)); },
     retry: () => current.current ? persist(current.current) : load(),
   };
 }

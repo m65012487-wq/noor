@@ -23,7 +23,7 @@ import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
 import MoonPhase from '../components/MoonPhase';
 import CalendarSheet from '../components/CalendarSheet';
-import TasbihEntry from '../tasbih/TasbihEntry';
+import TasbihEntry, { LEAF_CLEARANCE } from '../tasbih/TasbihEntry';
 import { formatGregorian, formatHijri } from '../utils/hijri';
 import { useLocation } from '../utils/LocationContext';
 import { useAppSettings, notifSoundFile, adhanNotifSoundFile } from '../utils/AppSettingsContext';
@@ -143,140 +143,139 @@ export default function PrayerTimesScreen() {
   }, [days, clock]);
 
   return (
-    <ScreenWrapper swipeHandlers={swipe}>
-      {alarmWindow && (
-        <GlassView radius={RADIUS.lg} style={styles.alarmBanner}>
-          <View style={styles.alarmHead}>
-            <View style={styles.alarmIcon}>
-              <Icon name="alarm" size={16} color={accent} />
-            </View>
-            <Text style={styles.alarmText}>{t('alarm_active')}</Text>
-          </View>
-          {/* Если запись не удалась, промис отклоняется — ползунок сам
-              вернётся в начало, и подтверждение можно повторить. */}
-          <SlideToConfirm label={t('slide_awake')} accessibilityLabel={t('im_awake')}
-            accessibilityHint={t('im_awake_hint')}
-            onConfirm={async () => { await updateSchedule(markAwake); setAlarmWindow(false); }} />
-        </GlassView>
-      )}
-      <View style={styles.header}>
-        <SectionTitle>{t('prayer_title')}</SectionTitle>
-        <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gear}>
-          <Icon name="settings" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Две даты рядом: григорианская привычна, по хиджре живёт всё
-          остальное в приложении — посты, месяцы, праздники. Держать в голове
-          перевод между ними неудобно, поэтому обе на виду. Нажатие открывает
-          календарь, где они сведены помесячно. */}
-      <View style={styles.topRow}>
-        <TouchableOpacity onPress={() => setPickerOpen(true)} activeOpacity={0.8}>
-          <GlassView style={styles.locChip} radius={RADIUS.pill} intensity={28}>
-            <Text style={styles.locText}>  {coords?.label || t('change_location')}  </Text>
-          </GlassView>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setCalendarOpen(true)} activeOpacity={0.8}
-          style={styles.dateBlock}>
-          <Text style={styles.dateGreg}>{formatGregorian(today, lang)}</Text>
-          <Text style={styles.dateHijri}>{formatHijri(today, hijriOffset, lang)}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Нижний отступ — под плавающий таб-бар (62 + отступ + безопасная зона),
-          как на остальных вкладках: последний элемент прокрутки, листок входа
-          в тасбих, должен подниматься выше него, а не прятаться под ним. */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        {loading && <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />}
-        {error && (
-          <Card style={{ borderColor: COLORS.danger }}>
-            <Text style={{ color: COLORS.text }}>{error}</Text>
-          </Card>
-        )}
-
-        {timings && !loading && (
-          <>
-            {/* Кольцо показывает, сколько прошло от предыдущего намаза
-                до следующего: цифра обратного отсчёта этого не передаёт.
-
-                Расписание намеренно лежит прямо на обоях, без стеклянных
-                плиток. Плитка под каждой строкой закрывала ровно ту часть
-                картинки, ради которой обои и выбирают, а читаемость держат
-                тень под текстом и тонкие разделители — их хватает. */}
-            <View style={styles.nextCard}>
-              <ProgressRing size={216} stroke={9} progress={progress} color={accent}>
-                {/* Луна за цифрами: дуга кольца отмеряет промежуток между
-                    намазами, а диск внутри — лунный месяц. Два разных счёта
-                    времени в одном месте, и ни один не мешает другому. */}
-                <MoonPhase size={168} color={accent} date={today} />
-                <Text style={styles.nextLabel}>{t("next_prayer")}</Text>
-                <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
-                <Text style={styles.countdown}>{countdown}</Text>
-                {!!nextName && (
-                  <Text style={styles.nextAt}>{nextTime}</Text>
-                )}
-              </ProgressRing>
-            </View>
-
-            {/* Свёрнутое расписание показывает намаз ЧЕРЕЗ ОДИН, а не
-                ближайший: ближайший уже стоит в кольце над ним, и повторять
-                его во второй строке — тратить место на то же самое. */}
-            <TouchableOpacity activeOpacity={0.85} onPress={toggleSchedule}>
-              <View style={[styles.spoilerRow, scheduleOpen && styles.spoilerOpen]}>
-                <Text style={styles.spoilerTitle}>{t('schedule')}</Text>
-                <View style={styles.rowRight}>
-                  {!scheduleOpen && !!afterNext && (
-                    <>
-                      <Text style={styles.spoilerLabel}>{prayerName(afterNext, lang)}</Text>
-                      <Text style={styles.spoilerNext}>{afterTime}</Text>
-                    </>
-                  )}
-                  <Icon name={scheduleOpen ? 'up' : 'down'}
-                    size={18} color={COLORS.textMuted} style={{ marginLeft: 10 }} />
-                </View>
+    <View style={styles.screen}>
+      <ScreenWrapper swipeHandlers={swipe}>
+        {alarmWindow && (
+          <GlassView radius={RADIUS.lg} style={styles.alarmBanner}>
+            <View style={styles.alarmHead}>
+              <View style={styles.alarmIcon}>
+                <Icon name="alarm" size={16} color={accent} />
               </View>
-            </TouchableOpacity>
-
-            {scheduleOpen && PRAYERS.map((p, i) => {
-              const isNext = p === nextName;
-              const isSunrise = p === "Sunrise";
-              const r = reminders[p];
-              return (
-                // Для восхода экран напоминаний не открывается: «за 10 минут
-                // до восхода» — не то напоминание, ради которого его показывают.
-                <TouchableOpacity key={p} activeOpacity={isSunrise ? 1 : 0.85}
-                  onPress={() => !isSunrise && setReminderPrayer(p)}>
-                  <View style={[styles.row, i > 0 && styles.rowDivider]}>
-                    <Text style={[styles.prayer, isNext && styles.prayerActive,
-                      isSunrise && styles.sunrise]}>{prayerName(p, lang)}</Text>
-                    <View style={styles.rowRight}>
-                      {r?.enabled && !isSunrise && (
-                        <Icon name="bell" size={14} color={COLORS.accentSoft}
-                          style={{ marginRight: 8 }} />
-                      )}
-                      <Text style={[styles.time, isNext && styles.prayerActive]}>{timings[p]}</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </>
+              <Text style={styles.alarmText}>{t('alarm_active')}</Text>
+            </View>
+            {/* Если запись не удалась, промис отклоняется — ползунок сам
+                вернётся в начало, и подтверждение можно повторить. */}
+            <SlideToConfirm label={t('slide_awake')} accessibilityLabel={t('im_awake')}
+              accessibilityHint={t('im_awake_hint')}
+              onConfirm={async () => { await updateSchedule(markAwake); setAlarmWindow(false); }} />
+          </GlassView>
         )}
+        <View style={styles.header}>
+          <SectionTitle>{t('prayer_title')}</SectionTitle>
+          <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gear}>
+            <Icon name="settings" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
 
-        {/* Вход в «Сад тасбиха» — листок без подписей. Он лежит в потоке
-            прокрутки сразу под расписанием (свёрнутым и раскрытым), по центру,
-            с отступами SPACING.md сверху и снизу (их задаёт сам компонент), а
-            не отдельным блоком над таб-баром: фиксированный блок поджимал
-            кольцо и строки расписания на невысоких экранах. В потоке он ни на
-            что не может наехать. */}
-        <TasbihEntry />
-      </ScrollView>
+        {/* Две даты рядом: григорианская привычна, по хиджре живёт всё
+            остальное в приложении — посты, месяцы, праздники. Держать в голове
+            перевод между ними неудобно, поэтому обе на виду. Нажатие открывает
+            календарь, где они сведены помесячно. */}
+        <View style={styles.topRow}>
+          <TouchableOpacity onPress={() => setPickerOpen(true)} activeOpacity={0.8}>
+            <GlassView style={styles.locChip} radius={RADIUS.pill} intensity={28}>
+              <Text style={styles.locText}>  {coords?.label || t('change_location')}  </Text>
+            </GlassView>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setCalendarOpen(true)} activeOpacity={0.8}
+            style={styles.dateBlock}>
+            <Text style={styles.dateGreg}>{formatGregorian(today, lang)}</Text>
+            <Text style={styles.dateHijri}>{formatHijri(today, hijriOffset, lang)}</Text>
+          </TouchableOpacity>
+        </View>
 
-      <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
-      <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setRefresh(v => v + 1)} />
-      <PrayerReminderSheet prayer={reminderPrayer} onClose={() => setReminderPrayer(null)} />
-      <CalendarSheet visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
-    </ScreenWrapper>
+        {/* Нижний отступ — под плавающий таб-бар (62 + отступ + безопасная зона),
+            как на остальных вкладках, и ещё под листок, лежащий на таб-баре:
+            последняя строка расписания должна подниматься выше обоих. */}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 + LEAF_CLEARANCE }}>
+          {loading && <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />}
+          {error && (
+            <Card style={{ borderColor: COLORS.danger }}>
+              <Text style={{ color: COLORS.text }}>{error}</Text>
+            </Card>
+          )}
+
+          {timings && !loading && (
+            <>
+              {/* Кольцо показывает, сколько прошло от предыдущего намаза
+                  до следующего: цифра обратного отсчёта этого не передаёт.
+
+                  Расписание намеренно лежит прямо на обоях, без стеклянных
+                  плиток. Плитка под каждой строкой закрывала ровно ту часть
+                  картинки, ради которой обои и выбирают, а читаемость держат
+                  тень под текстом и тонкие разделители — их хватает. */}
+              <View style={styles.nextCard}>
+                <ProgressRing size={216} stroke={9} progress={progress} color={accent}>
+                  {/* Луна за цифрами: дуга кольца отмеряет промежуток между
+                      намазами, а диск внутри — лунный месяц. Два разных счёта
+                      времени в одном месте, и ни один не мешает другому. */}
+                  <MoonPhase size={168} color={accent} date={today} />
+                  <Text style={styles.nextLabel}>{t("next_prayer")}</Text>
+                  <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
+                  <Text style={styles.countdown}>{countdown}</Text>
+                  {!!nextName && (
+                    <Text style={styles.nextAt}>{nextTime}</Text>
+                  )}
+                </ProgressRing>
+              </View>
+
+              {/* Свёрнутое расписание показывает намаз ЧЕРЕЗ ОДИН, а не
+                  ближайший: ближайший уже стоит в кольце над ним, и повторять
+                  его во второй строке — тратить место на то же самое. */}
+              <TouchableOpacity activeOpacity={0.85} onPress={toggleSchedule}>
+                <View style={[styles.spoilerRow, scheduleOpen && styles.spoilerOpen]}>
+                  <Text style={styles.spoilerTitle}>{t('schedule')}</Text>
+                  <View style={styles.rowRight}>
+                    {!scheduleOpen && !!afterNext && (
+                      <>
+                        <Text style={styles.spoilerLabel}>{prayerName(afterNext, lang)}</Text>
+                        <Text style={styles.spoilerNext}>{afterTime}</Text>
+                      </>
+                    )}
+                    <Icon name={scheduleOpen ? 'up' : 'down'}
+                      size={18} color={COLORS.textMuted} style={{ marginLeft: 10 }} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {scheduleOpen && PRAYERS.map((p, i) => {
+                const isNext = p === nextName;
+                const isSunrise = p === "Sunrise";
+                const r = reminders[p];
+                return (
+                  // Для восхода экран напоминаний не открывается: «за 10 минут
+                  // до восхода» — не то напоминание, ради которого его показывают.
+                  <TouchableOpacity key={p} activeOpacity={isSunrise ? 1 : 0.85}
+                    onPress={() => !isSunrise && setReminderPrayer(p)}>
+                    <View style={[styles.row, i > 0 && styles.rowDivider]}>
+                      <Text style={[styles.prayer, isNext && styles.prayerActive,
+                        isSunrise && styles.sunrise]}>{prayerName(p, lang)}</Text>
+                      <View style={styles.rowRight}>
+                        {r?.enabled && !isSunrise && (
+                          <Icon name="bell" size={14} color={COLORS.accentSoft}
+                            style={{ marginRight: 8 }} />
+                        )}
+                        <Text style={[styles.time, isNext && styles.prayerActive]}>{timings[p]}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
+
+        </ScrollView>
+
+        <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
+        <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setRefresh(v => v + 1)} />
+        <PrayerReminderSheet prayer={reminderPrayer} onClose={() => setReminderPrayer(null)} />
+        <CalendarSheet visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
+      </ScreenWrapper>
+      {/* Вход в «Сад тасбиха» — листок без подписей. При открытии приложения он
+          падает сверху и ложится на таб-бар, поэтому живёт отдельным слоем
+          поверх всего экрана, а не в прокрутке. Касаний слой не забирает. */}
+      <TasbihEntry />
+    </View>
   );
 }
 
@@ -290,6 +289,7 @@ const SHADOW = {
 };
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   gear: { padding: SPACING.sm },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

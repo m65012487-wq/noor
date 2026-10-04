@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Modal, View, Animated, PanResponder, StyleSheet, Dimensions, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
 import Text from './AppText';
 import { BlurView } from 'expo-blur';
@@ -21,11 +21,16 @@ const KEYBOARD_EXTRA = 420;
 // у нативного ScrollView. Тело прокручивается отдельно.
 export default function DraggableSheet({
   visible, onClose, children, title, maxHeightPct = 0.85,
-  contentContainerStyle, keyboardAvoiding = false,
+  contentContainerStyle, keyboardAvoiding = false, scrollRef,
 }) {
   const insets = useSafeAreaInsets();
   const { tint } = useAppearance();
-  const SHEET_MAX = SCREEN_H * maxHeightPct;
+  // Высота клавиатуры (только при keyboardAvoiding): шторку, поднятую над ней,
+  // нельзя оставлять выше свободного места, иначе её верх уйдёт за экран.
+  const [kbHeight, setKbHeight] = useState(0);
+  const SHEET_MAX = kbHeight > 0
+    ? Math.min(SCREEN_H * maxHeightPct, SCREEN_H - kbHeight - insets.top - SPACING.sm)
+    : SCREEN_H * maxHeightPct;
   const translateY = useRef(new Animated.Value(SCREEN_H)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const dragStart = useRef(0);
@@ -53,8 +58,9 @@ export default function DraggableSheet({
     };
     const show = Keyboard.addListener(showEvent, (e) => {
       lift(-(e.endCoordinates?.height || 0), e.duration);
+      setKbHeight(e.endCoordinates?.height || 0);
     });
-    const hide = Keyboard.addListener(hideEvent, (e) => lift(0, e?.duration));
+    const hide = Keyboard.addListener(hideEvent, (e) => { lift(0, e?.duration); setKbHeight(0); });
     return () => { show.remove(); hide.remove(); };
   }, [keyboardAvoiding, kbLift]);
   useEffect(() => {
@@ -146,6 +152,7 @@ export default function DraggableSheet({
       </View>
 
       <Animated.ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

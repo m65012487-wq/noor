@@ -11,9 +11,9 @@ import { TreeSilhouette } from './TreeView';
 import { SPECIES, STAGE_NAMES } from './model';
 
 const RULES = [
-  { ru: 'Раз в семь дней зикра — зерно в подарок.', en: 'A seed for every seventh day of dhikr.' },
-  { ru: 'Когда дерево приносит плод — новое зерно.', en: 'A seed when a tree bears fruit.' },
-  { ru: 'Иногда — за полный круг из 99 поминаний.', en: 'Sometimes for a full circle of 99 remembrances.' },
+  { ru: 'Каждое поминание растит дерево, первые 33 за день — вдвое.', en: 'Every remembrance grows the tree; the first 33 each day count double.' },
+  { ru: 'Когда дерево приносит плоды — новое зерно.', en: 'A tree in fruit gives a new seed.' },
+  { ru: 'Рост после плодов не пропадает — он перейдёт к следующему посаженному зерну.', en: 'Growth after fruiting is kept for the next seed you plant.' },
 ];
 
 function speciesLabel(id, ru) {
@@ -53,10 +53,15 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
       </ScrollView>
 
       <Text style={[styles.sectionTitle, styles.seedsTitle]}>{ru ? 'Зёрна' : 'Seeds'}</Text>
+      {state.reserve > 0 && (
+        <Text style={styles.reserve}>
+          {ru ? `Запас роста для нового дерева: ${Math.floor(state.reserve)}` : `Growth saved for the next tree: ${Math.floor(state.reserve)}`}
+        </Text>
+      )}
       {seedEntries.length === 0 ? (
         <View style={styles.emptySeeds}>
           <Text style={styles.emptyTitle}>{ru ? 'Зёрен пока нет' : 'No seeds yet'}</Text>
-          <Text style={styles.emptyBody}>{ru ? 'Они выпадают за усердие в зикре — смотрите ниже, как.' : 'They drop for steady dhikr — see how below.'}</Text>
+          <Text style={styles.emptyBody}>{ru ? 'Зерно выпадет, когда дерево принесёт плоды.' : 'A seed drops when the tree bears fruit.'}</Text>
         </View>
       ) : (
         <View style={styles.seedList}>
@@ -97,6 +102,7 @@ const styles = StyleSheet.create({
   treeImage: { width: 72, height: 90 },
   treeSpecies: { ...TYPE.caption, color: COLORS.text, marginTop: SPACING.xs, textAlign: 'center' },
   treeStage: { ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center' },
+  reserve: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xs },
   emptySeeds: { paddingVertical: SPACING.md },
   emptyTitle: { ...TYPE.callout, color: COLORS.text },
   emptyBody: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },

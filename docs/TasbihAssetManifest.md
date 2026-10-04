@@ -52,7 +52,7 @@ GateForeground сейчас объединён с отдельным перед�
 Будущие `olive_stage_06…N`: `assets/tasbih/tree/`, PNG 1200×1400, alpha, корень (600,1260), одинаковый масштаб камеры и padding. Нельзя плотно обрезать каждое дерево отдельно.
 
 1. Добавить реальный файл и запись в TREE_ASSETS: `{ source: require('../../assets/tasbih/tree/olive_stage_06.png') }`.
-2. Добавить в STAGES `{ id: 'olive_stage_06', assetName: 'olive_stage_06', requiredProgress: ..., minimumDays: ... }`.
+2. Добавить в STAGES `{ id: 'olive_stage_06', assetName: 'olive_stage_06', requiredProgress: ... }`.
 3. Не переименовывать существующие сохранённые id. Подобрать монотонные пороги по размеру рисунка. Проверить рост и crossfade.
 4. Отсутствующая запись ассета откатывает только изображение к предыдущему доступному, не прогресс. Не писать require на несуществующий файл.
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 import Text from '../components/AppText';
 import DraggableSheet from '../components/DraggableSheet';
@@ -7,32 +7,50 @@ import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
-import { DHIKR } from './model';
+import SequenceEditor from './SequenceEditor';
+import { DHIKR, sequenceSteps } from './model';
 
 // Mode picker for the tasbih screen's pill (docs/TASBIH_V3_SPEC.md, A):
-// sequence, every single dhikr in DHIKR (each with its translation as a second
-// line), free dhikr, the user's own remembrances (each deletable), the
-// "circles of 33" switch, and an inline form to add a new custom dhikr.
+// sequence (its composition as a second line and a button that switches the
+// sheet to SequenceEditor), every single dhikr in DHIKR (each with its
+// translation as a second line), free dhikr, the user's own remembrances (each
+// deletable), the "circles of 33" switch, and an inline form to add a new custom dhikr.
 // The list is longer than a short screen: DraggableSheet scrolls its body
 // (the grab zone with the title stays fixed), so nothing gets cut off.
 // `keyboardAvoiding` lifts the whole sheet above the keyboard so the form's
 // fields stay visible.
-export default function DhikrSheet({ visible, onClose, state, select, addCustom, removeCustom, setCircleLimit }) {
+export default function DhikrSheet({ visible, onClose, state, select, addCustom, removeCustom, setCircleLimit, setSequence }) {
   const { lang } = useLang();
   const ru = lang === 'ru';
   const { accent } = useAppearance();
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const scrollRef = useRef(null);
+  const scrollTimer = useRef(null);
+  // Список и редактор делят один ScrollView: при смене режима он остаётся
+  // прокрученным, поэтому каждый раз возвращаем его наверх.
+  useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: false }); }, [editing]);
+  useEffect(() => () => clearTimeout(scrollTimer.current), []);
+  // Поле в фокусе должно быть видно над клавиатурой: прокручиваем к его строке сразу
+  // и ещё раз, когда шторка уже подстроилась под клавиатуру.
+  const showRow = y => {
+    const go = () => scrollRef.current?.scrollTo({ y: Math.max(0, y - SPACING.sm), animated: true });
+    go();
+    clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(go, 300);
+  };
   const [text, setText] = useState('');
   const [arabic, setArabic] = useState('');
   const [translation, setTranslation] = useState('');
 
   const resetForm = () => { setAdding(false); setText(''); setArabic(''); setTranslation(''); };
-  const close = () => { resetForm(); onClose(); };
+  const close = () => { resetForm(); setEditing(false); onClose(); };
 
   if (!state) return null;
 
   const options = [
-    { id: 'sequence', label: ru ? 'Последовательность' : 'Sequence' },
+    { id: 'sequence', label: ru ? 'Последовательность' : 'Sequence',
+      sub: sequenceSteps(state).map(step => `${ru ? step.ru : step.en} ${step.target}`).join(' · '), editSequence: true },
     ...DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en, sub: ru ? d.translation_ru : d.translation_en })),
     { id: 'free', label: ru ? 'Свободный зикр' : 'Free dhikr' },
     ...(state.customDhikr || []).map(d => ({ id: `custom:${d.id}`, label: d.text, customId: d.id })),
@@ -47,7 +65,9 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
   };
 
   return (
-    <DraggableSheet visible={visible} onClose={close} title={ru ? 'Зикр' : 'Dhikr'} keyboardAvoiding>
+    <DraggableSheet visible={visible} onClose={close} keyboardAvoiding scrollRef={scrollRef}
+      title={editing ? (ru ? 'Последовательность' : 'Sequence') : (ru ? 'Зикр' : 'Dhikr')}>
+      {editing ? <SequenceEditor state={state} setSequence={setSequence} onDone={() => setEditing(false)} onFocusRow={showRow} /> : <>
       {options.map(option => (
         <View key={option.id} style={styles.row}>
           <Pressable accessibilityRole="radio" accessibilityState={{ checked: option.id === state.selectedDhikr }}
@@ -58,6 +78,13 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
               {!!option.sub && <Text style={styles.optionSub} numberOfLines={2}>{option.sub}</Text>}
             </View>
           </Pressable>
+          {!!option.editSequence && (
+            <Pressable accessibilityRole="button" accessibilityLabel={ru ? 'Настроить последовательность' : 'Edit sequence'}
+              onPress={() => { hapticLight(); setEditing(true); }}
+              style={styles.deleteButton} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Icon name="options" size={18} color={accent} />
+            </Pressable>
+          )}
           {!!option.customId && (
             <Pressable accessibilityRole="button"
               accessibilityLabel={ru ? `Удалить «${option.label}»` : `Delete "${option.label}"`}
@@ -99,6 +126,7 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
           </View>
         </View>
       )}
+      </>}
     </DraggableSheet>
   );
 }

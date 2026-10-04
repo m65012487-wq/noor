@@ -1,15 +1,16 @@
 import React, { memo, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Stop } from 'react-native-svg';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
+import Svg, { Ellipse, Path } from 'react-native-svg';
 import { COLORS } from '../constants/theme';
+import { CAN_ART } from './canArt';
 
 // Полив на завершённый круг: справа у ствола появляется лейка, наклоняется,
 // из ситечка на землю у корня падают капли, дерево вздыхает, лейка уходит.
 //
-// Лейка медная — тёплым янтарём наград (COLORS.ember), а не цветом схемы:
-// дерево нарисовано цветом схемы, и лейка того же цвета сливалась с кроной.
-// Стоит она внизу справа от ствола и поливает землю у корня, как настоящая:
-// там нет кроны, и ничего не перекрывается.
+// Лейка — рисунок Krea-2 (assets/tasbih/can.png, scripts/tasbih_assets/build_v4.py):
+// живая медь отделяется от дерева, нарисованного цветом схемы. Стоит она внизу
+// справа от ствола и поливает землю у корня, как настоящая: там нет кроны, и
+// ничего не перекрывается.
 //
 // Вся сцена — одна нативная анимация прогресса `progress` (0..1 за
 // WATERING_MS), а каждое движение выводится из неё по ключевым кадрам
@@ -20,14 +21,14 @@ import { COLORS } from '../constants/theme';
 export const WATERING_MS = 1800;
 const CALM_MS = 1200; // reduceMotion: лейка без наклона и капель
 
-// Холст рисунка лейки: носик смотрит влево, ситечко на его конце.
-const VB = { width: 150, height: 110 };
-// Ось наклона — середина корпуса; ситечко — центр розетки (оба в единицах холста).
-// Ось лежит ровно на целых процентах холста (66% и 68%): строку transformOrigin
-// RN разбирает регэкспом \d+(?:%|px), и дробь «68.18%» читалась бы как «18%»
-// — лейка поворачивалась бы вокруг другой точки, носик уезжал от струи.
-const PIVOT = { x: 99, y: 74.8 };
-const ROSE = { x: 10, y: 41.5 };
+// Холст рисунка — пиксели файла: носик смотрит влево, ситечко на его конце.
+// Ось наклона — центр корпуса, ситечко — центр розетки; их меряет сборщик.
+// Ось лежит ровно на целых процентах холста: строку transformOrigin RN
+// разбирает регэкспом \d+(?:%|px), и дробь «68.18%» читалась бы как «18%» —
+// лейка поворачивалась бы вокруг другой точки, носик уезжал от струи.
+const VB = { width: CAN_ART.width, height: CAN_ART.height };
+const PIVOT = CAN_ART.pivot;
+const ROSE = CAN_ART.rose;
 const TILT = -32; // градусы; отрицательный поворот опускает носик
 
 const rad = deg => (deg * Math.PI) / 180;
@@ -207,58 +208,10 @@ function buildScene(geo, progress, rich, calm) {
   return { place, can, splash, splashSpot, drops };
 }
 
-// Медная лейка: округлый корпус, дуговая ручка сверху и задняя ручка, длинный
-// носик от низа корпуса и раструб-ситечко с дырочками. Под каждой деталью —
-// непрозрачная тёмная подложка (COLORS.navyDeep): лейка стоит перед деревом
-// и не должна просвечивать. Объём — горизонтальный градиент корпуса (блик
-// слева, тень справа), а не обводка.
-const EMBER = COLORS.ember;
-const SOFT = COLORS.emberSoft;
-const DEEP = COLORS.navyDeep;
-const PARTS = {
-  handle: 'M78 46C76 14 122 10 126 50L119 50C116 22 85 24 85 46Z',
-  back: 'M127 58C145 60 145 90 127 92L127 85C137 83 137 66 127 65Z',
-  spout: 'M74 79L23 41L18 47L72 95Z',
-  rose: 'M25 36L11 29Q4 41 11 54L24 49Z',
-  body: 'M71 46Q67 74 71 100Q72 105 78 105L120 105Q126 105 127 100Q131 74 127 46Z',
-  shine: 'M78 53Q75 75 78 97L83 97Q80 75 83 53Z',
-  band: 'M69.5 63Q99 67 128.5 63L128.8 67.5Q99 71.5 69.3 67.5Z',
-};
-
+// Рисунок лейки во всю рамку. Размеры заданы явно: Image без них берёт
+// собственный размер файла.
 const CanArt = memo(function CanArt() {
-  return (
-    <Svg width="100%" height="100%" viewBox={`0 0 ${VB.width} ${VB.height}`}>
-      <Defs>
-        <LinearGradient id="wcBody" x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor={SOFT} />
-          <Stop offset="0.35" stopColor={EMBER} />
-          <Stop offset="1" stopColor={EMBER} stopOpacity={0.62} />
-        </LinearGradient>
-        <LinearGradient id="wcSpout" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={SOFT} />
-          <Stop offset="1" stopColor={EMBER} stopOpacity={0.8} />
-        </LinearGradient>
-      </Defs>
-      <Path d={PARTS.handle} fill={DEEP} />
-      <Path d={PARTS.handle} fill={EMBER} fillOpacity={0.85} />
-      <Path d={PARTS.back} fill={DEEP} />
-      <Path d={PARTS.back} fill={EMBER} fillOpacity={0.7} />
-      <Path d={PARTS.spout} fill={DEEP} />
-      <Path d={PARTS.spout} fill="url(#wcSpout)" />
-      <Path d={PARTS.rose} fill={DEEP} />
-      <Path d={PARTS.rose} fill={EMBER} />
-      <Ellipse cx={10} cy={41.5} rx={3.6} ry={12.5} fill={SOFT} />
-      {[35, 40, 45, 49].map(y => <Circle key={y} cx={y === 35 || y === 49 ? 10 : 11} cy={y} r={1} fill={EMBER} />)}
-      <Path d={PARTS.body} fill={DEEP} />
-      <Path d={PARTS.body} fill="url(#wcBody)" />
-      <Path d={PARTS.shine} fill={SOFT} fillOpacity={0.6} />
-      <Path d={PARTS.band} fill={SOFT} fillOpacity={0.35} />
-      {/* Горловина */}
-      <Ellipse cx={99} cy={46} rx={28} ry={6} fill={DEEP} />
-      <Ellipse cx={99} cy={46} rx={28} ry={6} fill={EMBER} fillOpacity={0.45} />
-      <Ellipse cx={99} cy={46} rx={28} ry={6} fill="none" stroke={SOFT} strokeWidth={2.2} />
-    </Svg>
-  );
+  return <Image source={CAN_ART.source} style={styles.canImage} resizeMode="contain" />;
 });
 
 // Вода — белая: на тёмном фоне у корня капли видны в любой цветовой схеме.
@@ -322,6 +275,7 @@ export default memo(function WateringCan({ geo, water, progress, reduceMotion })
 
 const styles = StyleSheet.create({
   can: { position: 'absolute', opacity: 0 },
+  canImage: { width: '100%', height: '100%' },
   drop: { position: 'absolute', width: DROP.width, height: DROP.height, opacity: 0 },
   splash: { position: 'absolute', width: 52, height: 12, opacity: 0 },
 });
