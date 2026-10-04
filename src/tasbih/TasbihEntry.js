@@ -14,8 +14,9 @@ import { TWIG_ART } from './twigArt';
 
 // Вход в «Сад тасбиха» — веточка без единой подписи. При открытии приложения
 // она выпадает из-за правого края экрана, будто с дерева, что растёт рядом:
-// входит, качнувшись, и тянется над таб-баром кончиком вверх — срез внизу у
-// края, ветка растёт вверх-влево, как побег к свету, — чуть покачиваясь на ветру. Человек нажимает из любопытства и сам открывает сад. Веточка —
+// ветка стоит за кадром и наклоняется влево, в экран, качнувшись, замирает
+// над таб-баром кончиком вверх — срез у края, побег тянется к свету, — и
+// дальше чуть покачивается на ветру. Человек нажимает из любопытства и сам открывает сад. Веточка —
 // плоский силуэт цвета схемы, как сцены на обоях; каждый раз другая (набор
 // силуэтов Krea-2, twigArt.js).
 //
@@ -35,7 +36,13 @@ const TWIG_OPACITY = 0.82;
 const AWAY_MS = 5 * 60 * 1000;
 // Экран успевает появиться, и ветка выпадает на глазах.
 const ENTER_DELAY_MS = 600;
-const ENTER_MS = 1500;
+const ENTER_MS = 1600;
+// Ветка гнётся не у среза, а у невидимого основания за правым краем экрана, на
+// столько пунктов правее среза: так она входит, наклоняясь из-за кадра, а не
+// поворачиваясь на месте. В начале входа она поднята на ENTER_LIFT градусов
+// выше покоя — стоит почти вертикально целиком за краем вместе с тёплой точкой.
+const PIVOT_R = 60;
+const ENTER_LIFT = 72;
 // Насколько ветка поднята: угол от горизонтали, кончиком вверх. Каждый вход —
 // свой угол из этого диапазона: одинаково торчащая ветка выглядела бы как значок.
 const RISE_MIN = 26;
@@ -108,18 +115,25 @@ function swayLoop(value) {
   return Animated.loop(Animated.sequence([step(1, SWAY_MS / 4), step(0, SWAY_MS / 2), step(0.5, SWAY_MS / 4)]));
 }
 
-// Веточка: вход и покачивание вокруг среза стебля у правого края. Вход — одна
-// нативная анимация: ветка въезжает из-за края, опустив кончик, взмывает чуть
-// выше своего угла, обратно и замирает. Потом её едва качает ветер. В RN
-// положительный поворот — по часовой стрелке, и кончик слева от оси от него
-// поднимается.
+// Веточка: вход и покачивание вокруг основания за правым краем. Вход — одна
+// нативная анимация: ветка из-за кадра наклоняется влево, с разгона чуть
+// проскакивает свой угол, возвращается и замирает. Потом её едва качает ветер.
+// В RN положительный поворот — по часовой стрелке, и кончик слева от оси от
+// него поднимается; наклон влево, в экран, — уменьшение угла.
 const Twig = memo(function Twig({ art, rise, place, accent, hasGift, enabled, reduceMotion, label, hint, onOpen }) {
   const [motion] = useState(makeMotion);
   const [landed, setLanded] = useState(false);
   const size = twigSize(art);
-  // Срез — внизу у края, над таб-баром: ветка поднимается от него вверх.
+  // В покое срез — у края экрана над таб-баром, ветка поднимается от него вверх.
+  // Поворот вокруг основания за краем сдвигает срез вверх и вправо, поэтому
+  // рамку ставим с поправкой: после поворота на rise срез придёт ровно на место.
   const a = (rise * Math.PI) / 180;
-  const stemY = place.bottom - 0.5 * size.h * Math.cos(a);
+  const restStem = { x: place.right + TUCK, y: place.bottom - 0.5 * size.h * Math.cos(a) };
+  const stem = { x: restStem.x - PIVOT_R * (1 - Math.cos(a)), y: restStem.y + PIVOT_R * Math.sin(a) };
+  const stemPx = (size.h * art.stem) / 100;
+  // Ось — правее рамки; строку transformOrigin RN разбирает регэкспом
+  // \d+(?:%|px), поэтому только целые пункты.
+  const origin = `${Math.round(size.w + PIVOT_R)}px ${Math.round(stemPx)}px`;
 
   // isInteraction: false — иначе InteractionManager ждал бы конца входа.
   useEffect(() => {
@@ -147,20 +161,23 @@ const Twig = memo(function Twig({ art, rise, place, accent, hasGift, enabled, re
   // Наклон входа и ветер складываются числами, а уже сумма переводится в
   // градусы: повторять один ключ transform дважды ненадёжно.
   const style = useMemo(() => {
-    const { enter, sway, press } = motion;
-    if (reduceMotion) return { opacity: enter, transform: [{ rotate: `${rise}deg` }, { scale: press }] };
-    // Въезд из-за края за первые 45% входа, дальше затухающее качание.
-    const input = [0, 0.45, 0.62, 0.78, 0.9, 1];
-    const tilt = enter.interpolate({ inputRange: input, outputRange: [-40, -4, 6, -2.5, 1, 0].map(v => v + rise) });
+    const { enter, sway } = motion;
+    if (reduceMotion) return { opacity: enter, transform: [{ rotate: `${rise}deg` }] };
+    // Наклон с разгоном (как падает отпущенная ветка) за первые 55% входа —
+    // промежуточные кадры по квадрату, — дальше затухающее качание.
+    const input = [0, 0.14, 0.28, 0.42, 0.55, 0.7, 0.85, 1];
+    const lift = [1, 0.94, 0.75, 0.44, 0].map(k => k * ENTER_LIFT);
+    const tilt = enter.interpolate({ inputRange: input, outputRange: [...lift, -5, 2, 0].map(v => v + rise) });
     const swing = sway.interpolate({ inputRange: [0, 1], outputRange: [-SWAY_DEG, SWAY_DEG] });
     return {
       transform: [
-        { translateX: enter.interpolate({ inputRange: [0, 0.45, 1], outputRange: [size.w * 0.85, 0, 0] }) },
-        { rotate: Animated.add(tilt, swing).interpolate({ inputRange: [-90, 90], outputRange: ['-90deg', '90deg'] }) },
-        { scale: press },
+        { rotate: Animated.add(tilt, swing).interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] }) },
       ],
     };
-  }, [motion, reduceMotion, size.w, rise]);
+  }, [motion, reduceMotion, rise]);
+  // Нажатие сжимает сам рисунок, а не всю ветку: масштаб вокруг далёкой оси
+  // сдвигал бы ветку к краю.
+  const pressStyle = useMemo(() => ({ transform: [{ scale: motion.press }] }), [motion]);
 
   const pressTo = config => {
     if (reduceMotion) return;
@@ -169,19 +186,20 @@ const Twig = memo(function Twig({ art, rise, place, accent, hasGift, enabled, re
 
   return (
     <Animated.View pointerEvents="box-none" style={[styles.twig, {
-      width: size.w, height: size.h, left: place.right + TUCK - size.w, top: stemY - (size.h * art.stem) / 100,
-      // Качается вокруг среза стебля; проценты целые — RN разбирает строку
-      // transformOrigin регэкспом \d+(?:%|px).
-      transformOrigin: `100% ${art.stem}%`,
+      width: size.w, height: size.h, left: stem.x - size.w, top: stem.y - stemPx, transformOrigin: origin,
     }, style]}>
       <Pressable onPress={() => { hapticLight(); onOpen(); }} disabled={!enabled}
         onPressIn={() => pressTo(PRESS_IN)} onPressOut={() => pressTo(PRESS_OUT)}
         hitSlop={8} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
         style={StyleSheet.absoluteFill}>
         {/* Силуэт белый с альфой: цвет даёт схема, как сценам на обоях. */}
-        <Image source={art.source} resizeMode="contain"
-          style={{ width: size.w, height: size.h, tintColor: accent, opacity: TWIG_OPACITY }} />
-        {hasGift ? <Ember reduceMotion={reduceMotion} /> : null}
+        <Animated.View style={pressStyle}>
+          <Image source={art.source} resizeMode="contain"
+            style={{ width: size.w, height: size.h, tintColor: accent, opacity: TWIG_OPACITY }} />
+        </Animated.View>
+        {/* Тёплая точка — только когда ветка уже на месте: во время входа
+            она не должна мелькать у края. */}
+        {hasGift && landed ? <Ember reduceMotion={reduceMotion} /> : null}
       </Pressable>
     </Animated.View>
   );
