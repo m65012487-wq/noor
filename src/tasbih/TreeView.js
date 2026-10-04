@@ -73,7 +73,8 @@ export default memo(function TreeView({ species, stage, pulse, reduceMotion }) {
   return (
     <Animated.View pointerEvents="none" style={[styles.tree, {
       // Качается крона, а комель стоит на месте — ствол не отрывается от земли.
-      transformOrigin: `50% ${(TREE_CANVAS.baseY / TREE_CANVAS.height) * 100}%`,
+      // Целые проценты: дробь в строке transformOrigin RN разбирает неверно.
+      transformOrigin: `50% ${Math.round((TREE_CANVAS.baseY / TREE_CANVAS.height) * 100)}%`,
       transform: [
         { rotate: sway.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${variant < 2 ? direction * 0.6 : 0}deg`] }) },
         { scale: sway.interpolate({ inputRange: [0, 1], outputRange: [1, variant === 2 ? 1.006 : 0.997] }) },

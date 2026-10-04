@@ -21,17 +21,17 @@ export const PATTERNS = [
   // и разложены на три плана, которые сдвигаются при наклоне телефона.
   // Глубина держится на прозрачности слоёв, поэтому цвет по-прежнему
   // задаётся схемой, и одна картинка работает со всеми.
-  // «Город» убран: ряды куполов и минаретов спорили с текстом расписания.
-  { id: 'mountains', label_en: 'Mountains', label_ru: 'Горы',     kind: 'scene' },
-  { id: 'oasis',     label_en: 'Oasis',     label_ru: 'Оазис',    kind: 'scene' },
-  { id: 'garden',    label_en: 'Garden',    label_ru: 'Сад',      kind: 'scene' },
-  { id: 'mosque',    label_en: 'Mosque',    label_ru: 'Мечеть у воды', kind: 'scene' },
-  { id: 'desert',    label_en: 'Desert',    label_ru: 'Пустыня',  kind: 'scene' },
-  { id: 'crescent',  label_en: 'Crescent',  label_ru: 'Полумесяц', kind: 'scene' },
+  // «Город» убран по просьбе пользователя; сцены «Горы», «Оазис», «Сад» и
+  // «Мечеть у воды» пробовали и тоже убрали — не понравились.
+  { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
+  { id: 'crescent', label_en: 'Crescent', label_ru: 'Полумесяц', kind: 'scene' },
 ];
 
-// Узор по умолчанию и замена убранного: сохранённый «город» откатывается сюда.
-export const DEFAULT_PATTERN = 'mountains';
+// Узор по умолчанию и замена убранных сцен: сохранённый выбор сцены, которой
+// больше нет («город», «горы», «оазис», «сад», «мечеть у воды»), откатывается
+// сюда. «Пустыня», а не «Полумесяц»: крупный полумесяц той сцены стоял бы ровно
+// за кольцом обратного отсчёта, где уже нарисована фаза луны.
+export const DEFAULT_PATTERN = 'desert';
 
 export const PATTERN_TILES = {
   bloom: require('../../assets/patterns/bloom.png'),
@@ -44,26 +44,6 @@ export const PATTERN_TILES = {
 // ради параллакса: при наклоне телефона ближний план уезжает заметно
 // сильнее дальнего, и плоская картинка получает глубину.
 export const SCENE_LAYERS = {
-  mountains: [
-    require('../../assets/scenes/mountains-1.png'),
-    require('../../assets/scenes/mountains-2.png'),
-    require('../../assets/scenes/mountains-3.png'),
-  ],
-  oasis: [
-    require('../../assets/scenes/oasis-1.png'),
-    require('../../assets/scenes/oasis-2.png'),
-    require('../../assets/scenes/oasis-3.png'),
-  ],
-  garden: [
-    require('../../assets/scenes/garden-1.png'),
-    require('../../assets/scenes/garden-2.png'),
-    require('../../assets/scenes/garden-3.png'),
-  ],
-  mosque: [
-    require('../../assets/scenes/mosque-1.png'),
-    require('../../assets/scenes/mosque-2.png'),
-    require('../../assets/scenes/mosque-3.png'),
-  ],
   desert: [
     require('../../assets/scenes/desert-1.png'),
     require('../../assets/scenes/desert-2.png'),
@@ -177,8 +157,8 @@ export function AppearanceProvider({ children }) {
       // идентификатор старой темы иначе молча тянул бы дефолты.
       const savedPattern = await loadJSON('pattern', DEFAULT_PATTERN);
       const knownPattern = PATTERNS.some((p) => p.id === savedPattern);
-      // Убранная сцена («город») откатывается и записывается сразу: иначе
-      // откат повторялся бы на каждом запуске.
+      // Убранная сцена откатывается и записывается сразу: иначе откат
+      // повторялся бы на каждом запуске.
       if (!knownPattern) await saveJSON('pattern', DEFAULT_PATTERN);
       setPattern(knownPattern ? savedPattern : DEFAULT_PATTERN);
 

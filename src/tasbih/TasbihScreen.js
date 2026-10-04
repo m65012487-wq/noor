@@ -87,13 +87,14 @@ export default function TasbihScreen({ onClose }) {
   }, [item.id, textFade, reduceMotion]);
   const phrase = ru ? item.ru : item.en;
   const translation = ru ? item.translation_ru : item.translation_en;
-  const onTap = () => {
+  const onTap = (e) => {
     const event = tap();
     hapticLight();
     if (event === 'circle') hapticHeavy();
     else if (event === 'complete') hapticSuccess();
     setPulse(v => v + 1);
-    setBurst({ event });
+    // Листья разлетаются из места касания (координаты внутри области дерева).
+    setBurst({ event, x: e?.nativeEvent?.locationX, y: e?.nativeEvent?.locationY });
     if (event !== 'tap') triggerFlash();
     if (event === 'circle' || event === 'complete') setWater({ rich: event === 'complete' });
   };
