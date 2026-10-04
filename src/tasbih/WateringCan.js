@@ -2,13 +2,14 @@ import React, { memo, useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 import { COLORS } from '../constants/theme';
+import { useAppearance } from '../utils/AppearanceContext';
 import { CAN_ART } from './canArt';
 
 // Полив на завершённый круг: справа у ствола появляется лейка, наклоняется,
 // из ситечка на землю у корня падают капли, дерево вздыхает, лейка уходит.
 //
-// Лейка — рисунок Krea-2 (assets/tasbih/can.png, scripts/tasbih_assets/build_v4.py):
-// живая медь отделяется от дерева, нарисованного цветом схемы. Стоит она внизу
+// Лейка — плоский силуэт Krea-2 цвета схемы, как дерево и сцены на обоях
+// (assets/tasbih/can.png, scripts/tasbih_assets/build_v5.py). Стоит она внизу
 // справа от ствола и поливает землю у корня, как настоящая: там нет кроны, и
 // ничего не перекрывается.
 //
@@ -127,13 +128,16 @@ function dropDelay(i) {
 function layout(geo) {
   // Полуширина ствола у земли: у взрослых деревьев он заметно толще.
   const trunk = (geo.seed ? 5 : geo.crown.height > geo.height * 0.45 ? 11 : 6) * geo.scale;
-  const lift = clamp(geo.height * 0.2, 46, 92);
+  const lift = clamp(geo.height * 0.16, 40, 76);
   const tip = { x: geo.root.x + trunk + 18, y: geo.root.y - lift };
-  // Ширина рисунка ~ треть области, но не больше, чем влезает справа и сверху.
-  let k = clamp(geo.width * 0.3, 84, 122) / VB.width;
+  // Ширина рисунка ~ пятая часть области (небольшая, садовая), но не больше,
+  // чем влезает справа и сверху.
+  let k = clamp(geo.width * 0.22, 64, 92) / VB.width;
   const fitRight = (geo.width - 4 - tip.x) / (TILTED.maxX - TIP.x);
   const fitTop = (tip.y - 4) / (TIP.y - TILTED.minY);
-  k = Math.max(0.42, Math.min(k, fitRight, fitTop));
+  // Нижний предел — в пунктах ширины, а не в масштабе: масштаб зависит от
+  // размера файла, и прежние 0.42 у картинки шириной 420 давали лейку в 176 пт.
+  k = Math.max(56 / VB.width, Math.min(k, fitRight, fitTop));
   return {
     k, tip, trunk,
     left: tip.x - TIP.x * k, top: tip.y - TIP.y * k,
@@ -208,10 +212,10 @@ function buildScene(geo, progress, rich, calm) {
   return { place, can, splash, splashSpot, drops };
 }
 
-// Рисунок лейки во всю рамку. Размеры заданы явно: Image без них берёт
-// собственный размер файла.
-const CanArt = memo(function CanArt() {
-  return <Image source={CAN_ART.source} style={styles.canImage} resizeMode="contain" />;
+// Рисунок лейки во всю рамку: белый силуэт с альфой, цвет даёт схема. Размеры
+// заданы явно: Image без них берёт собственный размер файла.
+const CanArt = memo(function CanArt({ color }) {
+  return <Image source={CAN_ART.source} style={[styles.canImage, { tintColor: color }]} resizeMode="contain" />;
 });
 
 // Вода — белая: на тёмном фоне у корня капли видны в любой цветовой схеме.
@@ -228,6 +232,7 @@ const DropArt = memo(function DropArt() {
 // четыре капли больше); progress — Animated.Value, которым владеет экран: от
 // него же дерево «вздыхает». Если полив идёт, новый круг его не перезапускает.
 export default memo(function WateringCan({ geo, water, progress, reduceMotion }) {
+  const { accent } = useAppearance();
   const rich = useRef(new Animated.Value(0)).current;
   // Полив, который уже был на момент монтирования, не проигрываем заново.
   const handled = useRef(water);
@@ -262,7 +267,7 @@ export default memo(function WateringCan({ geo, water, progress, reduceMotion })
       </Animated.View>
       <Animated.View pointerEvents="none"
         style={[styles.can, { left: place.left, top: place.top, width: place.width, height: place.height }, can]}>
-        <CanArt />
+        <CanArt color={accent} />
       </Animated.View>
       {drops.map((drop, i) => (
         <Animated.View key={i} pointerEvents="none" style={[styles.drop, { left: drop.left, top: drop.top }, drop.style]}>

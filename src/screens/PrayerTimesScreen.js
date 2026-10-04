@@ -23,7 +23,7 @@ import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
 import MoonPhase from '../components/MoonPhase';
 import CalendarSheet from '../components/CalendarSheet';
-import TasbihEntry, { LEAF_CLEARANCE } from '../tasbih/TasbihEntry';
+import TasbihEntry, { ENTRY_CLEARANCE } from '../tasbih/TasbihEntry';
 import { formatGregorian, formatHijri } from '../utils/hijri';
 import { useLocation } from '../utils/LocationContext';
 import { useAppSettings, notifSoundFile, adhanNotifSoundFile } from '../utils/AppSettingsContext';
@@ -185,9 +185,9 @@ export default function PrayerTimesScreen() {
         </View>
 
         {/* Нижний отступ — под плавающий таб-бар (62 + отступ + безопасная зона),
-            как на остальных вкладках, и ещё под листок, лежащий на таб-баре:
+            как на остальных вкладках, и ещё под веточку-вход над таб-баром:
             последняя строка расписания должна подниматься выше обоих. */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 + LEAF_CLEARANCE }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 + ENTRY_CLEARANCE }}>
           {loading && <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />}
           {error && (
             <Card style={{ borderColor: COLORS.danger }}>
@@ -271,8 +271,8 @@ export default function PrayerTimesScreen() {
         <PrayerReminderSheet prayer={reminderPrayer} onClose={() => setReminderPrayer(null)} />
         <CalendarSheet visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
       </ScreenWrapper>
-      {/* Вход в «Сад тасбиха» — листок без подписей. При открытии приложения он
-          падает сверху и ложится на таб-бар, поэтому живёт отдельным слоем
+      {/* Вход в «Сад тасбиха» — веточка без подписей. При открытии приложения она
+          выпадает справа и замирает над таб-баром, поэтому живёт отдельным слоем
           поверх всего экрана, а не в прокрутке. Касаний слой не забирает. */}
       <TasbihEntry />
     </View>

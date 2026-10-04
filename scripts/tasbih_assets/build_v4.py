@@ -1,7 +1,7 @@
 """v4: листья-вход по породам и лейка полива — из кадров Krea-2 (промпты — prompts_v4.py, сырьё E:\\AI\\noor_gen\\v4).
 
 python build_v4.py sheet   — лист выбора: все кандидаты, вырезанные, на тёмном фоне приложения
-python build_v4.py build   — выбранные кадры (LEAVES, CAN ниже) → assets/tasbih/*.png и src/tasbih/{leafArt,canArt}.js
+python build_v4.py build   — архив: цветные листья и медная лейка v4 (LEAVES, CAN) отключены, их место заняли силуэты build_v5.py
 
 Запускать python'ом ComfyUI (там scipy): E:\\AI\\ComfyUI_windows_portable\\python_embeded\\python.exe
 """
@@ -22,7 +22,8 @@ SRC = ROOT / "src" / "tasbih"
 # стоит черенком вниз, кончиком вверх — поворот это выправляет.
 # Цветные листья v4 заменены силуэтами в цвет темы — их собирает build_v5.py.
 LEAVES = {}
-CAN = 'copper_4202'   # имя кадра лейки (носик влево)
+# Медная лейка v4 заменена силуэтом в цвете темы — её собирает build_v5.py.
+CAN = None            # имя кадра лейки (носик влево)
 LEAF_LONG_PX = 240    # длинная сторона листа в файле (на экране ≤ 60 pt, 3x с запасом)
 CAN_W_PX = 420        # ширина лейки в файле (на экране ≤ 122 pt)
 APP_BG = (16, 26, 38)
@@ -96,6 +97,8 @@ def build():
     if LEAVES:
         (SRC / "leafArt.js").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    if not CAN:
+        return
     can = trim(cutout(Image.open(RAW / "can" / f"{CAN}.png")))
     k = CAN_W_PX / can.width
     can = can.resize((CAN_W_PX, round(can.height * k)), Image.LANCZOS)

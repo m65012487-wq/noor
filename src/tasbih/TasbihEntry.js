@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Animated, Easing, Image, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReduceMotion } from '../components/ScreenWrapper';
 import { TAB_ISLAND } from '../components/GlassTabBar';
@@ -10,62 +10,44 @@ import { hapticLight } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
 import useTasbih from './useTasbih';
 import TasbihScreen from './TasbihScreen';
-import { LEAF_ART } from './leafArt';
+import { TWIG_ART } from './twigArt';
 
-// Вход в «Сад тасбиха» — листок без единой подписи. При открытии приложения он
-// срывается сверху, кружит в воздухе и ложится на таб-бар в случайном месте;
-// человек нажимает из любопытства и сам открывает сад. Лист — плоский
-// силуэт цвета схемы, как сцены на обоях, приглушённый, чтобы не кричать;
-// форма каждый раз новая (набор силуэтов Krea-2, leafArt.js). Лёжа он не
-// замирает намертво: изредка его трогает ветер и на нём вспыхивает росинка.
+// Вход в «Сад тасбиха» — веточка без единой подписи. При открытии приложения
+// она выпадает из-за правого края экрана, будто с дерева, что растёт рядом:
+// входит, качнувшись, и тянется над таб-баром кончиком вверх — срез внизу у
+// края, ветка растёт вверх-влево, как побег к свету, — чуть покачиваясь на ветру. Человек нажимает из любопытства и сам открывает сад. Веточка —
+// плоский силуэт цвета схемы, как сцены на обоях; каждый раз другая (набор
+// силуэтов Krea-2, twigArt.js).
 //
-// Слой лежит поверх всего экрана и касаний не забирает — ловит их только сам
-// листок. Все движения — нативный драйвер, только transform и opacity; полёт
-// рассчитывается заранее и проигрывается одной анимацией по ключевым кадрам.
+// Слой лежит поверх всего экрана и касаний не забирает — ловит их только сама
+// веточка. Движения — нативный драйвер, только transform и opacity.
 
-// Размер листа задан площадью, а не длинной стороной: узкий лист оливы и
-// широкий инжира тогда весят на экране одинаково. Длинная сторона — не больше
-// LEAF_MAX. Зона нажатия — квадрат HIT, в пунктах.
-const LEAF_AREA = 1000;
-const LEAF_MAX = 54;
-// Лист в цвете схемы, но тише текста и иконок таб-бара.
-const LEAF_OPACITY = 0.78;
-const HIT = 76;
-const GLOW_R = 40;
-// Зазор между листом и верхом острова и запас от его скруглённых концов.
-const REST_GAP = 1;
-const REST_EDGE = 30;
-// Если приложение пролежало в фоне дольше этого, листок падает заново.
+// Ширина веточки на экране и предел высоты, в пунктах. Срез стебля уходит за
+// край экрана на TUCK, чтобы не было видно, что ветка обрезана.
+const TWIG_W = 136;
+const TWIG_MAX_H = 84;
+const TUCK = 8;
+// Зазор между веточкой и верхом острова таб-бара.
+const BAR_GAP = 8;
+// Тише текста и иконок: веточка — часть обоев, а не кнопка.
+const TWIG_OPACITY = 0.82;
+// Если приложение пролежало в фоне дольше этого, веточка входит заново, другая.
 const AWAY_MS = 5 * 60 * 1000;
-// Пауза перед падением: экран успевает появиться, и лист срывается на глазах.
-const START_DELAY_MS = 450;
-const SETTLE_MS = 700;
-const SAMPLES = 72;
-
-const GLOW_LOW = 0.55;
-const GLOW_HIGH = 0.9;
-const GLOW_MS = 4400;
+// Экран успевает появиться, и ветка выпадает на глазах.
+const ENTER_DELAY_MS = 600;
+const ENTER_MS = 1500;
+// Насколько ветка поднята: угол от горизонтали, кончиком вверх. Каждый вход —
+// свой угол из этого диапазона: одинаково торчащая ветка выглядела бы как значок.
+const RISE_MIN = 26;
+const RISE_MAX = 38;
+const SWAY_DEG = 1.8;
+const SWAY_MS = 4600;
 const BEAT_MS = 1800;
-const DEW = { x: 0.5, y: 0.42, size: 10 };
-const DEW_GAP_MS = 6100;
-const DEW_GAP_SPAN_MS = 2400;
-const DEW_UP_MS = 360;
-const DEW_DOWN_MS = 540;
-const DEW_PEAK = 0.6;
-// Порыв ветра: лист приподнимается и покачивается. Раз в 9–15 секунд.
-const GUST_GAP_MS = 9000;
-const GUST_GAP_SPAN_MS = 6000;
-const GUST_MS = 1100;
 const EMBER = { size: 14, core: 3.4 };
-const PRESS_IN = { toValue: 0.88, damping: 20, stiffness: 320, mass: 0.7 };
+const PRESS_IN = { toValue: 0.94, damping: 20, stiffness: 320, mass: 0.7 };
 const PRESS_OUT = { toValue: 1, damping: 11, stiffness: 240, mass: 0.7 };
 
 const SINE = Easing.inOut(Easing.sin);
-const rad = deg => (deg * Math.PI) / 180;
-const rand = (a, b) => a + Math.random() * (b - a);
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const round4 = v => Math.round(v * 10000) / 10000;
-const smooth = p => p * p * (3 - 2 * p);
 
 function pingPong(value, from, to, halfMs) {
   return Animated.loop(Animated.sequence([
@@ -74,161 +56,14 @@ function pingPong(value, from, to, halfMs) {
   ]));
 }
 
-// Размер рисунка на экране (aspect — ширина к высоте).
-function leafSize(art) {
-  const h = Math.sqrt(LEAF_AREA / art.aspect);
-  const w = h * art.aspect;
-  const k = Math.min(1, LEAF_MAX / Math.max(w, h));
-  return { w: w * k, h: h * k };
+// Размер веточки на экране (aspect — ширина к высоте).
+function twigSize(art) {
+  const h = Math.min(TWIG_W / art.aspect, TWIG_MAX_H);
+  return { w: h * art.aspect, h };
 }
 
-// Где лист ляжет. Рисунок стоит черенком вниз; лёжа он повёрнут поперёк —
-// кончиком вправо или влево, с разбросом. Высоту лежащего листа считаем как у
-// эллипса с полуосями рисунка: по габаритной рамке повёрнутого прямоугольника
-// лист «висел» бы над островом на диагональных углах.
-function planRest(width, barTop, size) {
-  const islandW = Math.min(width - TAB_ISLAND.sideGap * 2, TAB_ISLAND.maxWidth);
-  const left = (width - islandW) / 2;
-  // Лежит почти плашмя: небольшой разброс угла, без задранного кончика.
-  const rot = (Math.random() < 0.5 ? -1 : 1) * rand(83, 97);
-  const a = size.h / 2;
-  const b = size.w / 2;
-  const s = Math.sin(rad(rot));
-  const c = Math.cos(rad(rot));
-  const halfH = Math.sqrt(a * a * c * c + b * b * s * s);
-  const halfW = Math.sqrt(a * a * s * s + b * b * c * c);
-  const lo = left + REST_EDGE + halfW;
-  const hi = left + islandW - REST_EDGE - halfW;
-  return { x: hi > lo ? rand(lo, hi) : width / 2, y: barTop - REST_GAP - halfH, rot, halfW, halfH, barTop };
-}
-
-// Полёт падающего листа: маятник. Лист качается из стороны в сторону, в
-// крайних точках чуть взмывает и наклоняется по ходу дуги, а через середину
-// проходит быстрее и ниже — так падают настоящие листья. Размах растёт после
-// отрыва и сходит на нет к земле, поэтому лист садится точно в выбранное место.
-// Вдобавок он медленно доворачивается к позе, в которой ляжет. После касания —
-// короткое затухающее покачивание.
-function planFall(width, startY, rest, reduceMotion) {
-  // Без движения лист не падает, а проявляется на месте за 300 мс.
-  if (reduceMotion) {
-    return { rest, total: 300, input: [0, 1], x: [0, 0], y: [0, 0], rot: [rest.rot, rest.rot], show: [[0, 1], [0, 1]] };
-  }
-  const swings = [2, 2.5, 3][Math.floor(Math.random() * 3)];
-  const amp = rand(34, 56);
-  const x0 = clamp(rest.x + rand(-0.35, 0.35) * width, LEAF_MAX, width - LEAF_MAX);
-  const drop = rest.y - startY;
-  const fallMs = clamp(drop * 5.4, 3000, 4600);
-  const total = fallMs + SETTLE_MS;
-  const spin = rand(-160, 160);
-  const tilt = rand(20, 32);
-  const input = [];
-  const x = [];
-  const y = [];
-  const rot = [];
-  for (let i = 0; i <= SAMPLES; i += 1) {
-    const p = i / SAMPLES;
-    const theta = 2 * Math.PI * swings * p;
-    const env = Math.sqrt(4 * p * (1 - p));
-    const sway = Math.sin(theta);
-    const cx = x0 + (rest.x - x0) * smooth(p);
-    const px = clamp(cx + amp * env * sway, LEAF_MAX / 2, width - LEAF_MAX / 2);
-    const py = startY + drop * (0.5 * p + 0.5 * smooth(p)) - 0.32 * amp * env * sway * sway;
-    input.push(round4((p * fallMs) / total));
-    x.push(px - rest.x);
-    y.push(py - rest.y);
-    rot.push(rest.rot + spin * (1 - p) ** 1.6 - tilt * env * sway);
-  }
-  [-5, 3, -1.2, 0].forEach((deg, k, list) => {
-    input.push(round4((fallMs + (SETTLE_MS * (k + 1)) / list.length) / total));
-    x.push(0);
-    y.push(0);
-    rot.push(rest.rot + deg);
-  });
-  // show — когда проступает свечение: к моменту касания и после.
-  const landAt = round4(fallMs / total);
-  return { rest, total, input, x, y, rot, show: [[0, Math.max(0.001, round4(landAt - 0.1)), landAt, 1], [0, 0, 0.6, 1]] };
-}
-
-// Едва заметное свечение позади лежащего листа — тихое приглашение нажать.
-// Дышит прозрачностью.
-const LeafGlow = memo(function LeafGlow({ accent, reduceMotion, appear }) {
-  const [breath] = useState(() => new Animated.Value(GLOW_LOW));
-  useEffect(() => {
-    if (reduceMotion) { breath.setValue((GLOW_LOW + GLOW_HIGH) / 2); return undefined; }
-    const loop = pingPong(breath, GLOW_LOW, GLOW_HIGH, GLOW_MS / 2);
-    loop.start();
-    return () => loop.stop();
-  }, [breath, reduceMotion]);
-  const opacity = useMemo(() => Animated.multiply(breath, appear), [breath, appear]);
-  return (
-    <Animated.View pointerEvents="none" style={[styles.glow, { opacity }]}>
-      <Svg width={GLOW_R * 2} height={GLOW_R * 2}>
-        <Defs>
-          <RadialGradient id="tasbihLeafGlow" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={accent} stopOpacity="0.14" />
-            <Stop offset="0.45" stopColor={accent} stopOpacity="0.06" />
-            <Stop offset="0.75" stopColor={accent} stopOpacity="0.015" />
-            <Stop offset="1" stopColor={accent} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Circle cx={GLOW_R} cy={GLOW_R} r={GLOW_R} fill="url(#tasbihLeafGlow)" />
-      </Svg>
-    </Animated.View>
-  );
-});
-
-// Повторяющееся событие со случайной паузой: росинка и порыв ветра. Пауза —
-// setTimeout, а не Animated.delay: тот идёт на JS-драйвере и всю паузу держит
-// открытым InteractionManager.
-function useRandomBeat(enabled, gap, span, make) {
-  const makeRef = useRef(make);
-  makeRef.current = make;
-  useEffect(() => {
-    if (!enabled) return undefined;
-    let alive = true;
-    let timer = null;
-    let current = null;
-    const next = () => {
-      timer = setTimeout(() => {
-        if (!alive) return;
-        current = makeRef.current();
-        current.start(({ finished }) => { if (alive && finished) next(); });
-      }, gap + Math.random() * span);
-    };
-    next();
-    return () => { alive = false; clearTimeout(timer); current?.stop(); };
-  }, [enabled, gap, span]);
-}
-
-const Dew = memo(function Dew({ size }) {
-  const [glint] = useState(() => new Animated.Value(0));
-  useRandomBeat(true, DEW_GAP_MS, DEW_GAP_SPAN_MS, () => Animated.sequence([
-    Animated.timing(glint, { toValue: DEW_PEAK, duration: DEW_UP_MS, easing: SINE, useNativeDriver: true, isInteraction: false }),
-    Animated.timing(glint, { toValue: 0, duration: DEW_DOWN_MS, easing: SINE, useNativeDriver: true, isInteraction: false }),
-  ]));
-  const mid = DEW.size / 2;
-  return (
-    <Animated.View pointerEvents="none" style={[styles.dew, {
-      left: size.w * DEW.x - mid, top: size.h * DEW.y - mid, opacity: glint,
-    }]}>
-      <Svg width={DEW.size} height={DEW.size}>
-        <Defs>
-          <RadialGradient id="tasbihDew" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={COLORS.white} stopOpacity="0.95" />
-            <Stop offset="0.3" stopColor={COLORS.white} stopOpacity="0.55" />
-            <Stop offset="1" stopColor={COLORS.white} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Circle cx={mid} cy={mid} r={mid} fill="url(#tasbihDew)" />
-        <Path d={`M${mid - 3.4} ${mid}H${mid + 3.4}M${mid} ${mid - 3.4}V${mid + 3.4}`}
-          stroke={COLORS.white} strokeOpacity={0.85} strokeWidth={0.6} strokeLinecap="round" fill="none" />
-      </Svg>
-    </Animated.View>
-  );
-});
-
-// Тёплая точка над листом: есть зёрна для посадки или невидимое выпадение.
-const Ember = memo(function Ember({ reduceMotion, left, top }) {
+// Тёплая точка у кончика: есть зёрна для посадки или невидимое выпадение.
+const Ember = memo(function Ember({ reduceMotion }) {
   const [beat] = useState(() => new Animated.Value(0));
   const style = useMemo(() => ({
     opacity: beat.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }),
@@ -242,7 +77,7 @@ const Ember = memo(function Ember({ reduceMotion, left, top }) {
   }, [beat, reduceMotion]);
   const mid = EMBER.size / 2;
   return (
-    <Animated.View pointerEvents="none" style={[styles.ember, { left, top }, style]}>
+    <Animated.View pointerEvents="none" style={[styles.ember, style]}>
       <Svg width={EMBER.size} height={EMBER.size}>
         <Defs>
           <RadialGradient id="tasbihEmber" cx="50%" cy="50%" r="50%">
@@ -258,67 +93,74 @@ const Ember = memo(function Ember({ reduceMotion, left, top }) {
   );
 });
 
-// Анимационные значения листа создаются один раз.
+// Значения анимации создаются один раз на вход.
 function makeMotion() {
-  return { fall: new Animated.Value(0), gust: new Animated.Value(0), press: new Animated.Value(1) };
+  return { enter: new Animated.Value(0), sway: new Animated.Value(0.5), press: new Animated.Value(1) };
 }
 
-// Падающий и лежащий лист. Пропсы — примитивы и стабильные объекты: главный
-// экран перерисовывается каждую секунду (часы), и петли не должны
-// перезапускаться.
-const FallingLeaf = memo(function FallingLeaf({ plan, accent, hasGift, enabled, reduceMotion, label, hint, onOpen }) {
+// Ветер: 0.5 → 1 → 0 → 0.5. Петля начинается и кончается в середине, где ветка
+// стоит ровно: Animated.loop перед каждым витком возвращает значение к
+// стартовому, и петля 0 ↔ 1 со стартом в 0.5 дёргала бы ветку раз в виток.
+function swayLoop(value) {
+  const step = (to, ms) => Animated.timing(value, {
+    toValue: to, duration: ms, easing: SINE, useNativeDriver: true, isInteraction: false,
+  });
+  return Animated.loop(Animated.sequence([step(1, SWAY_MS / 4), step(0, SWAY_MS / 2), step(0.5, SWAY_MS / 4)]));
+}
+
+// Веточка: вход и покачивание вокруг среза стебля у правого края. Вход — одна
+// нативная анимация: ветка въезжает из-за края, опустив кончик, взмывает чуть
+// выше своего угла, обратно и замирает. Потом её едва качает ветер. В RN
+// положительный поворот — по часовой стрелке, и кончик слева от оси от него
+// поднимается.
+const Twig = memo(function Twig({ art, rise, place, accent, hasGift, enabled, reduceMotion, label, hint, onOpen }) {
   const [motion] = useState(makeMotion);
   const [landed, setLanded] = useState(false);
-  const { rest, art } = plan;
-  const size = leafSize(art);
+  const size = twigSize(art);
+  // Срез — внизу у края, над таб-баром: ветка поднимается от него вверх.
+  const a = (rise * Math.PI) / 180;
+  const stemY = place.bottom - 0.5 * size.h * Math.cos(a);
 
-  // Весь полёт, посадка и проявление свечения — одна нативная анимация.
-  // isInteraction: false — иначе InteractionManager ждал бы конца полёта,
-  // откладывая чужие задачи старта на пять секунд.
+  // isInteraction: false — иначе InteractionManager ждал бы конца входа.
   useEffect(() => {
-    const { fall, gust } = motion;
+    const { enter } = motion;
+    enter.setValue(0);
     setLanded(false);
-    fall.setValue(0);
-    gust.setValue(0);
     let animation = null;
     const timer = setTimeout(() => {
-      animation = Animated.timing(fall, {
-        toValue: 1, duration: plan.total, easing: Easing.linear, useNativeDriver: true, isInteraction: false,
+      animation = Animated.timing(enter, {
+        toValue: 1, duration: reduceMotion ? 300 : ENTER_MS, easing: Easing.linear,
+        useNativeDriver: true, isInteraction: false,
       });
       animation.start(({ finished }) => { if (finished) setLanded(true); });
-    }, reduceMotion ? 0 : START_DELAY_MS);
+    }, reduceMotion ? 0 : ENTER_DELAY_MS);
     return () => { clearTimeout(timer); animation?.stop(); };
-  }, [plan, motion, reduceMotion]);
+  }, [motion, reduceMotion]);
 
-  // Ветер трогает только лежащий лист.
-  useRandomBeat(landed && !reduceMotion, GUST_GAP_MS, GUST_GAP_SPAN_MS, () => {
-    motion.gust.setValue(0);
-    return Animated.timing(motion.gust, {
-      toValue: 1, duration: GUST_MS, easing: Easing.linear, useNativeDriver: true, isInteraction: false,
-    });
-  });
+  useEffect(() => {
+    if (!landed || reduceMotion) return undefined;
+    const loop = swayLoop(motion.sway);
+    loop.start();
+    return () => loop.stop();
+  }, [landed, reduceMotion, motion]);
 
-  // Порыв ветра и полёт складываются числами, а уже сумма переводится в
+  // Наклон входа и ветер складываются числами, а уже сумма переводится в
   // градусы: повторять один ключ transform дважды ненадёжно.
-  const styleFor = useMemo(() => {
-    const { fall, gust, press } = motion;
-    const frames = out => fall.interpolate({ inputRange: plan.input, outputRange: out.map(round4) });
-    const gustIn = [0, 0.25, 0.55, 0.8, 1];
-    const gustY = gust.interpolate({ inputRange: gustIn, outputRange: [0, -2.5, -0.3, -1, 0] });
-    const gustRot = gust.interpolate({ inputRange: gustIn, outputRange: [0, -4, 2.5, -1, 0] });
-    const show = fall.interpolate({ inputRange: plan.show[0], outputRange: plan.show[1] });
-    const rotate = Animated.add(frames(plan.rot), gustRot)
-      .interpolate({ inputRange: [-720, 720], outputRange: ['-720deg', '720deg'] });
+  const style = useMemo(() => {
+    const { enter, sway, press } = motion;
+    if (reduceMotion) return { opacity: enter, transform: [{ rotate: `${rise}deg` }, { scale: press }] };
+    // Въезд из-за края за первые 45% входа, дальше затухающее качание.
+    const input = [0, 0.45, 0.62, 0.78, 0.9, 1];
+    const tilt = enter.interpolate({ inputRange: input, outputRange: [-40, -4, 6, -2.5, 1, 0].map(v => v + rise) });
+    const swing = sway.interpolate({ inputRange: [0, 1], outputRange: [-SWAY_DEG, SWAY_DEG] });
     return {
-      show,
-      // Лист в полёте виден целиком; без движения — проявляется на месте.
-      mover: {
-        opacity: reduceMotion ? show : 1,
-        transform: [{ translateX: frames(plan.x) }, { translateY: Animated.add(frames(plan.y), gustY) }],
-      },
-      leaf: { transform: [{ rotate }, { scale: press }] },
+      transform: [
+        { translateX: enter.interpolate({ inputRange: [0, 0.45, 1], outputRange: [size.w * 0.85, 0, 0] }) },
+        { rotate: Animated.add(tilt, swing).interpolate({ inputRange: [-90, 90], outputRange: ['-90deg', '90deg'] }) },
+        { scale: press },
+      ],
     };
-  }, [motion, plan, reduceMotion]);
+  }, [motion, reduceMotion, size.w, rise]);
 
   const pressTo = config => {
     if (reduceMotion) return;
@@ -326,32 +168,22 @@ const FallingLeaf = memo(function FallingLeaf({ plan, accent, hasGift, enabled, 
   };
 
   return (
-    <>
-      <Animated.View pointerEvents="box-none"
-        style={[styles.mover, { left: rest.x - HIT / 2, top: rest.y - HIT / 2 }, styleFor.mover]}>
-        <Pressable onPress={() => { hapticLight(); onOpen(); }} disabled={!enabled}
-          onPressIn={() => pressTo(PRESS_IN)} onPressOut={() => pressTo(PRESS_OUT)}
-          accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
-          style={styles.hit}>
-          <View pointerEvents="none" style={styles.hit}
-            accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <LeafGlow accent={accent} reduceMotion={reduceMotion} appear={styleFor.show} />
-            <Animated.View style={[styles.leaf, {
-              width: size.w, height: size.h, left: (HIT - size.w) / 2, top: (HIT - size.h) / 2,
-            }, styleFor.leaf]}>
-              {/* Силуэт белый с альфой: цвет даёт схема, как сценам на обоях. */}
-              <Image source={art.source} resizeMode="contain"
-                style={{ width: size.w, height: size.h, tintColor: accent, opacity: LEAF_OPACITY }} />
-              {reduceMotion ? null : <Dew size={size} />}
-            </Animated.View>
-            {hasGift ? (
-              <Ember reduceMotion={reduceMotion}
-                left={HIT / 2 + rest.halfW * 0.55 - EMBER.size / 2} top={HIT / 2 - rest.halfH - 4 - EMBER.size / 2} />
-            ) : null}
-          </View>
-        </Pressable>
-      </Animated.View>
-    </>
+    <Animated.View pointerEvents="box-none" style={[styles.twig, {
+      width: size.w, height: size.h, left: place.right + TUCK - size.w, top: stemY - (size.h * art.stem) / 100,
+      // Качается вокруг среза стебля; проценты целые — RN разбирает строку
+      // transformOrigin регэкспом \d+(?:%|px).
+      transformOrigin: `100% ${art.stem}%`,
+    }, style]}>
+      <Pressable onPress={() => { hapticLight(); onOpen(); }} disabled={!enabled}
+        onPressIn={() => pressTo(PRESS_IN)} onPressOut={() => pressTo(PRESS_OUT)}
+        hitSlop={8} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
+        style={StyleSheet.absoluteFill}>
+        {/* Силуэт белый с альфой: цвет даёт схема, как сценам на обоях. */}
+        <Image source={art.source} resizeMode="contain"
+          style={{ width: size.w, height: size.h, tintColor: accent, opacity: TWIG_OPACITY }} />
+        {hasGift ? <Ember reduceMotion={reduceMotion} /> : null}
+      </Pressable>
+    </Animated.View>
   );
 });
 
@@ -371,10 +203,10 @@ export default memo(function TasbihEntry() {
   const { width, height } = useWindowDimensions();
   const layer = useRef(null);
   const [frame, setFrame] = useState(null);
-  const [fallKey, setFallKey] = useState(0);
-  const [plan, setPlan] = useState(null);
+  const [entryKey, setEntryKey] = useState(0);
+  const [entry, setEntry] = useState(null);
 
-  // Положение слоя в окне: по нему считаем, где верх таб-бара и край экрана.
+  // Положение слоя в окне: по нему считаем, где верх таб-бара и правый край.
   const measure = () => {
     layer.current?.measureInWindow((x, y, w, h) => {
       if (!w || !h) return;
@@ -383,12 +215,12 @@ export default memo(function TasbihEntry() {
     });
   };
 
-  // Вернулись в приложение после долгой паузы — лист падает заново, на новое место.
+  // Вернулись в приложение после долгой паузы — веточка входит заново, другая.
   useEffect(() => {
     let leftAt = null;
     const sub = AppState.addEventListener('change', status => {
       if (status === 'active') {
-        if (leftAt != null && Date.now() - leftAt >= AWAY_MS) setFallKey(k => k + 1);
+        if (leftAt != null && Date.now() - leftAt >= AWAY_MS) setEntryKey(k => k + 1);
         leftAt = null;
       } else if (leftAt == null) {
         leftAt = Date.now();
@@ -397,32 +229,21 @@ export default memo(function TasbihEntry() {
     return () => sub.remove();
   }, []);
 
-  const enabled = !!state || !!error;
-  const lastArt = useRef(-1);
-
-  // Новый полёт: при первом появлении (когда состояние прочитано и слой
-  // измерен) и после долгой паузы, каждый раз с другим листом. Смена
-  // размеров окна лист не роняет заново — он остаётся там, где лежит.
-  // Системный флаг «Уменьшение движения» приходит асинхронно: если он
-  // сменился, план пересчитывается с тем же листом.
-  const ready = enabled && !!frame;
-  const planned = useRef(null);
+  // Каждый вход — другая веточка (первая случайная, дальше сдвиг на 1…n-1) и
+  // свой угол подъёма.
   useEffect(() => {
-    const key = `${fallKey}:${reduceMotion}`;
-    if (!ready || planned.current === key) return;
-    const fresh = !planned.current?.startsWith(`${fallKey}:`);
-    planned.current = key;
-    if (fresh || lastArt.current < 0) {
-      const shift = LEAF_ART.length > 1 ? 1 + Math.floor(Math.random() * (LEAF_ART.length - 1)) : 0;
-      lastArt.current = lastArt.current < 0 ? Math.floor(Math.random() * LEAF_ART.length)
-        : (lastArt.current + shift) % LEAF_ART.length;
-    }
-    const art = LEAF_ART[lastArt.current];
-    const barTop = height - insets.bottom - TAB_ISLAND.bottomGap - TAB_ISLAND.height - frame.y;
-    const rest = planRest(frame.w, barTop, leafSize(art));
-    setPlan({ ...planFall(frame.w, -frame.y - LEAF_MAX, rest, reduceMotion), art });
-  }, [ready, fallKey, frame, height, insets.bottom, reduceMotion]);
+    setEntry(prev => {
+      const index = !prev || TWIG_ART.length < 2 ? Math.floor(Math.random() * TWIG_ART.length)
+        : (prev.index + 1 + Math.floor(Math.random() * (TWIG_ART.length - 1))) % TWIG_ART.length;
+      return { key: entryKey, index, rise: RISE_MIN + Math.random() * (RISE_MAX - RISE_MIN) };
+    });
+  }, [entryKey]);
 
+  const enabled = !!state || !!error;
+  const place = useMemo(() => (frame ? {
+    right: frame.w,
+    bottom: height - insets.bottom - TAB_ISLAND.bottomGap - TAB_ISLAND.height - frame.y - BAR_GAP,
+  } : null), [frame, height, insets.bottom]);
   const hasGift = !!state && (
     Object.values(state.seeds || {}).reduce((sum, n) => sum + n, 0) > 0 || (state.pendingDrops?.length ?? 0) > 0
   );
@@ -433,11 +254,11 @@ export default memo(function TasbihEntry() {
 
   return (
     <View ref={layer} onLayout={measure} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      {/* Новый полёт — новый экземпляр: его значения анимации стартуют с нуля,
-          и лист не мелькает на новом месте посадки до начала падения. */}
-      {plan ? (
-        <FallingLeaf key={fallKey} plan={plan} accent={accent} hasGift={hasGift} enabled={enabled}
-          reduceMotion={reduceMotion} label={label} hint={hint} onOpen={openGarden} />
+      {/* Новый вход — новый экземпляр: анимация стартует с нуля. Ждём, пока
+          состояние прочитано и слой измерен, чтобы ветка вошла один раз. */}
+      {enabled && place && entry ? (
+        <Twig key={entry.key} art={TWIG_ART[entry.index]} rise={entry.rise} place={place} accent={accent} hasGift={hasGift}
+          enabled={enabled} reduceMotion={reduceMotion} label={label} hint={hint} onOpen={openGarden} />
       ) : null}
 
       <Modal visible={open} animationType="slide" presentationStyle="fullScreen"
@@ -450,19 +271,12 @@ export default memo(function TasbihEntry() {
   );
 });
 
-// Сколько места снизу прокрутки занимает лежащий лист: главный экран добавляет
-// это к отступу под таб-бар, чтобы последняя строка поднималась выше листа.
-// Лежащий лист почти плашмя — не выше ~30 пунктов при любой форме.
-export const LEAF_CLEARANCE = 36;
+// Сколько места снизу прокрутки занимает основание веточки у края: главный
+// экран добавляет это к отступу под таб-бар, чтобы последняя строка поднималась
+// выше. Поднятый кончик лежит поверх прокрутки — он лишь украшение у правого края.
+export const ENTRY_CLEARANCE = Math.round(TWIG_MAX_H * 0.6 + BAR_GAP);
 
 const styles = StyleSheet.create({
-  mover: { position: 'absolute', width: HIT, height: HIT },
-  hit: { width: HIT, height: HIT },
-  glow: {
-    position: 'absolute', width: GLOW_R * 2, height: GLOW_R * 2,
-    left: HIT / 2 - GLOW_R, top: HIT / 2 - GLOW_R,
-  },
-  leaf: { position: 'absolute' },
-  dew: { position: 'absolute', width: DEW.size, height: DEW.size },
-  ember: { position: 'absolute', width: EMBER.size, height: EMBER.size },
+  twig: { position: 'absolute' },
+  ember: { position: 'absolute', left: 2, top: -6, width: EMBER.size, height: EMBER.size },
 });

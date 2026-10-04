@@ -1,6 +1,6 @@
 """v5: деревья и листья-вход силуэтами в стиле тем (монохром, слои серого → альфа, цвет даёт тема).
 
-python prompts_v5.py test|trees|small|leaves > jobs.json; затем comfy_gen.py jobs.json и build_v5.py.
+python prompts_v5.py test|trees|small|twigs|can|leaves > jobs.json; затем comfy_gen.py jobs.json и build_v5.py.
 Сырьё — E:\\AI\\noor_gen\\v5.
 """
 import json, sys
@@ -79,6 +79,43 @@ def small_job(stage, seed):
             "prompt": f"{SMALL[stage]}. {SMALL_STYLE}."}
 
 
+# Веточка-вход: входит в экран справа, поэтому срез стебля — у правого края
+# кадра, листья тянутся влево. Тот же двутоновый плоский стиль, что у листьев.
+TWIGS = {
+    "olive": "a small olive twig with seven narrow lance-shaped leaves in pairs",
+    "fig": "a small fig twig with two broad lobed fig leaves and one small round fig",
+    "pomegranate": "a small pomegranate twig with slender glossy leaves and one small bell-shaped flower",
+    "sidr": "a small jujube twig, slightly zigzag, with five small oval leaves and two tiny round fruits",
+    "grape": "a short grape vine tendril with two lobed grape leaves and a curling tendril",
+    "almond": "a small almond twig with three blossoms and four slender leaves",
+    "mulberry": "a small mulberry twig with three heart-shaped serrated leaves and two small berries",
+    "laurel": "a small laurel twig with six elongated oval leaves",
+}
+TWIG_STYLE = ("lying horizontally: the cut end of the woody stem at the far right edge, the twig reaching to the left. "
+              "Flat minimal vector silhouette, two flat tones: upper halves of the leaves near-black, lower halves dark "
+              "grey, stem near-black, midribs as thin white lines, crisp clean edges, no texture, no gradients, no "
+              "colour, isolated on a pure white background, generous margins, no text, no frame")
+CAN = ("A small elegant watering can seen exactly from the side, slender long spout pointing to the left and slightly up, "
+       "ending with a round sprinkler rose, an arched handle over the top and a curved handle at the back")
+
+
+def twig_job(name, seed):
+    return {"name": f"v5/twig/{name}_{seed}", "seed": seed, "w": 1152, "h": 768,
+            "prompt": f"{TWIGS[name].capitalize()}, {TWIG_STYLE}."}
+
+
+# Свой стиль: общий (с «дальней листвой») дорисовывал кусты за лейкой и
+# деревья на корпусе.
+CAN_STYLE = ("flat minimal vector silhouette, monochrome grayscale in three flat tones: the body mid grey with a slightly "
+             "lighter vertical highlight band, the spout, rose and handles near-black, crisp clean smooth shapes, no outlines, "
+             "no texture, no gradients, no colour, no decoration, plain undecorated surface, isolated on a pure white "
+             "background, centered, generous margins, nothing else in the picture, no plants, no leaves, no water, no text")
+
+
+def can_job(seed):
+    return {"name": f"v5/can2/can_{seed}", "seed": seed, "w": 1152, "h": 832, "prompt": f"{CAN}. {CAN_STYLE}."}
+
+
 def leaf_job(name, seed):
     return {"name": f"v5/leaf/{name}_{seed}", "seed": seed, "w": 768, "h": 768,
             "prompt": f"{LEAVES[name].capitalize()}. {LEAF_STYLE}."}
@@ -89,6 +126,10 @@ if __name__ == "__main__":
     if mode == "test":
         jobs = [tree_job("olive", s, 5101) for s in (2, 5, 7)] + [tree_job("olive", s, 5101, STYLE_B, "_b") for s in (2, 5, 7)]
         jobs += [leaf_job(n, 5201) for n in ("olive", "fig", "grape")]
+    elif mode == "twigs":
+        jobs = [twig_job(n, seed) for n in TWIGS for seed in (5501, 5502)]
+    elif mode == "can":
+        jobs = [can_job(seed) for seed in (5401, 5402, 5403, 5404)]
     elif mode == "small":
         jobs = [small_job(st, seed) for st in (0, 1) for seed in (5301, 5302, 5303)]
     elif mode == "trees":

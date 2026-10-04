@@ -1,4 +1,4 @@
-"""v5: силуэты деревьев и листьев из кадров Krea-2 (prompts_v5.py, сырьё E:\\AI\\noor_gen\\v5).
+"""v5: силуэты деревьев, веточек-входа и лейки из кадров Krea-2 (prompts_v5.py, сырьё E:\\AI\\noor_gen\\v5).
 
 Кадр — тёмный силуэт в оттенках серого на белом. Цвет выбрасывается: тёмность
 пикселя становится его непрозрачностью, а цвет в приложении даёт тема
@@ -6,8 +6,8 @@
 полупрозрачными — это и есть глубина.
 
 python build_v5.py sheet [subdir]  — лист выбора: кандидаты, тонированные цветом темы на её фоне
-python build_v5.py build           — выбранные кадры (TREES, LEAVES) → assets/tasbih/{trees5,leaves5}
-                                     и src/tasbih/{treeArt,leafArt}.js
+python build_v5.py build           — выбранные кадры (TREES, TWIGS, CAN) → assets/tasbih/{trees5,twigs,can.png}
+                                     и src/tasbih/{treeArt,twigArt,canArt}.js
 
 Запускать python'ом ComfyUI (там scipy).
 """
@@ -39,8 +39,11 @@ TREES = {
     'date_palm': ['small/s0_5302', 'small/s1_5301'] + [f'tree/date_palm_{st}_5101' for st in range(2, 8)],
     'sidr': ['small/s0_5302', 'small/s1_5301'] + [f'tree/sidr_{st}_5101' for st in range(2, 8)],
 }
-LEAVES = ["olive_5201", "fig_5201", "grape_5201", "almond_5201", "pomegranate_5202", "mulberry_5202", "sidr_5201", "date_palm_5202"]
-LEAF_LONG_PX = 240
+# Вход на главном — веточка справа (листья-вход v5 заменены): имена кадров twig/*.
+TWIGS = ["olive_5502", "fig_5501", "grape_5501", "almond_5502", "pomegranate_5502", "mulberry_5502", "sidr_5502", "laurel_5501"]
+TWIG_LONG_PX = 420     # ширина веточки в файле (на экране ~130 pt)
+CAN = "can2/can_5402"  # кадр лейки (носик влево)
+CAN_W_PX = 420         # ширина лейки в файле (на экране ≤ 122 pt)
 
 APP_BG = (22, 32, 46)
 TINT = (150, 200, 225)
@@ -105,6 +108,23 @@ def sheet(sub=""):
     target = RAW / f"sheet{('_' + sub.replace('/', '_')) if sub else ''}.jpg"
     out.save(target, quality=88)
     print(target)
+
+
+# Ситечко — самая левая часть лейки: центр альфы в крайних слева 7% ширины.
+def rose_of(im):
+    a = np.asarray(im.getchannel("A")) > 128
+    cols = np.nonzero(a.any(axis=0))[0]
+    band = a[:, cols[0]:cols[0] + max(4, int(im.width * 0.07))]
+    ys, xs = np.nonzero(band)
+    return float(cols[0] + xs.mean()), float(ys.mean())
+
+
+# Ось наклона — центр масс корпуса (правее середины ширины, где нет носика).
+def body_of(im):
+    a = np.asarray(im.getchannel("A")) > 128
+    x0 = int(im.width * 0.45)
+    ys, xs = np.nonzero(a[:, x0:])
+    return float(x0 + xs.mean()), float(ys.mean())
 
 
 def cut_tree(path):
@@ -175,22 +195,57 @@ def build():
     if TREES:
         (SRC / "treeArt.js").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    if LEAVES:
-        (ASSETS / "leaves5").mkdir(parents=True, exist_ok=True)
+    if TWIGS:
+        (ASSETS / "twigs").mkdir(parents=True, exist_ok=True)
         out = ["// Сгенерировано scripts/tasbih_assets/build_v5.py — не править руками.",
-               "// Листья-вход: белый силуэт с альфой (цвет — тема), черенком вниз; aspect — ширина к высоте.",
-               "export const LEAF_ART = ["]
-        for i, name in enumerate(LEAVES):
-            a = alpha_of(RAW / "leaf" / f"{name}.png")
+               "// Веточки-вход: белый силуэт с альфой (цвет — тема), срез стебля у правого края.",
+               "// aspect — ширина к высоте; stem — высота среза в долях высоты (ось качания).",
+               "export const TWIG_ART = ["]
+        for i, name in enumerate(TWIGS):
+            a = alpha_of(RAW / "twig" / f"{name}.png")
             x0, y0, x1, y1 = bbox(a, 0.05)
-            im = to_image(a[max(0, y0 - 4):y1 + 4, max(0, x0 - 4):x1 + 4])
-            k = LEAF_LONG_PX / max(im.size)
-            im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
-            im.save(ASSETS / "leaves5" / f"leaf_{i}.png", optimize=True)
-            out.append(f"  {{ source: require('../../assets/tasbih/leaves5/leaf_{i}.png'), aspect: {im.width / im.height:.3f} }},")
-            print("leaf", i, name, im.size)
+            # Справа поля нет: срез стебля должен лечь ровно в край экрана.
+            a = a[max(0, y0 - 4):y1 + 4, max(0, x0 - 4):x1]
+            im = to_image(a)
+            k = TWIG_LONG_PX / im.width
+            im = im.resize((TWIG_LONG_PX, round(im.height * k)), Image.LANCZOS)
+            im.save(ASSETS / "twigs" / f"twig_{i}.png", optimize=True)
+            # Срез — центр альфы в крайних справа 3% ширины, в целых процентах высоты.
+            edge = a[:, -max(3, a.shape[1] * 3 // 100):] > 0.3
+            ys = np.nonzero(edge.any(axis=1))[0]
+            stem = round(float(ys.mean()) / a.shape[0] * 100) if len(ys) else 50
+            out.append(f"  {{ source: require('../../assets/tasbih/twigs/twig_{i}.png'), "
+                       f"aspect: {im.width / im.height:.3f}, stem: {stem} }},")
+            print("twig", i, name, im.size, "stem", stem)
         out.append("];")
-        (SRC / "leafArt.js").write_text("\n".join(out) + "\n", encoding="utf-8")
+        (SRC / "twigArt.js").write_text("\n".join(out) + "\n", encoding="utf-8")
+
+    if CAN:
+        # Корпус средне-серый — без подъёма плотности сквозь лейку просвечивало
+        # бы дерево; степень < 1 уплотняет полутона, не трогая края и тёмное.
+        a = alpha_of(RAW / f"{CAN}.png") ** 0.55
+        x0, y0, x1, y1 = bbox(a, 0.05)
+        can = to_image(a[max(0, y0 - 4):y1 + 4, max(0, x0 - 4):x1 + 4])
+        can = can.resize((CAN_W_PX, round(can.height * CAN_W_PX / can.width)), Image.LANCZOS)
+        can.save(ASSETS / "can.png", optimize=True)
+        rx, ry = rose_of(can)
+        bx, by = body_of(can)
+        # Ось — на целых процентах холста: RN разбирает transformOrigin-строку
+        # регэкспом \d+(?:%|px), дробные проценты читаются неверно.
+        px = round(bx / can.width * 100) * can.width / 100
+        py = round(by / can.height * 100) * can.height / 100
+        (SRC / "canArt.js").write_text("\n".join([
+            "// Сгенерировано scripts/tasbih_assets/build_v5.py — не править руками.",
+            "// Лейка — белый силуэт с альфой (цвет — тема), носик влево. Координаты — в пикселях",
+            "// файла: rose — центр ситечка, pivot — ось наклона (центр корпуса на целых процентах).",
+            "export const CAN_ART = {",
+            "  source: require('../../assets/tasbih/can.png'),",
+            f"  width: {can.width}, height: {can.height},",
+            f"  rose: {{ x: {rx:.1f}, y: {ry:.1f} }},",
+            f"  pivot: {{ x: {px:.1f}, y: {py:.1f} }},",
+            "};",
+        ]) + "\n", encoding="utf-8")
+        print("can", can.size, "rose", (round(rx, 1), round(ry, 1)), "pivot", (round(px, 1), round(py, 1)))
 
 
 if __name__ == "__main__":
