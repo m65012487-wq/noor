@@ -1,6 +1,6 @@
 """v5: детальные обои под раскладку главного экрана — «Всадник» и «Цветение».
 
-python prompts_wall_v5.py > jobs.json; затем comfy_gen.py jobs.json; планы режет build_scenes_v5.py.
+python prompts_wall_v5.py [garden] > jobs.json; затем comfy_gen.py jobs.json; планы режет build_scenes_v5.py.
 
 Композиция подогнана под экран 390×844: сверху заголовок и дата (там только
 пара бледных звёзд), в середине кольцо отсчёта и строка расписания (пусто),
@@ -27,6 +27,22 @@ WALLS = {
 }
 
 
+# Фон экрана тасбиха — свой сад, не обои главного экрана. В середине стоит
+# дерево тасбиха, сверху поминание и счётчик: сцена только по краям и внизу,
+# линия земли — на уровне холмика дерева (около 88% высоты экрана).
+GARDEN = ("A serene enclosed garden seen from inside: slender cypress trees and flowering shrubs only at the far left "
+          "and far right edges, a low distant garden wall with a row of small pointed arches along the horizon, a calm "
+          "open lawn in front; the whole centre of the picture is completely empty open space")
+GARDEN_LAYOUT = ("Tall vertical phone wallpaper composition: the upper half is empty plain sky; the scenery is framed at "
+                 "the left and right edges and along the bottom; the ground line is low, at about eighty-five percent of "
+                 "the height; nothing at all in the centre")
+
+
+def garden_jobs():
+    return [{"name": f"v5/wall/garden_{seed}", "seed": seed, "w": 832, "h": 1792, "hires": True,
+             "prompt": f"{GARDEN}. {GARDEN_LAYOUT}. {STYLE}."} for seed in (5801, 5802, 5803, 5804)]
+
+
 def jobs():
     return [{"name": f"v5/wall/{name}_{seed}", "seed": seed, "w": 832, "h": 1792, "hires": True,
              "prompt": f"{text}. {LAYOUT}. {STYLE}."}
@@ -34,4 +50,5 @@ def jobs():
 
 
 if __name__ == "__main__":
-    print(json.dumps(jobs(), ensure_ascii=False, indent=1))
+    import sys
+    print(json.dumps(garden_jobs() if sys.argv[1:] == ["garden"] else jobs(), ensure_ascii=False, indent=1))

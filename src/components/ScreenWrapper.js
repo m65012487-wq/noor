@@ -101,10 +101,12 @@ function shift(value, distance, factor = 1) {
 //
 // `plain` — спокойный градиент без узора. Для длинного чтения любой рисунок
 // под текстом мешает: узор просвечивает между строк.
-export function ThemedBackground({ children, plain = false, style }) {
+// `scene` — свои планы сцены вместо выбранного узора: так у экрана тасбиха
+// свой сад, а не обои главного экрана. Цвет по-прежнему даёт схема.
+export function ThemedBackground({ children, plain = false, scene = null, style }) {
   const appearance = useAppearance();
   const reduceMotion = useReduceMotion();
-  const kind = patternKind(appearance?.pattern);
+  const kind = scene ? 'scene' : patternKind(appearance?.pattern);
   const wanted = appearance?.parallax !== false && !reduceMotion && !plain && kind !== 'none';
   const { tx, ty } = useTilt(wanted);
 
@@ -122,7 +124,7 @@ export function ThemedBackground({ children, plain = false, style }) {
   // Сцена разложена на три плана и собирается стопкой. Плитка остаётся одним
   // повторяющимся слоем: у неё нет переднего и заднего края, и разносить
   // по глубине там нечего — ей достаётся общий лёгкий снос.
-  const layers = SCENE_LAYERS[appearance.pattern];
+  const layers = scene || SCENE_LAYERS[appearance.pattern];
   if (kind === 'scene' && layers) {
     return (
       <LinearGradient colors={bg} style={[styles.flex, style]}>

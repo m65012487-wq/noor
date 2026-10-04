@@ -31,6 +31,8 @@ SOFT = 0.07            # ширина мягкого края между тон�
 SCENES = {
     "caravan": "scene/caravan_5602", "cedars": "scene/cedars_5601",
     "rider": "wall/rider_5703", "blossom": "wall/blossom_5704",
+    # Свой сад экрана тасбиха (не тема обоев): src/tasbih/gardenScene.js.
+    "tasbih-garden": "wall/garden_5801",
 }
 
 BG = ((27, 36, 48), (13, 19, 27))
