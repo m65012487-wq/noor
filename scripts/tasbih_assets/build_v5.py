@@ -44,6 +44,9 @@ TWIGS = ["olive_5502", "fig_5501", "grape_5501", "almond_5502", "pomegranate_550
 TWIG_LONG_PX = 420     # ширина веточки в файле (на экране ~130 pt)
 CAN = "can2/can_5402"  # кадр лейки (носик влево)
 CAN_W_PX = 420         # ширина лейки в файле (на экране ≤ 122 pt)
+# Фоны виджета (prompts_widget_v5.py): кадр целиком, без обрезки — месяц должен
+# остаться в углу. Ширина — под большой виджет на 3x.
+WIDGET = {"horizon-wide": ("widget/wide_5902", 1092), "horizon-square": ("widget/square_5901", 510)}
 
 APP_BG = (22, 32, 46)
 TINT = (150, 200, 225)
@@ -219,6 +222,20 @@ def build():
             print("twig", i, name, im.size, "stem", stem)
         out.append("];")
         (SRC / "twigArt.js").write_text("\n".join(out) + "\n", encoding="utf-8")
+
+    if WIDGET:
+        out_dir = ROOT / "assets" / "widget"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for out_name, (name, width) in WIDGET.items():
+            a = alpha_of(RAW / f"{name}.png")
+            # Широкий фон — только полоса дюн: месяц в правом верхнем углу
+            # вставал ровно за огоньком среднего виджета.
+            if out_name == "horizon-wide":
+                a[: int(a.shape[0] * 0.45)] = 0
+            im = to_image(a)
+            im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
+            im.save(out_dir / f"{out_name}.png", optimize=True)
+            print("widget", out_name, im.size)
 
     if CAN:
         # Корпус средне-серый — без подъёма плотности сквозь лейку просвечивало

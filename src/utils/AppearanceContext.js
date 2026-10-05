@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { loadJSON, saveJSON } from './helpers';
+import { publishTheme } from './widgetBridge';
+import { useLang } from '../i18n/LanguageContext';
 
 const AppearanceContext = createContext(null);
 
@@ -227,6 +229,13 @@ export function AppearanceProvider({ children }) {
 
   const sc = schemeFor(scheme);
   const fonts = fontSetFor(fontSet);
+
+  // Виджет красится цветами схемы и говорит на языке приложения: отдаём их
+  // в общий контейнер при запуске и при каждой смене.
+  const { lang } = useLang();
+  useEffect(() => {
+    if (ready) publishTheme({ bg: sc.bg, accent: sc.accent, lang });
+  }, [ready, sc, lang]);
 
   if (!ready) return null;
   return (

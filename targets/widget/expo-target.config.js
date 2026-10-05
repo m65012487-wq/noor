@@ -14,4 +14,12 @@ module.exports = {
   entitlements: {
     'com.apple.security.application-groups': ['group.95233b59e7e45aab.1'],
   },
+  // Фон на всю площадь (containerBackground) и отсчёт до намаза — iOS 17.
+  deploymentTarget: '17.0',
+  // Силуэты горизонта Krea-2 (scripts/tasbih_assets/build_v5.py): белые с
+  // альфой, SwiftUI красит их цветом схемы приложения. Пути — от этой папки.
+  images: {
+    horizonWide: '../../assets/widget/horizon-wide.png',
+    horizonSquare: '../../assets/widget/horizon-square.png',
+  },
 };

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { loadJSON, saveJSON } from './helpers';
+import { publishStreak } from './widgetBridge';
 
 const AppSettingsContext = createContext(null);
 
@@ -65,7 +66,8 @@ export function AppSettingsProvider({ children }) {
     setReminders(next);
     await saveJSON('prayerReminders', next);
   };
-  const chooseGoal = async (g) => { setDailyGoal(g); await saveJSON('dailyGoal', g); };
+  // Новая цель сразу уходит в виджет ударного режима.
+  const chooseGoal = async (g) => { setDailyGoal(g); await saveJSON('dailyGoal', g); publishStreak(); };
 
   if (!ready) return null;
 

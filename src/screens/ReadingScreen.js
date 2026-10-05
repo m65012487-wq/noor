@@ -15,6 +15,7 @@ import { loadJSON, saveJSON, todayKey, dayDiff } from '../utils/helpers';
 import { surahMeaning } from '../constants/surahNames';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 import { useAppSettings } from '../utils/AppSettingsContext';
+import { publishStreak } from '../utils/widgetBridge';
 import { useTabSwipe } from '../utils/useTabSwipe';
 
 const TOTAL_AYAHS = 6236;
@@ -102,6 +103,8 @@ export default function ReadingScreen() {
       await saveJSON('lastGoalDay', todayKey());
       setStreak(s);
     }
+    // Виджет ударного режима: прогресс за сегодня и счётчик дней.
+    publishStreak();
   }
 
   async function goNext() {

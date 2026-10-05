@@ -17,7 +17,7 @@ import { getPrayerDay, getPrayerWindow, prayerEvents } from '../utils/prayerSche
 import { localDateKey } from '../utils/calendarDate';
 import { updateSchedule } from '../utils/scheduleQueue';
 import { schedulePrayerReminders } from '../utils/prayerNotifications';
-import { publishPrayerDay } from '../utils/widgetBridge';
+import { publishPrayerDay, publishStreak } from '../utils/widgetBridge';
 import { useLang } from '../i18n/LanguageContext';
 import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
@@ -101,6 +101,9 @@ export default function PrayerTimesScreen() {
         setDays(window);
         setTimings(window.find(day => day.date === dayKey)?.timings || null);
         publishPrayerDay({ days: window, order: PRAYERS, label: key => prayerName(key, lang), city: coords.label || '' });
+        // Вместе с расписанием обновляем и ударный режим: так виджет получает
+        // свежий снимок при каждом открытии приложения, а не только после чтения.
+        publishStreak();
       })
       .catch(() => { if (!cancelled) setError(t('load_error')); })
       .finally(() => { if (!cancelled) setLoading(false); });
