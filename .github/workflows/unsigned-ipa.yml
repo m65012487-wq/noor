@@ -117,6 +117,10 @@ jobs:
           mkdir -p build/Payload
           cp -R "$APP" build/Payload/
           cd build
+          # В репозитории лежит старый Noor-unsigned.ipa, а zip дописывает в
+          # существующий архив, а не заменяет его: без удаления в сборку
+          # попадали все файлы давней версии.
+          rm -f Noor-unsigned.ipa
           zip -qry Noor-unsigned.ipa Payload
           cd ..
           ls -lh build/Noor-unsigned.ipa
