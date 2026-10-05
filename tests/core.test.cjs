@@ -20,7 +20,7 @@ function loader(overrides = {}) {
         // Metro-only asset imports (images, fonts) aren't JS modules; stub
         // them so files that require() artwork can still be loaded for their
         // pure exports.
-        if (/\.(png|jpg|jpeg|gif|webp|ttf|otf)$/i.test(id)) return { uri: id };
+        if (/\.(png|jpg|jpeg|gif|webp|ttf|otf|m4a)$/i.test(id)) return { uri: id };
         return load(path.resolve(path.dirname(full), id + (path.extname(id) ? '' : '.js')));
       }
       return require(id);
@@ -801,4 +801,178 @@ test('v2 saves migrate to v3: default sequence, empty reserve, trees catch up to
   for (const bad of [-3, 'x', NaN, Infinity, null, undefined]) assert.equal(reserveOf(bad), 0);
   assert.deepEqual(model.restoreState({ version: 4 }), model.initialState());
   assert.deepEqual(model.restoreState(JSON.parse(JSON.stringify(state))), state);
+});
+
+// ---- Курс «Чтение по слогам» ----
+const course = load('src/constants/alphabetCourse.js');
+const alphabetStore = new Map();
+const alphabet = loader({
+  './helpers': {
+    loadJSON: async (key, fallback) => (alphabetStore.has(key) ? JSON.parse(alphabetStore.get(key)) : fallback),
+    saveJSON: async (key, value) => { alphabetStore.set(key, JSON.stringify(value)); },
+  },
+})('src/utils/alphabetEngine.js');
+// Прогресс: вступление, все буквы и проверки уроков до upTo (не включая его).
+function progressBefore(upTo, extra = {}) {
+  const p = { intro: true, letters: {}, quiz: {} };
+  for (const lesson of course.LESSONS.slice(0, upTo)) {
+    for (const l of lesson.letters) p.letters[l.id] = true;
+    p.quiz[lesson.index] = 1;
+  }
+  return { ...p, ...extra };
+}
+
+test('alphabet course data: 28 letters, 7 lessons cover each letter once, every item has a recording', () => {
+  const { ALPHABET, LESSONS, INTRO, audioFor, letterName } = course;
+  assert.equal(ALPHABET.length, 28);
+  assert.deepEqual(ALPHABET.map(l => l.id), Array.from({ length: 28 }, (_, i) => i + 1));
+  assert.deepEqual(LESSONS.map(l => l.letters.length), [4, 4, 4, 4, 6, 4, 2]);
+  assert.deepEqual(LESSONS.map(l => l.index), [0, 1, 2, 3, 4, 5, 6]);
+  const covered = LESSONS.flatMap(l => l.letters.map(x => x.id));
+  assert.deepEqual([...covered].sort((a, b) => a - b), ALPHABET.map(l => l.id));
+  assert.equal(INTRO.length, 13);
+  for (const lang of ['ru', 'en']) {
+    const names = ALPHABET.map(l => letterName(l, lang));
+    assert.equal(new Set(names).size, 28, `names unique in ${lang}`);
+  }
+  for (const letter of ALPHABET) {
+    assert.ok(letter.desc_ru && letter.desc_en, `desc ${letter.id}`);
+    assert.equal(letter.items[0].kind, 'letter');
+    assert.equal(letter.items[0].ar, letter.ar);
+    assert.deepEqual(letter.items.slice(1, 4).map(i => i.kind), ['vowel', 'vowel', 'vowel']);
+    for (const item of letter.items) {
+      assert.ok(['letter', 'vowel', 'syllable', 'word'].includes(item.kind));
+      assert.ok(audioFor(item.key), `no recording for ${item.key}`);
+      assert.ok(fs.existsSync(path.resolve(__dirname, '..', 'assets', 'alphabet', `${item.key}.m4a`)), `no file ${item.key}`);
+    }
+  }
+  assert.equal(audioFor(null), null);
+  assert.equal(audioFor('no-such-key'), null);
+  for (const step of INTRO) {
+    assert.ok(step.text_ru && step.text_en && step.button_ru && step.button_en);
+    if (step.audio) assert.ok(audioFor(step.audio));
+  }
+});
+
+test('alphabet course: opening rules follow intro, letter order and passed quizzes', () => {
+  const { isIntroDone, isLetterOpen, isQuizOpen, lettersDone, totalStars, nextStep } = alphabet;
+  const fresh = { intro: false, letters: {}, quiz: {} };
+  assert.equal(isIntroDone(fresh), false);
+  assert.equal(isIntroDone(undefined), false);
+  assert.equal(isLetterOpen(fresh, 0, 0), false); // без вступления закрыто всё
+  const afterIntro = { ...fresh, intro: true };
+  assert.equal(isIntroDone(afterIntro), true);
+  assert.equal(isLetterOpen(afterIntro, 0, 0), true);
+  assert.equal(isLetterOpen(afterIntro, 0, 1), false);
+  assert.equal(isLetterOpen(afterIntro, 1, 0), false);
+  const first = { ...afterIntro, letters: { 1: true } };
+  assert.equal(isLetterOpen(first, 0, 1), true);
+  assert.equal(isLetterOpen(first, 0, 2), false);
+  assert.equal(isQuizOpen(first, 0), false);
+  // Проверка открывается, когда пройдены все буквы урока (id 1..4).
+  const all = { ...afterIntro, letters: { 1: true, 2: true, 3: true, 4: true } };
+  assert.equal(isQuizOpen(all, 0), true);
+  assert.equal(isQuizOpen(all, 1), false);
+  // Первая буква урока 1 ждёт проверку урока 0, сданную хотя бы на звезду.
+  assert.equal(isLetterOpen(all, 1, 0), false);
+  assert.equal(isLetterOpen({ ...all, quiz: { 0: 0 } }, 1, 0), false);
+  assert.equal(nextStep({ ...all, quiz: { 0: 0 } }).type, 'quiz');
+  assert.equal(isLetterOpen({ ...all, quiz: { 0: 1 } }, 1, 0), true);
+  assert.equal(isLetterOpen({ ...all, quiz: { 0: 1 } }, 1, 1), false);
+  // Несуществующие позиции закрыты.
+  assert.equal(isLetterOpen(all, 0, 9), false);
+  assert.equal(isLetterOpen(all, 9, 0), false);
+  assert.equal(lettersDone(all), 4);
+  assert.equal(lettersDone(fresh), 0);
+  assert.equal(totalStars({ ...fresh, quiz: { 0: 3, 1: 2, 2: 0 } }), 5);
+  assert.equal(totalStars(fresh), 0);
+  // Звёзды по точности.
+  assert.deepEqual([[8, 8], [7, 8], [6, 8], [4, 8], [3, 8], [0, 0]].map(([c, t]) => alphabet.starsFor(c, t)), [3, 2, 2, 1, 0, 0]);
+});
+
+test('alphabet course: nextStep walks intro, letters, quiz, then done', () => {
+  const { nextStep } = alphabet;
+  const { LESSONS } = course;
+  assert.deepEqual(nextStep({ intro: false, letters: {}, quiz: {} }), { type: 'intro' });
+  assert.deepEqual(nextStep(undefined), { type: 'intro' });
+  assert.deepEqual(nextStep({ intro: true, letters: {}, quiz: {} }), { type: 'letter', lessonIndex: 0, letterId: LESSONS[0].letters[0].id });
+  assert.deepEqual(nextStep({ intro: true, letters: { 1: true }, quiz: {} }), { type: 'letter', lessonIndex: 0, letterId: LESSONS[0].letters[1].id });
+  assert.deepEqual(nextStep(progressBefore(0, { letters: { 1: true, 2: true, 3: true, 4: true } })), { type: 'quiz', lessonIndex: 0 });
+  assert.deepEqual(nextStep(progressBefore(1)), { type: 'letter', lessonIndex: 1, letterId: LESSONS[1].letters[0].id });
+  assert.deepEqual(nextStep(progressBefore(7)), { type: 'done' });
+});
+
+test('alphabet course: progress persists, keeps the best quiz result and survives damaged storage', async () => {
+  alphabetStore.clear();
+  assert.deepEqual(await alphabet.getAlphabetProgress(), { intro: false, letters: {}, quiz: {} });
+  await alphabet.completeIntro();
+  await alphabet.completeLetter(1);
+  await alphabet.completeQuiz(0, 2);
+  await alphabet.completeQuiz(0, 1); // слабее — не затирает
+  await alphabet.completeQuiz(1, 0);
+  let p = await alphabet.getAlphabetProgress();
+  assert.equal(p.intro, true);
+  assert.deepEqual(p.letters, { 1: true });
+  assert.deepEqual(p.quiz, { 0: 2, 1: 0 });
+  await alphabet.completeQuiz(0, 3);
+  p = await alphabet.getAlphabetProgress();
+  assert.equal(p.quiz[0], 3);
+  assert.ok(alphabetStore.has('alphabetProgress'));
+  alphabetStore.set('alphabetProgress', JSON.stringify('мусор'));
+  assert.deepEqual(await alphabet.getAlphabetProgress(), { intro: false, letters: {}, quiz: {} });
+});
+
+test('alphabet quiz: 8 exercises with the correct answer among 4 unique options, in every lesson', () => {
+  const { LESSONS, letterName } = course;
+  const letterOf = item => Number(item.key.split('-')[0]);
+  for (const lesson of LESSONS) {
+    for (let run = 0; run < 25; run++) {
+      const quiz = alphabet.buildQuiz(lesson.index);
+      assert.equal(quiz.length, 8);
+      const count = type => quiz.filter(e => e.type === type).length;
+      assert.equal(count('listen_choose'), 5);
+      assert.equal(count('name_choose'), 2);
+      assert.equal(count('match_pairs'), 1);
+      const learnedIds = new Set(LESSONS.slice(0, lesson.index + 1).flatMap(l => l.letters.map(x => x.id)));
+      const lessonIds = new Set(lesson.letters.map(l => l.id));
+
+      const listen = quiz.filter(e => e.type === 'listen_choose');
+      for (const e of listen) {
+        assert.ok(e.correct.key && e.correct.kind !== 'letter');
+        assert.equal(e.options.length, 4);
+        assert.equal(new Set(e.options.map(o => o.ar)).size, 4, 'ar unique');
+        assert.ok(e.options.some(o => o.key === e.correct.key), 'correct among options');
+        assert.equal(e.options.filter(o => o.ar === e.correct.ar).length, 1);
+        for (const o of e.options) {
+          assert.equal(o.kind, e.correct.kind, 'same kind');
+          assert.ok(learnedIds.has(letterOf(o)), 'only learned letters');
+        }
+      }
+      assert.equal(new Set(listen.map(e => e.correct.ar)).size, 5, 'correct answers differ');
+      const fromLesson = listen.filter(e => lessonIds.has(letterOf(e.correct))).length;
+      assert.equal(fromLesson, lesson.index === 0 ? 5 : 4, 'one review item after lesson 1');
+      assert.ok(listen.filter(e => e.correct.kind === 'word').length >= 2, 'words dominate');
+
+      const named = quiz.filter(e => e.type === 'name_choose');
+      for (const e of named) {
+        assert.equal(e.options.length, 4);
+        assert.ok(e.options.some(o => o.id === e.correct.id));
+        assert.equal(new Set(e.options.map(o => o.id)).size, 4);
+        for (const lang of ['ru', 'en']) assert.equal(new Set(e.options.map(o => letterName(o, lang))).size, 4);
+        assert.ok(e.options.every(o => learnedIds.has(o.id)));
+      }
+      assert.equal(new Set(named.map(e => e.correct.id)).size, 2);
+
+      const match = quiz.find(e => e.type === 'match_pairs');
+      assert.equal(match.items.length, 4);
+      assert.equal(new Set(match.items.map(l => l.id)).size, 4);
+      assert.ok(match.items.every(l => learnedIds.has(l.id)));
+      // Буквы урока идут первыми: пары из прежних уроков только при нехватке.
+      assert.equal(match.items.filter(l => lessonIds.has(l.id)).length, Math.min(4, lesson.letters.length));
+    }
+  }
+  // Урок 6 состоит из двух букв: пары добираются до четырёх из прежних уроков.
+  const last = alphabet.buildQuiz(6).find(e => e.type === 'match_pairs');
+  assert.equal(last.items.length, 4);
+  assert.equal(last.items.filter(l => l.id >= 27).length, 2);
 });

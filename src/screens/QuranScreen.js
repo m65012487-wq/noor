@@ -38,7 +38,7 @@ export default function QuranScreen({ navigation }) {
   const [lastRead, setLastRead] = useState(null);
   const [bookmarks, setBookmarks] = useState([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeLesson, setActiveLesson] = useState(null); // {unitIndex, lessonIndex}
+  const [activeStep, setActiveStep] = useState(null); // {type:'intro'} | {type:'letter', lessonIndex, letterId} | {type:'quiz', lessonIndex}
   const [courseRefresh, setCourseRefresh] = useState(0);
 
   useEffect(() => {
@@ -161,7 +161,7 @@ export default function QuranScreen({ navigation }) {
 
       {seg === 'learn' ? (
         <CoursePathScreen refreshKey={courseRefresh}
-          onOpenLesson={(ui, li) => setActiveLesson({ unitIndex: ui, lessonIndex: li })} />
+          onOpen={(step) => setActiveStep(step)} />
       ) : loading ? (
         <ActivityIndicator color={accent} size="large" style={{ marginTop: 60 }} />
       ) : (
@@ -190,15 +190,14 @@ export default function QuranScreen({ navigation }) {
 
       <QuranSettingsSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-      <Modal visible={!!activeLesson} animationType="slide"
+      <Modal visible={!!activeStep} animationType="slide"
         presentationStyle="fullScreen"
-        onRequestClose={() => setActiveLesson(null)}>
+        onRequestClose={() => { setActiveStep(null); setCourseRefresh((k) => k + 1); }}>
         <View style={styles.lessonModal}>
-          {activeLesson && (
+          {activeStep && (
             <LessonPlayerScreen
-              unitIndex={activeLesson.unitIndex}
-              lessonIndex={activeLesson.lessonIndex}
-              onExit={() => { setActiveLesson(null); setCourseRefresh((k) => k + 1); }}
+              step={activeStep}
+              onExit={() => { setActiveStep(null); setCourseRefresh((k) => k + 1); }}
             />
           )}
         </View>
