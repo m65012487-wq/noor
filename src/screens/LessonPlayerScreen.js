@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, TouchableOpacity, ScrollView, Pressable, Animated, Easing } from 'react-native';
 import Text from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import GlassView from '../components/GlassView';
-import { GlassContainer } from 'expo-glass-effect';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { ALPHABET, INTRO, audioFor, letterName } from '../constants/alphabetCourse';
 import {
@@ -13,7 +12,7 @@ import {
 import { useAppearance } from '../utils/AppearanceContext';
 import { playAsset, stopAudio } from '../utils/audioPlayer';
 import { speakArabic, stopSpeech } from '../utils/speech';
-import { hapticLight, hapticSuccess } from '../utils/haptics';
+import { hapticLight, hapticSuccess, hapticError } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
 import { ThemedBackground } from '../components/ScreenWrapper';
 
@@ -332,6 +331,88 @@ function LetterPlayer({ letterId, onExit }) {
 // У вариантов ответа разный вид: у букв есть id, у элементов — ключ записи.
 const optId = (o) => (o.key !== undefined ? o.key : o.id);
 
+// Состояния плитки ответа: обычная, выбранная, верная, неверная, погасшая.
+const OK_FILL = 'rgba(76,175,114,0.92)';
+const BAD_FILL = 'rgba(214,92,84,0.92)';
+
+// Плитка ответа. Выбор — рамка цвета схемы и лёгкое увеличение; после
+// проверки верная заливается зелёным и подпрыгивает, неверная краснеет и
+// вздрагивает, остальные гаснут.
+function AnswerTile({ state, accent, tint, onPress, disabled, height, children }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const shake = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (state === 'selected') {
+      Animated.spring(scale, { toValue: 1.04, friction: 6, tension: 220, useNativeDriver: true, isInteraction: false }).start();
+    } else if (state === 'correct') {
+      Animated.sequence([
+        Animated.spring(scale, { toValue: 1.1, friction: 4, tension: 260, useNativeDriver: true, isInteraction: false }),
+        Animated.spring(scale, { toValue: 1, friction: 5, tension: 180, useNativeDriver: true, isInteraction: false }),
+      ]).start();
+    } else if (state === 'wrong') {
+      scale.setValue(1);
+      Animated.sequence([10, -9, 7, -5, 3, 0].map((x) =>
+        Animated.timing(shake, { toValue: x, duration: 55, easing: Easing.linear, useNativeDriver: true, isInteraction: false }))).start();
+    } else {
+      Animated.spring(scale, { toValue: 1, friction: 6, tension: 220, useNativeDriver: true, isInteraction: false }).start();
+    }
+  }, [state, scale, shake]);
+
+  const look = {
+    idle: null,
+    selected: { borderColor: accent, borderWidth: 2, backgroundColor: `rgba(${tint},0.24)` },
+    correct: { borderColor: OK_FILL, backgroundColor: OK_FILL },
+    wrong: { borderColor: BAD_FILL, backgroundColor: BAD_FILL },
+    dim: { opacity: 0.35 },
+  }[state];
+
+  return (
+    <Animated.View style={{ transform: [{ scale }, { translateX: shake }] }}>
+      <Pressable disabled={disabled} onPress={onPress} style={[styles.tile, { height }, look]}>
+        {children}
+        {(state === 'correct' || state === 'wrong') && (
+          <View style={styles.tileBadge}>
+            <Icon name={state === 'correct' ? 'check' : 'close'} size={12}
+              color={state === 'correct' ? COLORS.success : COLORS.danger} />
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// Плашка результата выезжает снизу: цвет исхода, подпись, правильный ответ
+// при ошибке и своя кнопка «Дальше».
+function ResultBanner({ ok, title, detail, detailAr, buttonLabel, onPress }) {
+  const rise = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(rise, { toValue: 1, friction: 8, tension: 90, useNativeDriver: true, isInteraction: false }).start();
+  }, [rise]);
+  const color = ok ? OK_FILL : BAD_FILL;
+  return (
+    <Animated.View style={[styles.banner, { backgroundColor: color },
+      { opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }]}>
+      <View style={styles.bannerRow}>
+        <View style={styles.bannerIcon}>
+          <Icon name={ok ? 'check' : 'close'} size={20} color={ok ? COLORS.success : COLORS.danger} />
+        </View>
+        <View style={styles.bannerText}>
+          <Text style={styles.bannerTitle}>{title}</Text>
+          {!!detail && (
+            <Text style={styles.bannerDetail} numberOfLines={1}>
+              {detail}{detailAr ? ' ' : ''}{!!detailAr && <Text style={styles.bannerAr}>{detailAr}</Text>}
+            </Text>
+          )}
+        </View>
+      </View>
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.bannerBtn}>
+        <Text style={[styles.bannerBtnText, { color: ok ? '#2f7a4c' : '#9b3a33' }]}>{buttonLabel}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 // ---- Проверка после урока ----
 function QuizPlayer({ lessonIndex, onExit }) {
   // Повтор проверки — новый набор вопросов, поэтому прохождение пересоздаётся.
@@ -352,13 +433,14 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
   const { t, lang } = useLang();
   const appearance = useAppearance();
   const accent = appearance?.accent || COLORS.accentSoft;
+  const tint = appearance?.tint || '150,200,225';
   const [exercises] = useState(() => buildQuiz(lessonIndex));
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState(null);
   const [checked, setChecked] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [done, setDone] = useState(false);
-  const [matchPicks, setMatchPicks] = useState({}); // for match_pairs: { [letterId]: true }
+  const [matchOk, setMatchOk] = useState(false); // пары собраны без ошибок
 
   const ex = exercises[step];
   // Запись на карточке задания: для «услышь» — правильный элемент, для
@@ -375,20 +457,25 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
     }
   }, [ex]);
 
-  function isCorrectAnswer() {
-    if (ex.type === 'match_pairs') return ex.items.every((it) => matchPicks[it.id]);
-    return selected && optId(selected) === optId(ex.correct);
-  }
+  const isCorrect = ex.type === 'match_pairs' ? matchOk : !!selected && optId(selected) === optId(ex.correct);
 
   function onCheck() {
-    if (ex.type !== 'match_pairs' && !selected) return;
+    if (!selected) return;
     setChecked(true);
-    if (isCorrectAnswer()) { setCorrectCount((c) => c + 1); hapticLight(); }
+    if (optId(selected) === optId(ex.correct)) { setCorrectCount((c) => c + 1); hapticSuccess(); }
+    else hapticError();
+  }
+
+  function onMatched(mistakes) {
+    const ok = mistakes === 0;
+    setMatchOk(ok);
+    setChecked(true);
+    if (ok) { setCorrectCount((c) => c + 1); hapticSuccess(); } else hapticError();
   }
 
   function onContinue() {
     if (step + 1 < exercises.length) {
-      setStep(step + 1); setSelected(null); setChecked(false); setMatchPicks({});
+      setStep(step + 1); setSelected(null); setChecked(false); setMatchOk(false);
     } else {
       // finish
       stopAudio();
@@ -418,6 +505,23 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
     );
   }
 
+  const arabic = ex.type === 'listen_choose';
+  const tileState = (opt) => {
+    const isSel = !!selected && optId(selected) === optId(opt);
+    if (!checked) return isSel ? 'selected' : 'idle';
+    if (optId(opt) === optId(ex.correct)) return 'correct';
+    return isSel ? 'wrong' : 'dim';
+  };
+
+  // Подпись плашки при ошибке: какой ответ был верным.
+  let detail = null;
+  let detailAr = null;
+  if (checked && !isCorrect) {
+    if (ex.type === 'listen_choose') { detail = t('answer_was'); detailAr = ex.correct.ar; }
+    if (ex.type === 'name_choose') detail = `${t('answer_was')} ${letterName(ex.correct, lang)}`;
+    if (ex.type === 'match_pairs') detail = t('match_had_mistakes');
+  }
+
   return (
     <LessonBg>
       <TopBar title={`${t('lesson')} ${lessonIndex + 1} · ${t('alphabet_quiz')}`} step={step} total={exercises.length} onExit={onExit} accent={accent} />
@@ -426,18 +530,19 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
         showsVerticalScrollIndicator={false}>
         <Text style={styles.prompt}>{promptFor(ex.type, t)}</Text>
 
-        {/* Big audio button for listen exercises */}
+        {/* Кнопка записи для «услышь и выбери» */}
         {ex.type === 'listen_choose' && (
-          <TouchableOpacity onPress={() => playKey(promptKey)} activeOpacity={0.7}>
-            <GlassView blur clip radius={48} azure noBorder={false} style={styles.speaker}>
-              <Icon name="speakerHi" size={42} color={COLORS.white} />
+          <TouchableOpacity onPress={() => playKey(promptKey)} activeOpacity={0.7} style={styles.speakerWrap}>
+            <GlassView blur clip radius={44} azure noBorder={false} style={styles.speaker}>
+              <Icon name="speakerHi" size={38} color={COLORS.white} />
             </GlassView>
+            <Text style={styles.speakerHint}>{t('tap_to_repeat')}</Text>
           </TouchableOpacity>
         )}
 
         {/* Буква на карточке для вопроса про имя */}
         {ex.type === 'name_choose' && (
-          <TouchableOpacity onPress={() => playKey(promptKey)}>
+          <TouchableOpacity onPress={() => playKey(promptKey)} activeOpacity={0.85}>
             <GlassView azure radius={RADIUS.lg} style={styles.promptCard}>
               <Text style={styles.promptAr}>{ex.correct.ar}</Text>
               <Hint text={t('tap_to_hear_q')} />
@@ -445,76 +550,47 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
           </TouchableOpacity>
         )}
 
-        {/* Options */}
-        {ex.type === 'match_pairs'
-          ? <MatchPairs ex={ex} lang={lang} picks={matchPicks} setPicks={setMatchPicks}
-              onComplete={() => { setCorrectCount((c) => c + 1); setChecked(true); hapticLight(); }} />
-          : (
-            // Варианты собраны в GlassContainer: соседние стёкла сливаются
-            // краями и список читается как одна поверхность, а не как стопка
-            // отдельных плиток.
-            <GlassContainer spacing={10} style={styles.options}>
-              {ex.options.map((opt) => {
-                const isSel = !!selected && optId(selected) === optId(opt);
-                const isCorrectOpt = optId(opt) === optId(ex.correct);
-                const showCorrect = checked && isCorrectOpt;
-                const showWrong = checked && isSel && !isCorrectOpt;
-                const showArabic = ex.type === 'listen_choose';
-                const tintRgb = appearance?.tint || '150,200,225';
-                // style priority: wrong > correct > selected > default
-                const bgStyle = showWrong
-                  ? { backgroundColor: 'rgba(192,86,63,0.35)', borderColor: COLORS.danger, borderWidth: 2 }
-                  : showCorrect
-                  ? { backgroundColor: 'rgba(76,175,114,0.35)', borderColor: COLORS.success, borderWidth: 2 }
-                  : isSel
-                  ? { backgroundColor: `rgba(${tintRgb},0.35)`, borderColor: accent, borderWidth: 2 }
-                  : {};
-                return (
-                  <TouchableOpacity key={optId(opt)} disabled={checked} activeOpacity={0.8}
-                    onPress={() => { setSelected(opt); if (showArabic) playKey(opt.key); }}>
-                    <GlassView radius={RADIUS.md}
-                      style={[styles.opt, bgStyle]}>
-                      <Text style={[showArabic ? styles.optAr : styles.optText,
-                        isSel && { fontWeight: "800", color: COLORS.white }]}>
-                        {showArabic ? opt.ar : letterName(opt, lang)}
-                      </Text>
-                      {/* Значок исхода: одним цветом обходиться нельзя —
-                          при дальтонизме верный и неверный ответ сливаются. */}
-                      {checked && (showCorrect || showWrong) && (
-                        <View style={styles.optMark}>
-                          <Icon name={showCorrect ? "check" : "close"} size={18}
-                            color={showCorrect ? COLORS.success : COLORS.danger} />
-                        </View>
-                      )}
-                    </GlassView>
-                  </TouchableOpacity>
-                );
-              })}
-            </GlassContainer>
-          )}
+        {ex.type === 'match_pairs' ? (
+          <MatchPairs key={step} ex={ex} lang={lang} accent={accent} tint={tint} onDone={onMatched} />
+        ) : (
+          // Сетка 2×2 одинаковых плиток вместо стопки полос во всю ширину.
+          <View style={styles.grid}>
+            {ex.options.map((opt) => {
+              const state = tileState(opt);
+              return (
+                <View key={optId(opt)} style={styles.gridCell}>
+                  <AnswerTile state={state} accent={accent} tint={tint} disabled={checked}
+                    height={arabic ? 104 : 68}
+                    onPress={() => { hapticLight(); setSelected(opt); if (arabic) playKey(opt.key); }}>
+                    <Text style={[arabic ? styles.tileAr : styles.tileName]}
+                      numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                      {arabic ? opt.ar : letterName(opt, lang)}
+                    </Text>
+                  </AnswerTile>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
-      {/* Bottom feedback + action */}
-      <View style={[styles.footer,
-        checked && (isCorrectAnswer() ? styles.footerOk : styles.footerBad)]}>
-        {checked && (
-          <Text style={[styles.feedback, isCorrectAnswer() ? styles.fbOk : styles.fbBad]}>
-            {isCorrectAnswer() ? `✓ ${t('correct')}` : `${t('incorrect')}`}
-          </Text>
-        )}
-        {ex.type === 'match_pairs' && !checked ? (
+      {checked ? (
+        <ResultBanner key={step} ok={isCorrect} title={isCorrect ? t('correct') : t('incorrect')}
+          detail={detail} detailAr={detailAr} buttonLabel={t('continue_btn')} onPress={onContinue} />
+      ) : ex.type === 'match_pairs' ? (
+        <View style={styles.footer}>
           <Text style={styles.matchHint}>{t('match_hint')}</Text>
-        ) : (
+        </View>
+      ) : (
+        <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.primaryBtn,
-              { backgroundColor: checked ? (isCorrectAnswer() ? COLORS.success : accent) : accent },
-              (!checked && !selected) && styles.btnDisabled]}
-            disabled={!checked && !selected}
-            onPress={checked ? onContinue : onCheck}>
-            <Text style={styles.primaryText}>{checked ? t('continue_btn') : t('check')}</Text>
+            style={[styles.primaryBtn, { backgroundColor: accent }, !selected && styles.btnDisabled]}
+            disabled={!selected}
+            onPress={onCheck}>
+            <Text style={styles.primaryText}>{t('check')}</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
     </LessonBg>
   );
 }
@@ -523,61 +599,78 @@ function promptFor(type, t) {
   return { listen_choose: t('ex_listen'), name_choose: t('ex_name'), match_pairs: t('ex_match') }[type];
 }
 
-// Пары «буква — имя». picks хранит id уже соединённых букв.
-function MatchPairs({ ex, lang, picks, setPicks, onComplete }) {
+// Пары «буква — имя» теми же плитками. Верная пара на миг зеленеет и гаснет,
+// неверная краснеет и вздрагивает. Ошибки считаются: упражнение засчитано,
+// только если пары собраны без них.
+function MatchPairs({ ex, lang, accent, tint, onDone }) {
+  const [picks, setPicks] = useState({}); // id соединённых букв
   const [activeLeft, setActiveLeft] = useState(null); // id выбранной буквы
-  const [wrongPair, setWrongPair] = useState(null); // {left, right} briefly red
+  const [flash, setFlash] = useState(null); // { left, right, ok }
+  const mistakes = useRef(0);
+  // Защита от двойного нажатия до перерисовки и таймеры, которые нужно
+  // снять, если проверку закрыли посреди вспышки.
+  const busy = useRef(false);
+  const finished = useRef(false);
+  const timers = useRef([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const later = (fn, ms) => { timers.current.push(setTimeout(fn, ms)); };
   const rights = React.useMemo(() => [...ex.items].sort(() => Math.random() - 0.5), [ex]);
 
   function pickLeft(it) {
-    if (picks[it.id]) return; // already matched
+    if (picks[it.id] || busy.current) return;
+    hapticLight();
     setActiveLeft(it.id);
   }
   function pickRight(rt) {
-    if (!activeLeft) return;
-    if (picks[rt.id]) return; // already used
-    if (activeLeft === rt.id) {
-      const next = { ...picks, [activeLeft]: true };
-      setPicks(next);
+    if (!activeLeft || picks[rt.id] || busy.current) return;
+    busy.current = true;
+    const ok = activeLeft === rt.id;
+    setFlash({ left: activeLeft, right: rt.id, ok });
+    if (ok) hapticLight(); else { mistakes.current += 1; hapticError(); }
+    later(() => {
+      busy.current = false;
+      setFlash(null);
       setActiveLeft(null);
-      hapticLight();
-      if (Object.keys(next).length === ex.items.length) {
-        setTimeout(() => onComplete && onComplete(), 350);
+      if (!ok) return;
+      const next = { ...picks, [rt.id]: true };
+      setPicks(next);
+      if (Object.keys(next).length === ex.items.length && !finished.current) {
+        finished.current = true;
+        later(() => onDone(mistakes.current), 200);
       }
-    } else {
-      // wrong: flash red, then reset selection
-      setWrongPair({ left: activeLeft, right: rt.id });
-      setTimeout(() => { setWrongPair(null); setActiveLeft(null); }, 450);
-    }
+    }, ok ? 380 : 520);
   }
+
+  const stateOf = (id, side) => {
+    if (flash && flash[side] === id) return flash.ok ? 'correct' : 'wrong';
+    if (picks[id]) return 'dim';
+    if (side === 'left' && activeLeft === id) return 'selected';
+    return 'idle';
+  };
 
   return (
     <View style={styles.matchRow}>
       <View style={styles.matchCol}>
         {ex.items.map((it) => {
-          const matched = !!picks[it.id];
-          const wrong = wrongPair && wrongPair.left === it.id;
+          const state = stateOf(it.id, 'left');
           return (
-            <TouchableOpacity key={it.id} onPress={() => pickLeft(it)} disabled={matched}>
-              <GlassView radius={RADIUS.md} azure={activeLeft === it.id}
-                style={[styles.matchCell, matched && styles.matchOk, wrong && styles.matchWrong]}>
-                <Text style={styles.matchAr}>{it.ar}</Text>
-              </GlassView>
-            </TouchableOpacity>
+            <AnswerTile key={it.id} state={state} accent={accent} tint={tint} height={64}
+              disabled={!!picks[it.id]} onPress={() => pickLeft(it)}>
+              <Text style={[styles.matchAr]}>{it.ar}</Text>
+            </AnswerTile>
           );
         })}
       </View>
       <View style={styles.matchCol}>
         {rights.map((it) => {
-          const used = !!picks[it.id];
-          const wrong = wrongPair && wrongPair.right === it.id;
+          const state = stateOf(it.id, 'right');
           return (
-            <TouchableOpacity key={it.id} onPress={() => pickRight(it)} disabled={used}>
-              <GlassView radius={RADIUS.md}
-                style={[styles.matchCell, used && styles.matchOk, wrong && styles.matchWrong]}>
-                <Text style={styles.matchText}>{letterName(it, lang)}</Text>
-              </GlassView>
-            </TouchableOpacity>
+            <AnswerTile key={it.id} state={state} accent={accent} tint={tint} height={64}
+              disabled={!!picks[it.id]} onPress={() => pickRight(it)}>
+              <Text style={[styles.tileName]}>
+                {letterName(it, lang)}
+              </Text>
+            </AnswerTile>
           );
         })}
       </View>
@@ -601,10 +694,33 @@ const styles = StyleSheet.create({
   progressBar: { height: 6, borderRadius: 3 },
   counter: { ...TYPE.caption, color: COLORS.textMuted, minWidth: 44, textAlign: 'right', marginRight: SPACING.xs },
   prompt: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', marginBottom: SPACING.lg, textAlign: 'center', letterSpacing: 0.2 },
-  speaker: { width: 84, height: 84, borderRadius: 42, alignSelf: 'center',
-    alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.lg, marginTop: SPACING.xs },
+  speakerWrap: { alignSelf: 'center', alignItems: 'center', marginBottom: SPACING.lg },
+  speaker: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
+  speakerHint: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.sm },
+  // Варианты ответа: сетка 2×2 одинаковых плиток.
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -SPACING.xs },
+  gridCell: { width: '50%', padding: SPACING.xs },
+  tile: { borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: SPACING.sm },
+  tileAr: { fontSize: 34, lineHeight: 62, color: COLORS.white, fontFamily: FONTS.arabic },
+  tileName: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700' },
+  tileBadge: { position: 'absolute', top: 7, right: 7, width: 20, height: 20, borderRadius: 10,
+    backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center' },
+  // Плашка результата.
+  banner: { marginHorizontal: SPACING.md, marginBottom: SPACING.xl, borderRadius: RADIUS.lg, padding: SPACING.md },
+  bannerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.md },
+  bannerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.white,
+    alignItems: 'center', justifyContent: 'center' },
+  bannerText: { flex: 1, marginLeft: SPACING.md },
+  bannerTitle: { ...TYPE.heading, color: COLORS.white },
+  bannerDetail: { ...TYPE.callout, color: 'rgba(255,255,255,0.92)', marginTop: SPACING.xxs },
+  bannerAr: { fontSize: 20, fontFamily: FONTS.arabic, color: COLORS.white },
+  bannerBtn: { backgroundColor: COLORS.white, borderRadius: RADIUS.pill, minHeight: 50,
+    alignItems: 'center', justifyContent: 'center' },
+  bannerBtnText: { ...TYPE.subhead, fontWeight: '800' },
   starsRow: { flexDirection: 'row', marginTop: SPACING.md, marginBottom: SPACING.sm },
-  promptCard: { alignItems: 'center', paddingVertical: SPACING.xl, marginBottom: SPACING.lg, marginHorizontal: SPACING.xl },
+  promptCard: { alignItems: 'center', paddingVertical: SPACING.lg, marginBottom: SPACING.lg, marginHorizontal: SPACING.xl },
   promptAr: { ...ARABIC.xl, color: COLORS.white, fontFamily: FONTS.arabic },
   tapHint: { ...TYPE.caption, color: COLORS.textMuted, marginLeft: SPACING.xs, flexShrink: 1, textAlign: 'center' },
   tapHintRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: SPACING.sm,
@@ -643,29 +759,13 @@ const styles = StyleSheet.create({
   letterCard: { alignItems: 'center', paddingVertical: SPACING.xl, marginBottom: SPACING.lg },
   bigLetter: { fontSize: 96, lineHeight: 150, color: COLORS.white, fontFamily: FONTS.arabic },
   letterNameText: { ...TYPE.heading, color: COLORS.white, marginTop: SPACING.xs },
-  options: { gap: SPACING.sm },
-  opt: { paddingVertical: SPACING.md, alignItems: 'center', justifyContent: 'center' },
-  // Значок прижат к правому краю и не сдвигает текст с центра.
-  optMark: { position: 'absolute', right: SPACING.md, top: 0, bottom: 0,
-    justifyContent: 'center' },
-  optAr: { ...ARABIC.lg, color: COLORS.white, fontFamily: FONTS.arabic },
-  optText: { ...TYPE.subhead, color: COLORS.white, fontWeight: '600' },
   matchRow: { flexDirection: 'row', justifyContent: 'space-between', gap: SPACING.md },
   matchCol: { flex: 1, gap: SPACING.sm },
-  matchCell: { height: 60, alignItems: 'center', justifyContent: 'center' },
-  matchOk: { opacity: 0.55, backgroundColor: 'rgba(76,175,114,0.28)', borderColor: COLORS.success, borderWidth: 1.5 },
-  matchWrong: { borderColor: COLORS.danger, borderWidth: 2 },
   matchHint: { ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center', paddingVertical: SPACING.md },
   matchAr: { ...ARABIC.md, color: COLORS.white, fontFamily: FONTS.arabic },
-  matchText: { ...TYPE.subhead, color: COLORS.white, fontWeight: '600' },
   footer: { padding: SPACING.lg, paddingBottom: SPACING.xl, borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.surfaceStrong },
   footerRow: { flexDirection: 'row', gap: SPACING.sm },
-  footerOk: { backgroundColor: 'rgba(76,175,114,0.12)' },
-  footerBad: { backgroundColor: 'rgba(192,86,63,0.12)' },
-  feedback: { ...TYPE.body, fontWeight: '700', marginBottom: SPACING.sm },
-  fbOk: { color: COLORS.success },
-  fbBad: { color: COLORS.danger },
   primaryBtn: { borderRadius: RADIUS.pill, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl,
     alignItems: 'center', justifyContent: 'center', minHeight: 54, width: '100%' },
   // В ряду кнопок «Назад» уже, «Дальше» занимает остаток.

@@ -8,7 +8,7 @@
 а наложение даёт ближнему плану самую плотную заливку.
 
 python build_scenes_v5.py sheet [scene|wall] — превью кандидатов из папки на фоне схемы
-python build_scenes_v5.py build   — выбранные (SCENES ниже) → assets/scenes/<id>-1..3.png
+python build_scenes_v5.py build [id ...] — выбранные (SCENES ниже, или только перечисленные) → assets/scenes/<id>-1..3.png
 """
 import sys, pathlib
 import numpy as np
@@ -31,9 +31,26 @@ SOFT = 0.07            # ширина мягкого края между тон�
 SCENES = {
     "caravan": "scene/caravan_5602", "cedars": "scene/cedars_5601",
     "rider": "wall/rider_5703", "blossom": "wall/blossom_5704",
+    # Всадники, кони и сабли (prompts_wall_v5.py riders), третьи варианты.
+    "saber": "wall/rider_sword_6103",
+    "gallop": "wall/riders_gallop_6103",
+    "banner": "wall/rearing_6103",
+    "herd": "wall/herd_6103",
+    "rest": "wall/warrior_rest_6103",
+    "blades": "wall/swords_6103",
     # Свой сад экрана тасбиха (не тема обоев): src/tasbih/gardenScene.js.
     "tasbih-garden": "wall/garden_5801",
 }
+
+# Всадники, кони и сабли — плотнее и чётче остальных: ближний план гуще,
+# сглаживание слабее, чтобы сохранить упряжь, складки и орнамент клинков.
+# id → (прозрачности планов, размер медианы, ширина мягкого края).
+CRISP = ((0.12, 0.24, 0.45), 3, 0.05)
+STYLE = {sid: CRISP for sid in ("saber", "gallop", "banner", "herd", "rest", "blades")}
+
+# Сцены, где рисунок дотягивается до кольца отсчёта: верх плавно растворяется
+# в небе между долями высоты (начало, конец).
+FADE_TOP = {"blades": (0.40, 0.56)}
 
 BG = ((27, 36, 48), (13, 19, 27))
 TINT = (190, 205, 220)
@@ -50,15 +67,21 @@ def thresholds(d):
     return (c[0] + c[1]) / 2, (c[1] + c[2]) / 2
 
 
-def layers(path):
+def layers(path, fade=None, style=None):
     # Медиана снимает зерно, которое Krea иногда кладёт на заливки (песок):
     # без неё мягкая граница тона рябит по всему ближнему плану.
-    d = ndimage.median_filter(alpha_of(path), size=7)
+    alphas, med, edge = style or (LAYER_ALPHA, 7, SOFT)
+    d = ndimage.median_filter(alpha_of(path), size=med)
     t1, t2 = thresholds(d)
-    soft = lambda t: np.clip((d - t) / SOFT + 0.5, 0, 1)
+    soft = lambda t: np.clip((d - t) / edge + 0.5, 0, 1)
     masks = [np.clip(d / 0.12, 0, 1), soft(t1), soft(t2)]
+    if fade:
+        y = np.linspace(0, 1, d.shape[0])[:, None]
+        k = np.clip((y - fade[0]) / (fade[1] - fade[0]), 0, 1)
+        k = k * k * (3 - 2 * k)
+        masks = [m * k for m in masks]
     out = []
-    for m, a in zip(masks, LAYER_ALPHA):
+    for m, a in zip(masks, alphas):
         rgba = np.zeros(d.shape + (4,), np.uint8)
         rgba[..., :3] = 255
         rgba[..., 3] = np.round(m * a * 255).astype(np.uint8)
@@ -93,9 +116,11 @@ def sheet(sub="scene"):
     print(target)
 
 
-def build():
+def build(only=()):
     for sid, name in SCENES.items():
-        for i, plane in enumerate(layers(RAW / f"{name}.png"), start=1):
+        if only and sid not in only:
+            continue
+        for i, plane in enumerate(layers(RAW / f"{name}.png", FADE_TOP.get(sid), STYLE.get(sid)), start=1):
             plane.save(OUT / f"{sid}-{i}.png", optimize=True)
         print(sid, name)
 
@@ -104,4 +129,4 @@ if __name__ == "__main__":
     if sys.argv[1] == "sheet":
         sheet(*sys.argv[2:3])
     else:
-        build()
+        build(sys.argv[2:])

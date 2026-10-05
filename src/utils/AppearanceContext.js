@@ -35,6 +35,13 @@ export const PATTERNS = [
   // правый нижний угол спокойный — туда входит веточка.
   { id: 'rider',    label_en: 'Rider',    label_ru: 'Всадник',  kind: 'scene' },
   { id: 'blossom',  label_en: 'Blossom',  label_ru: 'Цветение', kind: 'scene' },
+  // Всадники, кони и сабли — та же раскладка, что у «Всадника».
+  { id: 'saber',   label_en: 'Saber',   label_ru: 'Сабля',   kind: 'scene' },
+  { id: 'gallop',  label_en: 'Gallop',  label_ru: 'Скачка',  kind: 'scene' },
+  { id: 'banner',  label_en: 'Banner',  label_ru: 'Знамя',   kind: 'scene' },
+  { id: 'herd',    label_en: 'Herd',    label_ru: 'Табун',   kind: 'scene' },
+  { id: 'rest',    label_en: 'Rest',    label_ru: 'Привал',  kind: 'scene' },
+  { id: 'blades',  label_en: 'Blades',  label_ru: 'Клинки',  kind: 'scene' },
 ];
 
 // Узор по умолчанию и замена убранных узоров и сцен: сохранённый выбор, которого
@@ -74,6 +81,36 @@ export const SCENE_LAYERS = {
     require('../../assets/scenes/blossom-1.png'),
     require('../../assets/scenes/blossom-2.png'),
     require('../../assets/scenes/blossom-3.png'),
+  ],
+  saber: [
+    require('../../assets/scenes/saber-1.png'),
+    require('../../assets/scenes/saber-2.png'),
+    require('../../assets/scenes/saber-3.png'),
+  ],
+  gallop: [
+    require('../../assets/scenes/gallop-1.png'),
+    require('../../assets/scenes/gallop-2.png'),
+    require('../../assets/scenes/gallop-3.png'),
+  ],
+  banner: [
+    require('../../assets/scenes/banner-1.png'),
+    require('../../assets/scenes/banner-2.png'),
+    require('../../assets/scenes/banner-3.png'),
+  ],
+  herd: [
+    require('../../assets/scenes/herd-1.png'),
+    require('../../assets/scenes/herd-2.png'),
+    require('../../assets/scenes/herd-3.png'),
+  ],
+  rest: [
+    require('../../assets/scenes/rest-1.png'),
+    require('../../assets/scenes/rest-2.png'),
+    require('../../assets/scenes/rest-3.png'),
+  ],
+  blades: [
+    require('../../assets/scenes/blades-1.png'),
+    require('../../assets/scenes/blades-2.png'),
+    require('../../assets/scenes/blades-3.png'),
   ],
 };
 

@@ -1,6 +1,6 @@
 """v5: детальные обои под раскладку главного экрана — «Всадник» и «Цветение».
 
-python prompts_wall_v5.py [garden] > jobs.json; затем comfy_gen.py jobs.json; планы режет build_scenes_v5.py.
+python prompts_wall_v5.py [garden|riders] > jobs.json; затем comfy_gen.py jobs.json; планы режет build_scenes_v5.py.
 
 Композиция подогнана под экран 390×844: сверху заголовок и дата (там только
 пара бледных звёзд), в середине кольцо отсчёта и строка расписания (пусто),
@@ -38,6 +38,29 @@ GARDEN_LAYOUT = ("Tall vertical phone wallpaper composition: the upper half is e
                  "the height; nothing at all in the centre")
 
 
+# Ещё варианты в духе «Всадника»: всадники, кони и сабли. Та же раскладка и тот же стиль.
+RIDERS = {
+    "rider_sword": "A lone Arabian horseman in a flowing cloak and headscarf on a graceful horse, holding a curved "
+                   "scimitar raised high, standing on the crest of a sand dune, layered dunes and distant date palms behind",
+    "riders_gallop": "Two Arabian horsemen galloping side by side across the dunes, cloaks and long manes streaming in "
+                     "the wind, a light trail of sand behind them, distant palms on the horizon",
+    "rearing": "A proud Arabian stallion rearing up on its hind legs on a rocky ridge, its rider in a flowing cloak "
+               "holding a long pennant banner, distant layered mountains",
+    "herd": "A herd of wild Arabian horses galloping across a desert plain with flowing manes and tails, low dunes "
+            "and a few distant date palms",
+    "warrior_rest": "A desert warrior in a long cloak standing beside his horse at rest, a curved sword at his belt, the "
+                    "horse gently lowering its head, a lone date palm and soft dunes",
+    "swords": "Two ornate crossed scimitars planted in the sand at the top of a dune, a draped cloak and a tall spear "
+              "with a small pennant beside them, a distant desert fortress on the horizon",
+}
+
+
+def riders_jobs():
+    return [{"name": f"v5/wall/{name}_{seed}", "seed": seed, "w": 832, "h": 1792, "hires": True,
+             "prompt": f"{text}. {LAYOUT}. {STYLE}."}
+            for name, text in RIDERS.items() for seed in (6101, 6102, 6103)]
+
+
 def garden_jobs():
     return [{"name": f"v5/wall/garden_{seed}", "seed": seed, "w": 832, "h": 1792, "hires": True,
              "prompt": f"{GARDEN}. {GARDEN_LAYOUT}. {STYLE}."} for seed in (5801, 5802, 5803, 5804)]
@@ -51,4 +74,6 @@ def jobs():
 
 if __name__ == "__main__":
     import sys
-    print(json.dumps(garden_jobs() if sys.argv[1:] == ["garden"] else jobs(), ensure_ascii=False, indent=1))
+    mode = sys.argv[1] if sys.argv[1:] else ""
+    pick = {"garden": garden_jobs, "riders": riders_jobs}.get(mode, jobs)
+    print(json.dumps(pick(), ensure_ascii=False, indent=1))
