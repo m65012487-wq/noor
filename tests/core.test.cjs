@@ -836,7 +836,9 @@ test('alphabet course data: 28 letters, 7 lessons cover each letter once, every 
     assert.equal(new Set(names).size, 28, `names unique in ${lang}`);
   }
   for (const letter of ALPHABET) {
-    assert.ok(letter.desc_ru && letter.desc_en, `desc ${letter.id}`);
+    assert.ok(letter.sound_ru && letter.sound_en, `sound ${letter.id}`);
+    assert.ok(Number.isInteger(letter.order) && letter.order >= 1 && letter.order <= 28, `order ${letter.id}`);
+    assert.equal(!letter.tip_ru, !letter.tip_en, `tip ${letter.id}`);
     assert.equal(letter.items[0].kind, 'letter');
     assert.equal(letter.items[0].ar, letter.ar);
     assert.deepEqual(letter.items.slice(1, 4).map(i => i.kind), ['vowel', 'vowel', 'vowel']);
@@ -846,11 +848,21 @@ test('alphabet course data: 28 letters, 7 lessons cover each letter once, every 
       assert.ok(fs.existsSync(path.resolve(__dirname, '..', 'assets', 'alphabet', `${item.key}.m4a`)), `no file ${item.key}`);
     }
   }
+  // Место в алфавите, соединение и твёрдость сверены с классическим алфавитом.
+  assert.deepEqual(ALPHABET.map(l => l.order), [1, 10, 11, 24, 3, 25, 28, 2, 22, 23, 27, 26, 20, 21, 13, 12, 4, 14, 16, 5, 7, 6, 19, 18, 8, 15, 9, 17]);
+  assert.deepEqual(ALPHABET.filter(l => !l.joinsNext).map(l => l.ar).sort(), ['ا', 'د', 'ذ', 'ر', 'ز', 'و'].sort());
+  assert.deepEqual(ALPHABET.filter(l => l.heavy).map(l => l.ar).sort(), ['خ', 'ص', 'ض', 'ط', 'ظ', 'غ', 'ق'].sort());
   assert.equal(audioFor(null), null);
   assert.equal(audioFor('no-such-key'), null);
   for (const step of INTRO) {
-    assert.ok(step.text_ru && step.text_en && step.button_ru && step.button_en);
+    assert.ok(step.text_ru || step.points, 'step has text or points');
+    assert.equal(!step.text_ru, !step.text_en, 'text in both languages');
+    assert.equal(!step.title_ru, !step.title_en, 'title in both languages');
+    assert.ok(step.button_ru && step.button_en);
+    for (const p of step.points || []) assert.ok(p.ru && p.en);
+    for (const m of step.marks || []) assert.ok(m.name_ru && m.name_en && m.where_ru && m.where_en && m.sound && m.sound_en);
     if (step.audio) assert.ok(audioFor(step.audio));
+    for (const m of step.marks || []) if (m.audio) assert.ok(audioFor(m.audio));
   }
 });
 

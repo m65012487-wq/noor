@@ -3,7 +3,7 @@
 // быстрее складываются слова. У каждой буквы — сама буква, три огласовки,
 // слоги с сукуном и слова только из уже пройденных букв; у каждого элемента
 // своя живая запись. Буквы разбиты на 7 уроков, урок в день.
-import { LETTER_ITEMS, DESC_RU, INTRO_RU, AUDIO } from './alphabetSource';
+import { LETTER_ITEMS, AUDIO } from './alphabetSource';
 
 // Имена букв. В русском у трёх «Ха» и двух «Та» одно имя, а в упражнениях на
 // сопоставление имена обязаны различаться, поэтому взяты имена из
@@ -15,51 +15,40 @@ const NAMES = [
   ['Хьа', 'Ḥa'], ['Гайн', 'Ghayn'], ['Айн', 'Ayn'], ['Даль', 'Dal'], ['Дад', 'Ḍad'], ['Заль', 'Dhal'], ['За', 'Ẓa'],
 ];
 
-const DESC_EN = [
-  'Alif is the 1st letter. A long vowel, pronounced as a long "a". Depending on the consonant before it, it can sound closer to a long "e". Does not join the next letter.',
-  'Ra is the 10th letter. A rolled "r", more energetic than in English. Does not join the next letter.',
-  'Zay is the 11th letter. Pronounced like "z" in "zoo". Does not join the next letter.',
-  'Mim is the 24th letter. Pronounced like "m".',
-  'Ta is the 3rd letter. Pronounced like "t".',
-  'Nun is the 25th letter. Pronounced like "n".',
-  'Ya is the 28th letter. Pronounced like "y" in "yes".',
-  'Ba is the 2nd letter. Pronounced like "b".',
-  'Kaf is the 22nd letter. Pronounced like "k", soft, as in "keep".',
-  'Lam is the 23rd letter. A light "l", as in "leaf". Only rarely is it pronounced heavy.',
-  'Waw is the 27th letter. A rounded "w", as in "water". Does not join the next letter.',
-  'Ha is the 26th letter. A light breathy "h", as in "hat" — just voiced breath.',
-  'Fa is the 20th letter. Pronounced like "f".',
-  'Qaf is the 21st letter. Like "k", but much deeper in the throat — between the back of the tongue and the deepest part of the soft palate. A heavy consonant that deepens the vowels next to it.',
-  'Shin is the 13th letter. Pronounced like "sh" in "shoe", softly.',
-  'Sin is the 12th letter. Pronounced like "s".',
-  'Tha is the 4th letter. Pronounced like the soft "th" in "think".',
-  'Ṣad is the 14th letter. A heavy "s". Say a long, deep "a", as when a doctor checks your throat — that puts the tongue in place for ṣad. It deepens the vowels next to it.',
-  'Ṭa is the 16th letter. A heavy "t" with the tongue pulled back and the jaw lowered. It deepens the vowels next to it.',
-  'Jim is the 5th letter. Pronounced like "j" in "jam", softly.',
-  'Kha is the 7th letter. A deep, rasping "kh", like "ch" in Scottish "loch".',
-  'Ḥa is the 6th letter. A strong, breathy "h" with the throat slightly squeezed, like a forceful whisper.',
-  'Ghayn is the 19th letter. Very close to the French rolled "r".',
-  'Ayn is the 18th letter. Try to say "a" while squeezing the top of the throat so the air almost stops and the voice trembles.',
-  'Dal is the 8th letter. Pronounced like "d". Does not join the next letter. Its tail does not drop below the line, unlike Ra.',
-  'Ḍad is the 15th letter. Say "d", then pull the tongue back and lower the jaw. It deepens the vowels next to it.',
-  'Dhal is the 9th letter. Pronounced like the hard "th" in "this". Does not join the next letter. Its tail does not drop below the line, unlike Zay.',
-  'Ẓa is the 17th letter. A heavy, energetic "z" with the tongue tip touching the upper front teeth — otherwise it turns into an ordinary "z", which is Zay. It deepens the vowels next to it.',
-];
-
-const INTRO_EN = [
-  { text: 'The Arabic alphabet has 28 letters. They are written from right to left, and there are no capital letters.\nLetters change shape slightly depending on where they stand in a word. Most letters join the previous one with a small connecting stroke.', button: 'Ok.' },
-  { text: 'When the exact sound of a word matters (in the Quran and in dictionaries), short vowels are marked with signs:\n- A slanted stroke above a letter (fatha) means the sound "a".\n- A stroke below the letter (kasra) means "i".\n- A small hook above, like a tiny comma (damma), means "u".\n- A small circle above (sukun) means no vowel.', button: "I didn't get it, but let's go on." },
-  { text: 'This is the letter B.', button: 'Ok.' },
-  { text: 'Put a stroke above it and you get "Ba".', button: 'Ok.' },
-  { text: 'Put the stroke below and you get "Bi".', button: 'Ok.' },
-  { text: 'Put a comma above and you get "Bu".', button: 'Ok.' },
-  { text: 'Add one more B and you get "Bab".', button: 'Ok.' },
-  { text: '"Baba".', button: 'Ok.' },
-  { text: 'Now try it yourself.', button: 'I read it!' },
-  { text: 'Right, "babi". Once more.', button: 'I read it!' },
-  { text: 'Correct, "bubi". Got the idea?', button: 'Got it. So how does the course work?' },
-  { text: 'Words will appear on the screen — read each one yourself first. Then tap the word to hear it and check that you read it right.\nDon\'t try to memorise the letters, just read.', button: 'Deal.' },
-  { text: 'All the letters are split into 7 lessons. Take one lesson a day, and before a new lesson quickly review the letters you already know.', button: "Let's start." },
+// Карточка буквы вместо сплошного абзаца: место в алфавите, звук одной
+// строкой, подсказка к произношению и два признака — не соединяется со
+// следующей буквой и твёрдая (делает гласные рядом глубже).
+// [номер в алфавите, звук ru, звук en, подсказка ru, подсказка en, флаги]
+// Флаги: 'n' — не соединяется со следующей, 'h' — твёрдая.
+const INFO = [
+  [1, 'долгое «а»', 'long "aa"', 'С огласовкой (اَ اِ اُ) читается просто «а», «и», «у». Без неё тянет гласную перед собой: بَا — «баа».', 'With a vowel mark (اَ اِ اُ) it reads simply "a", "i", "u". Without one it lengthens the vowel before it: بَا — "baa".', 'n'],
+  [10, 'раскатистое «р»', 'rolled "r"', 'Энергичнее русского «р»: кончик языка дрожит у нёба.', 'More energetic than the English "r": the tongue tip trills against the palate.', 'n'],
+  [11, '«з», как в «зима»', '"z", as in "zoo"', null, null, 'n'],
+  [24, '«м»', '"m"', null, null, ''],
+  [3, '«т», как в «том»', '"t", as in "tea"', 'Кончик языка у верхних зубов, без смягчения и придыхания: «та», а не «тя».', 'Tongue tip at the upper teeth, without a puff of air.', ''],
+  [25, '«н»', '"n"', null, null, ''],
+  [28, '«й»', '"y", as in "yes"', 'После кясры тянет «и»: بِي — «бии».', 'After kasra it lengthens "i": بِي — "bee".', ''],
+  [2, '«б»', '"b"', null, null, ''],
+  [22, '«к», как в «кепка»', 'light "k", as in "keep"', 'Произносится у переднего нёба, не путайте с глубоким Каф (ق).', 'Made at the front of the palate — not the deep Qaf (ق).', ''],
+  [23, 'лёгкое «л»', 'light "l", as in "leaf"', 'Редко звучит твёрдо, как русское «л» в «лук», — например, в слове «Аллах» после «а» или «у».', 'It sounds heavy only rarely — in "Allah" after "a" or "u".', ''],
+  [27, 'губное «w», как в «water»', '"w", as in "water"', 'Губы округляются, как для «у», и сразу раскрываются. После даммы тянет «у»: بُو — «буу».', 'Round the lips as for "u" and open them at once. After damma it lengthens "u": بُو — "boo".', 'n'],
+  [26, 'лёгкое «h» на выдохе', 'light breathy "h"', 'Как английское «h» в «hat»: просто выдох, как при согревании рук, без хрипа.', 'As in "hat": just a breath of air, no friction.', ''],
+  [20, '«ф»', '"f"', null, null, ''],
+  [21, 'глубокое «к»', 'deep "q"', 'Корень языка касается самой дальней части нёба — глубже русского «к».', 'The back of the tongue touches the far end of the palate — deeper than "k".', 'h'],
+  [13, 'мягкое «ш»', '"sh", as in "shoe"', 'Мягче русского «ш».', 'Soft, never harsh.', ''],
+  [12, '«с»', '"s"', null, null, ''],
+  [4, 'глухое межзубное «th», как в «think»', '"th", as in "think"', 'Кончик языка между зубами, без голоса.', 'Tongue tip between the teeth, no voice.', ''],
+  [14, 'твёрдое «с»', 'heavy "s"', 'Опустите челюсть и отведите язык назад, как при глубоком «а» у врача.', 'Lower the jaw and pull the tongue back, as for a deep "a" at the doctor.', 'h'],
+  [16, 'твёрдое «т»', 'heavy "t"', 'Язык отведён назад, челюсть опущена.', 'Tongue pulled back, jaw lowered.', 'h'],
+  [5, 'мягкое «дж»', '"j", as in "jam"', null, null, ''],
+  [7, 'хриплое «х»', 'rasping "kh", as in "loch"', 'Глубже русского «х», с лёгким трением в горле, как в шотландском «loch».', 'Deep in the throat with light friction, like the Scottish "loch".', 'h'],
+  [6, 'сильное «h» с придыханием', 'strong breathy "ḥ"', 'Горло слегка сжато, как при сильном шёпоте, — но без хрипа.', 'Squeeze the throat slightly, like a forceful whisper — no rasp.', ''],
+  [19, 'картавое «р», как во французском', 'French-style "r", deep and voiced', 'Звучит в горле, голос включён.', 'Made in the throat, with voice.', 'h'],
+  [18, 'гортанный звук', 'throat sound', 'Скажите «а», сжав верх горла: голос дрожит, воздух почти перекрыт.', 'Say "a" while squeezing the top of the throat: the voice trembles, the air almost stops.', ''],
+  [8, '«д»', '"d"', 'Хвостик не опускается ниже строки — в отличие от Ра (ر).', 'Its tail stays on the line — unlike Ra (ر).', 'n'],
+  [15, 'твёрдое «д»', 'heavy "d"', 'Скажите «д», отведите язык назад и опустите челюсть.', 'Say "d", then pull the tongue back and lower the jaw.', 'h'],
+  [9, 'звонкое межзубное «th», как в «this»', '"th", as in "this"', 'Кончик языка между зубами, с голосом. Хвостик не опускается ниже строки — в отличие от Зайн (ز).', 'Tongue tip between the teeth, with voice. Its tail stays on the line — unlike Zay (ز).', 'n'],
+  [17, 'твёрдое «з»', 'heavy "ẓ"', 'Кончик языка касается верхних передних зубов — иначе выйдет обычный Зайн (ز).', 'The tongue tip touches the upper front teeth — otherwise it becomes a plain Zay (ز).', 'h'],
 ];
 
 // Первая буква каждого урока (номера с единицы, как в оригинале).
@@ -72,15 +61,23 @@ function kindOf(ar, index) {
   return ar.replace(MARKS, '').length <= 2 ? 'syllable' : 'word';
 }
 
-export const ALPHABET = LETTER_ITEMS.map((items, i) => ({
-  id: i + 1,
-  ar: items[0],
-  name_ru: NAMES[i][0],
-  name_en: NAMES[i][1],
-  desc_ru: DESC_RU[i],
-  desc_en: DESC_EN[i],
-  items: items.map((ar, k) => ({ ar, key: `${i + 1}-${k}`, kind: kindOf(ar, k) })),
-}));
+export const ALPHABET = LETTER_ITEMS.map((items, i) => {
+  const [order, soundRu, soundEn, tipRu, tipEn, flags] = INFO[i];
+  return {
+    id: i + 1,
+    ar: items[0],
+    name_ru: NAMES[i][0],
+    name_en: NAMES[i][1],
+    order,
+    sound_ru: soundRu,
+    sound_en: soundEn,
+    tip_ru: tipRu,
+    tip_en: tipEn,
+    joinsNext: !flags.includes('n'),
+    heavy: flags.includes('h'),
+    items: items.map((ar, k) => ({ ar, key: `${i + 1}-${k}`, kind: kindOf(ar, k) })),
+  };
+});
 
 export const LESSONS = LESSON_STARTS.map((start, li) => {
   const end = li + 1 < LESSON_STARTS.length ? LESSON_STARTS[li + 1] : ALPHABET.length + 1;
@@ -90,16 +87,67 @@ export const LESSONS = LESSON_STARTS.map((start, li) => {
 // Записей для вступления в оригинале нет; совпадающие слоги буквы Ба озвучены
 // её же записями, остальные — синтезатором речи.
 const BA = ALPHABET[7];
-const INTRO_AUDIO = { 'ب': BA.items[0].key, 'بَ': BA.items[1].key, 'بِ': BA.items[2].key, 'بُ': BA.items[3].key };
+const BA_AUDIO = { 'ب': BA.items[0].key, 'بَ': BA.items[1].key, 'بِ': BA.items[2].key, 'بُ': BA.items[3].key };
 
-export const INTRO = INTRO_RU.map((step, i) => ({
-  text_ru: step.text,
-  button_ru: step.button,
-  text_en: INTRO_EN[i].text,
-  button_en: INTRO_EN[i].button,
-  ar: step.ar,
-  audio: INTRO_AUDIO[step.ar] || null,
-}));
+// Вступление: короткие шаги вместо абзацев. У шага может быть заголовок,
+// текст, пункты списком, таблица огласовок и арабская карточка для чтения.
+const step = (s) => ({
+  title_ru: null, title_en: null, points: null, marks: null, ar: '', ...s,
+  audio: s.ar ? BA_AUDIO[s.ar] || null : null,
+});
+
+export const INTRO = [
+  step({
+    title_ru: 'Арабский алфавит', title_en: 'The Arabic alphabet',
+    text_ru: '28 букв — и вот что о них важно знать:', text_en: '28 letters — here is what matters:',
+    points: [
+      { ru: 'Пишутся и читаются справа налево.', en: 'Written and read from right to left.' },
+      { ru: 'Заглавных букв нет.', en: 'There are no capital letters.' },
+      { ru: 'Большинство букв соединяются со следующей и от этого слегка меняют форму.', en: 'Most letters join the next one and change shape slightly.' },
+    ],
+    button_ru: 'Понятно', button_en: 'Got it',
+  }),
+  step({
+    title_ru: 'Огласовки', title_en: 'Vowel marks',
+    text_ru: 'Короткие гласные не пишутся буквами — их ставят значком над буквой или под ней. Нажмите на строку, чтобы услышать.',
+    text_en: 'Short vowels are not letters — they are marks above or below a letter. Tap a row to hear it.',
+    marks: [
+      { ar: 'بَ', name_ru: 'Фатха', name_en: 'Fatha', where_ru: 'чёрточка сверху', where_en: 'stroke above', sound: 'а', sound_en: 'a' },
+      { ar: 'بِ', name_ru: 'Кясра', name_en: 'Kasra', where_ru: 'чёрточка снизу', where_en: 'stroke below', sound: 'и', sound_en: 'i' },
+      { ar: 'بُ', name_ru: 'Дамма', name_en: 'Damma', where_ru: 'запятая сверху', where_en: 'small hook above', sound: 'у', sound_en: 'u' },
+      { ar: 'بْ', name_ru: 'Сукун', name_en: 'Sukun', where_ru: 'кружок сверху', where_en: 'small circle above', sound: '—', sound_en: '—' },
+    ].map((m) => ({ ...m, audio: BA_AUDIO[m.ar] || null })),
+    button_ru: 'Дальше', button_en: 'Next',
+  }),
+  step({ text_ru: 'Это буква Ба — звук «б».', text_en: 'This is the letter Ba — the sound "b".', ar: 'ب', button_ru: 'Дальше', button_en: 'Next' }),
+  step({ text_ru: 'Фатха сверху — читаем «ба».', text_en: 'Fatha above — it reads "ba".', ar: 'بَ', button_ru: 'Дальше', button_en: 'Next' }),
+  step({ text_ru: 'Кясра снизу — читаем «би».', text_en: 'Kasra below — it reads "bi".', ar: 'بِ', button_ru: 'Дальше', button_en: 'Next' }),
+  step({ text_ru: 'Дамма сверху — читаем «бу».', text_en: 'Damma above — it reads "bu".', ar: 'بُ', button_ru: 'Дальше', button_en: 'Next' }),
+  step({ text_ru: 'Две буквы: «баб». У второй сукун — гласной нет.', text_en: 'Two letters: "bab". The second has sukun — no vowel.', ar: 'بَبْ', button_ru: 'Дальше', button_en: 'Next' }),
+  step({ text_ru: 'А здесь у обеих фатха: «баба».', text_en: 'Here both have fatha: "baba".', ar: 'بَبَ', button_ru: 'Дальше', button_en: 'Next' }),
+  step({ text_ru: 'Теперь сами: прочитайте вслух, потом нажмите на карточку и сверьте.', text_en: 'Now you: read it aloud, then tap the card to check.', ar: 'بَبِ', button_ru: 'Я прочитал', button_en: 'I read it' }),
+  step({ text_ru: 'Это «баби». Ещё одно:', text_en: 'That was "babi". One more:', ar: 'بُبِ', button_ru: 'Я прочитал', button_en: 'I read it' }),
+  step({ text_ru: 'Верно — «буби». Принцип понятен: буква даёт согласный, огласовка — гласный.', text_en: 'Right — "bubi". That is the whole idea: the letter gives the consonant, the mark gives the vowel.', button_ru: 'Как устроен курс?', button_en: 'How does the course work?' }),
+  step({
+    title_ru: 'Как заниматься', title_en: 'How to practise',
+    points: [
+      { ru: 'По одной появляются огласовки, слоги и слова.', en: 'Vowels, syllables and words appear one at a time.' },
+      { ru: 'Сначала прочитайте вслух сами.', en: 'Read each one aloud yourself first.' },
+      { ru: 'Потом нажмите на карточку и сверьте с записью.', en: 'Then tap the card and check against the recording.' },
+      { ru: 'Буквы не заучивайте — просто читайте.', en: 'Don\'t memorise letters — just read.' },
+    ],
+    button_ru: 'Дальше', button_en: 'Next',
+  }),
+  step({
+    title_ru: '7 уроков', title_en: '7 lessons',
+    points: [
+      { ru: 'В уроке несколько новых букв и проверка в конце.', en: 'Each lesson has a few new letters and a quiz at the end.' },
+      { ru: 'Один урок в день.', en: 'One lesson a day.' },
+      { ru: 'Перед новым уроком бегло повторите прошлые буквы.', en: 'Before a new lesson, quickly review the letters you know.' },
+    ],
+    button_ru: 'Начать', button_en: 'Start',
+  }),
+];
 
 export function audioFor(key) {
   return key ? AUDIO[key] || null : null;

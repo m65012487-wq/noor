@@ -97,6 +97,78 @@ function Hint({ text }) {
   );
 }
 
+// Пункты списком: точка цвета схемы и короткая строка.
+function Points({ items, lang, accent }) {
+  return (
+    <View style={styles.points}>
+      {items.map((p, i) => (
+        <View key={i} style={styles.pointRow}>
+          <View style={[styles.pointDot, { backgroundColor: accent }]} />
+          <Text style={styles.pointText}>{lang === 'ru' ? p.ru : p.en}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// Таблица огласовок: образец на букве Ба, название, где ставится, звук.
+// Строка нажимается — звучит запись или, если её нет, синтезатор.
+function MarksTable({ marks, lang, accent, onPlay }) {
+  return (
+    <GlassView radius={RADIUS.lg} style={styles.marksCard}>
+      {marks.map((m, i) => (
+        <TouchableOpacity key={m.ar} activeOpacity={0.8} onPress={() => onPlay(m)}
+          style={[styles.markRow, i > 0 && styles.markDivider]}>
+          <Text style={styles.markAr}>{m.ar}</Text>
+          <View style={styles.markMid}>
+            <Text style={styles.markName}>{lang === 'ru' ? m.name_ru : m.name_en}</Text>
+            <Text style={styles.markWhere}>{lang === 'ru' ? m.where_ru : m.where_en}</Text>
+          </View>
+          <Text style={[styles.markSound, { color: accent }]}>{lang === 'ru' ? m.sound : m.sound_en}</Text>
+        </TouchableOpacity>
+      ))}
+    </GlassView>
+  );
+}
+
+// Звук в данных записан со строчной («глубокое «к»»), а в карточке это
+// отдельная строка — с заглавной.
+const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
+const ordinalEn = (n) => {
+  const tail = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+  return `${n}${tail}`;
+};
+
+// Карточка буквы: признаки плашками, затем «Звук» и «Как произносить».
+function LetterInfo({ letter, lang, t, accent }) {
+  const ru = lang === 'ru';
+  const tip = ru ? letter.tip_ru : letter.tip_en;
+  const chips = [ru ? `${letter.order}-я буква алфавита` : `${ordinalEn(letter.order)} letter of the alphabet`];
+  if (!letter.joinsNext) chips.push(t('chip_no_join'));
+  if (letter.heavy) chips.push(t('chip_heavy'));
+  return (
+    <GlassView radius={RADIUS.lg} style={styles.infoCard}>
+      <View style={styles.chips}>
+        {chips.map((c, i) => (
+          <View key={c} style={[styles.chip, i === 0 ? { borderColor: accent } : styles.chipMuted]}>
+            <Text style={[styles.chipText, i === 0 && { color: accent }]}>{c}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.infoLabel}>{t('info_sound')}</Text>
+      <Text style={styles.infoSound}>{capitalize(ru ? letter.sound_ru : letter.sound_en)}</Text>
+      {!!tip && (
+        <>
+          <View style={styles.infoDivider} />
+          <Text style={styles.infoLabel}>{t('info_how')}</Text>
+          <Text style={styles.infoText}>{tip}</Text>
+        </>
+      )}
+    </GlassView>
+  );
+}
+
 // Экран итога: значок, заголовок, дополнительное содержимое и выход.
 function DoneScreen({ badge, title, children, accent, onExit, t, action }) {
   return (
@@ -128,7 +200,7 @@ export default function LessonPlayerScreen({ step, onExit }) {
   return <QuizPlayer lessonIndex={step.lessonIndex} onExit={onExit} />;
 }
 
-// ---- Введение: диалог из 13 шагов ----
+// ---- Введение: короткие шаги с примерами на букве Ба ----
 function IntroPlayer({ onExit }) {
   const { t, lang } = useLang();
   const appearance = useAppearance();
@@ -141,11 +213,13 @@ function IntroPlayer({ onExit }) {
   useEffect(() => { stopAudio(); stopSpeech(); }, [idx]);
 
   // Записи для вступления почти нет: без неё читает синтезатор речи.
-  function playStep() {
+  function play(ar, audio) {
     hapticLight();
-    if (audioFor(s.audio)) playKey(s.audio);
-    else { stopAudio(); speakArabic(s.ar); }
+    if (audioFor(audio)) playKey(audio);
+    else { stopAudio(); speakArabic(ar); }
   }
+  const title = lang === 'ru' ? s.title_ru : s.title_en;
+  const text = lang === 'ru' ? s.text_ru : s.text_en;
 
   function onNext() {
     if (idx + 1 < INTRO.length) { setIdx(idx + 1); return; }
@@ -168,9 +242,12 @@ function IntroPlayer({ onExit }) {
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}>
         <GlassView azure radius={RADIUS.lg} style={styles.textCard}>
-          <Text style={styles.dialogText}>{lang === 'ru' ? s.text_ru : s.text_en}</Text>
+          {!!title && <Text style={styles.stepTitle}>{title}</Text>}
+          {!!text && <Text style={styles.dialogText}>{text}</Text>}
+          {s.points && <Points items={s.points} lang={lang} accent={accent} />}
         </GlassView>
-        {!!s.ar && <ArCard text={s.ar} onPress={playStep} hint={t('tap_to_hear_q')} />}
+        {s.marks && <MarksTable marks={s.marks} lang={lang} accent={accent} onPlay={(m) => play(m.ar, m.audio)} />}
+        {!!s.ar && <ArCard text={s.ar} onPress={() => play(s.ar, s.audio)} hint={t('tap_to_hear_q')} />}
       </ScrollView>
       <View style={styles.footer}>
         <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: accent }]} onPress={onNext}>
@@ -226,9 +303,7 @@ function LetterPlayer({ letterId, onExit }) {
                 <Hint text={t('tap_to_hear_q')} />
               </GlassView>
             </TouchableOpacity>
-            <GlassView radius={RADIUS.lg} style={styles.textCard}>
-              <Text style={styles.descText}>{lang === 'ru' ? letter.desc_ru : letter.desc_en}</Text>
-            </GlassView>
+            <LetterInfo letter={letter} lang={lang} t={t} accent={accent} />
           </>
         ) : (
           <>
@@ -538,8 +613,29 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs, marginBottom: SPACING.md },
   kindText: { ...TYPE.overline },
   textCard: { padding: SPACING.lg, marginBottom: SPACING.lg },
-  dialogText: { ...TYPE.subhead, color: COLORS.white, fontWeight: '500', lineHeight: 26 },
-  descText: { ...TYPE.body, color: COLORS.text, lineHeight: 23 },
+  dialogText: { ...TYPE.subhead, color: COLORS.text, fontWeight: '400', lineHeight: 26 },
+  stepTitle: { ...TYPE.heading, color: COLORS.white, marginBottom: SPACING.sm },
+  points: { marginTop: SPACING.xs, gap: SPACING.sm },
+  pointRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  pointDot: { width: 6, height: 6, borderRadius: 3, marginTop: 9, marginRight: SPACING.sm },
+  pointText: { ...TYPE.body, color: COLORS.text, lineHeight: 23, flex: 1 },
+  marksCard: { marginBottom: SPACING.lg, paddingHorizontal: SPACING.md },
+  markRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.xs },
+  markDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.hairline },
+  markAr: { fontSize: 34, lineHeight: 64, width: 52, textAlign: 'center', color: COLORS.white, fontFamily: FONTS.arabic },
+  markMid: { flex: 1, marginLeft: SPACING.sm },
+  markName: { ...TYPE.callout, color: COLORS.white, fontWeight: '700' },
+  markWhere: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.xxs },
+  markSound: { ...TYPE.heading, minWidth: 32, textAlign: 'center' },
+  infoCard: { padding: SPACING.md, marginBottom: SPACING.lg },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginBottom: SPACING.md },
+  chip: { borderWidth: 1, borderRadius: RADIUS.pill, paddingHorizontal: SPACING.sm, paddingVertical: 3 },
+  chipMuted: { borderColor: COLORS.hairline, backgroundColor: 'rgba(255,255,255,0.05)' },
+  chipText: { ...TYPE.caption, color: COLORS.text, fontWeight: '600' },
+  infoLabel: { ...TYPE.overline, color: COLORS.textMuted, marginBottom: SPACING.xxs },
+  infoSound: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700' },
+  infoDivider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.hairline, marginVertical: SPACING.md },
+  infoText: { ...TYPE.body, color: COLORS.text, lineHeight: 23 },
   // Читаемый элемент — главное на экране: крупно и по центру карточки.
   arCard: { alignItems: 'center', justifyContent: 'center', minHeight: 240, paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },

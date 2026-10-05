@@ -3,8 +3,8 @@
 Берёт из распакованного APK таблицу курса (data.js) и живые записи
 (media/<буква>-<элемент>.ogg) и кладёт в Noor:
   assets/alphabet/<буква>-<элемент>.m4a — записи в AAC (iOS не играет Vorbis);
-  src/constants/alphabetSource.js        — буквы, элементы, описания, вступление
-                                           и require каждой записи.
+  src/constants/alphabetSource.js        — буквы с элементами и require каждой записи.
+Описания букв и вступление написаны заново в src/constants/alphabetCourse.js.
 
 Запуск: python scripts/alphabet/build_course.py [папка assets/www] [ffmpeg]
 ffmpeg ищется в PATH или в imageio_ffmpeg.
@@ -50,8 +50,6 @@ def main():
     text = open(os.path.join(SRC, 'data.js'), encoding='utf-8-sig').read()
     arrays = c2arrays(text)
     grid = next(a for a in arrays if a['size'][:2] == [38, 29])['data']
-    desc = next(a for a in arrays if a['size'][0] == 29 and isinstance(a['data'][1][0][0], str))['data']
-    intro = next(a for a in arrays if a['size'][:2] == [14, 3])['data']
 
     letters = []
     for c in range(1, LETTERS + 1):
@@ -60,7 +58,7 @@ def main():
         files = [f for f in os.listdir(os.path.join(SRC, 'media')) if re.fullmatch(rf'{c}-\d+\.ogg', f)]
         if len(files) != len(items):
             raise SystemExit(f'буква {c}: элементов {len(items)}, записей {len(files)}')
-        letters.append({'items': items, 'desc': desc[c][0][0]})
+        letters.append({'items': items})
 
     os.makedirs(OUT_AUDIO, exist_ok=True)
     ff = ffmpeg_exe()
@@ -76,17 +74,12 @@ def main():
     with ThreadPoolExecutor(8) as pool:
         list(pool.map(convert, jobs))
 
-    steps = [{'text': row[0][0], 'button': row[1][0], 'ar': cell(row[2][0])} for row in intro[1:]]
     lines = [
         '// Создано scripts/alphabet/build_course.py из приложения Arabic alphabet — не править руками.',
         '// Буквы в учебном порядке; элементы буквы: сама буква, три огласовки, слоги и слова',
         '// только из уже пройденных букв. Запись элемента — AUDIO[`${буква}-${номер}`].',
         '',
         f'export const LETTER_ITEMS = {json.dumps([l["items"] for l in letters], ensure_ascii=False)};',
-        '',
-        f'export const DESC_RU = {json.dumps([l["desc"] for l in letters], ensure_ascii=False, indent=2)};',
-        '',
-        f'export const INTRO_RU = {json.dumps(steps, ensure_ascii=False, indent=2)};',
         '',
         'export const AUDIO = {',
     ]
