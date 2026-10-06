@@ -99,6 +99,13 @@ export const NOTIF_SOUNDS = [
   { id: 'chime',   label_en: 'Chime',   label_ru: 'Колокольчик', file: 'chime.wav' },
   { id: 'bell',    label_en: 'Bell',    label_ru: 'Колокол',     file: 'bell.wav' },
   { id: 'soft',    label_en: 'Soft',    label_ru: 'Тихий',       file: 'soft.wav' },
+  // Синтезирован scripts/sounds/thunder.py: раскат и перекатывающийся гул, 7,5 с.
+  { id: 'thunder', label_en: 'Thunder', label_ru: 'Гром',        file: 'thunder.wav' },
+  // Записи с Pixabay (Pixabay Content License, без указания автора), см.
+  // assets/sounds/SOURCES.md: переведены в WAV, громкость выровнена до −1 дБ.
+  { id: 'thunderClap',   label_en: 'Thunderclap',    label_ru: 'Раскат',       file: 'thunder_clap.wav' },
+  { id: 'thunderBig',    label_en: 'Big thunder',    label_ru: 'Большой гром', file: 'thunder_big.wav' },
+  { id: 'thunderStrike', label_en: 'Thunder strike', label_ru: 'Удар грома',   file: 'thunder_strike.wav' },
 ];
 
 // Файлы для прослушивания в настройках. Уведомление берёт звук по имени из
@@ -107,6 +114,10 @@ export const SOUND_ASSETS = {
   chime: require('../../assets/sounds/chime.wav'),
   bell: require('../../assets/sounds/bell.wav'),
   soft: require('../../assets/sounds/soft.wav'),
+  thunder: require('../../assets/sounds/thunder.wav'),
+  thunderClap: require('../../assets/sounds/thunder_clap.wav'),
+  thunderBig: require('../../assets/sounds/thunder_big.wav'),
+  thunderStrike: require('../../assets/sounds/thunder_strike.wav'),
 };
 
 export function notifSoundFile(id) {

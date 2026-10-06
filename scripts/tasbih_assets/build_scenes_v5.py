@@ -30,23 +30,25 @@ SOFT = 0.07            # ширина мягкого края между тон�
 # id сцены → кадр (путь от RAW без расширения).
 SCENES = {
     "caravan": "scene/caravan_5602", "cedars": "scene/cedars_5601",
-    "rider": "wall/rider_5703", "blossom": "wall/blossom_5704",
-    # Всадники, кони и сабли (prompts_wall_v5.py riders), третьи варианты.
-    "saber": "wall/rider_sword_6103",
-    "gallop": "wall/riders_gallop_6103",
-    "banner": "wall/rearing_6103",
+    # Всадник, Скачка и Привал — бородатые варианты (prompts_wall_v5.py bearded).
+    "rider": "wall/rider_b_6201", "blossom": "wall/blossom_5704",
+    # Кони и сабли (prompts_wall_v5.py riders). «Сабля» и «Знамя» убраны по просьбе.
+    "gallop": "wall/riders_gallop_b_6201",
     "herd": "wall/herd_6103",
-    "rest": "wall/warrior_rest_6103",
+    "rest": "wall/warrior_rest_b_6203",
     "blades": "wall/swords_6103",
     # Свой сад экрана тасбиха (не тема обоев): src/tasbih/gardenScene.js.
     "tasbih-garden": "wall/garden_5801",
 }
 
 # Всадники, кони и сабли — плотнее и чётче остальных: ближний план гуще,
-# сглаживание слабее, чтобы сохранить упряжь, складки и орнамент клинков.
-# id → (прозрачности планов, размер медианы, ширина мягкого края).
-CRISP = ((0.12, 0.24, 0.45), 3, 0.05)
-STYLE = {sid: CRISP for sid in ("saber", "gallop", "banner", "herd", "rest", "blades")}
+# чтобы сохранить упряжь, складки и орнамент клинков.
+# Обои-темы режутся в полном разрешении кадра (1248×2688) и без сглаживания:
+# при уменьшении до 900 px и медиане тонкие линии плащей и упряжи плыли.
+# id → (прозрачности планов, размер медианы — 1 значит без неё, ширина края, полный размер).
+CRISP = ((0.12, 0.24, 0.45), 1, 0.05, True)
+STYLE = {sid: CRISP for sid in ("gallop", "herd", "rest", "blades")}
+STYLE.update({sid: (LAYER_ALPHA, 1, SOFT, True) for sid in ("rider", "blossom")})
 
 # Сцены, где рисунок дотягивается до кольца отсчёта: верх плавно растворяется
 # в небе между долями высоты (начало, конец).
@@ -70,8 +72,10 @@ def thresholds(d):
 def layers(path, fade=None, style=None):
     # Медиана снимает зерно, которое Krea иногда кладёт на заливки (песок):
     # без неё мягкая граница тона рябит по всему ближнему плану.
-    alphas, med, edge = style or (LAYER_ALPHA, 7, SOFT)
-    d = ndimage.median_filter(alpha_of(path), size=med)
+    alphas, med, edge, full = style or (LAYER_ALPHA, 7, SOFT, False)
+    d = alpha_of(path)
+    if med > 1:
+        d = ndimage.median_filter(d, size=med)
     t1, t2 = thresholds(d)
     soft = lambda t: np.clip((d - t) / edge + 0.5, 0, 1)
     masks = [np.clip(d / 0.12, 0, 1), soft(t1), soft(t2)]
@@ -85,7 +89,8 @@ def layers(path, fade=None, style=None):
         rgba = np.zeros(d.shape + (4,), np.uint8)
         rgba[..., :3] = 255
         rgba[..., 3] = np.round(m * a * 255).astype(np.uint8)
-        out.append(Image.fromarray(rgba, "RGBA").resize(SIZE, Image.LANCZOS))
+        plane = Image.fromarray(rgba, "RGBA")
+        out.append(plane if full else plane.resize(SIZE, Image.LANCZOS))
     return out
 
 
