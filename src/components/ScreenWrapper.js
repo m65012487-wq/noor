@@ -1,11 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
   StyleSheet, View, ImageBackground, Animated, AccessibilityInfo, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeviceMotion } from 'expo-sensors';
+import { NavigationContext } from '@react-navigation/native';
 import { SPACING } from '../constants/theme';
+import LiveBackground from './LiveBackground';
 import {
   useAppearance, PATTERN_TILES, SCENE_LAYERS, patternKind,
 } from '../utils/AppearanceContext';
@@ -88,6 +90,22 @@ export function useReduceMotion() {
   return reduce;
 }
 
+// В фокусе ли экран. Вкладки после первого открытия остаются смонтированными,
+// и живой фон на каждой из них крутился бы впустую. Вне навигатора (фон
+// бывает и в модальном окне) экран считается видимым.
+function useScreenFocused() {
+  const nav = useContext(NavigationContext);
+  const [focused, setFocused] = useState(true);
+  useEffect(() => {
+    if (!nav) return undefined;
+    setFocused(nav.isFocused());
+    const offFocus = nav.addListener('focus', () => setFocused(true));
+    const offBlur = nav.addListener('blur', () => setFocused(false));
+    return () => { offFocus(); offBlur(); };
+  }, [nav]);
+  return focused;
+}
+
 function shift(value, distance, factor = 1) {
   return value.interpolate({
     inputRange: [-1, 1],
@@ -107,8 +125,9 @@ export function ThemedBackground({ children, plain = false, scene = null, style 
   const appearance = useAppearance();
   const reduceMotion = useReduceMotion();
   const kind = scene ? 'scene' : patternKind(appearance?.pattern);
-  const wanted = appearance?.parallax !== false && !reduceMotion && !plain && kind !== 'none';
+  const wanted = appearance?.parallax !== false && !reduceMotion && !plain && kind !== 'none' && kind !== 'live';
   const { tx, ty } = useTilt(wanted);
+  const focused = useScreenFocused();
 
   const sc = appearance?.schemeColors;
   const bg = sc ? sc.bg : ['#1b2430', '#0d131b'];
@@ -116,6 +135,17 @@ export function ThemedBackground({ children, plain = false, scene = null, style 
   if (plain || kind === 'none') {
     return (
       <LinearGradient colors={bg} style={[styles.flex, style]}>
+        {children}
+      </LinearGradient>
+    );
+  }
+
+  // Живая тема рисует себя сама и движется без наклона телефона. При
+  // «Уменьшении движения» в iOS она замирает, но остаётся той же картинкой.
+  if (kind === 'live') {
+    return (
+      <LinearGradient colors={bg} style={[styles.flex, style]}>
+        <LiveBackground variant={appearance.pattern} scheme={sc} still={reduceMotion || !focused} />
         {children}
       </LinearGradient>
     );

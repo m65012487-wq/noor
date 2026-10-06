@@ -39,8 +39,9 @@ TREES = {
     'date_palm': ['small/s0_5302', 'small/s1_5301'] + [f'tree/date_palm_{st}_5101' for st in range(2, 8)],
     'sidr': ['small/s0_5302', 'small/s1_5301'] + [f'tree/sidr_{st}_5101' for st in range(2, 8)],
 }
-# Вход на главном — веточка справа (листья-вход v5 заменены): имена кадров twig/*.
-TWIGS = ["olive_5502", "fig_5501", "grape_5501", "almond_5502", "pomegranate_5502", "mulberry_5502", "sidr_5502", "laurel_5501"]
+# Веточки-вход заменены пиксельным ростком (src/tasbih/PixelPal.js): список пуст,
+# twigArt.js и assets/tasbih/twigs больше не генерируются. Имена кадров — twig/*.
+TWIGS = []  # было: olive_5502, fig_5501, grape_5501, almond_5502, pomegranate_5502, mulberry_5502, sidr_5502, laurel_5501
 TWIG_LONG_PX = 420     # ширина веточки в файле (на экране ~130 pt)
 CAN = "can2/can_5402"  # кадр лейки (носик влево)
 CAN_W_PX = 420         # ширина лейки в файле (на экране ≤ 122 pt)

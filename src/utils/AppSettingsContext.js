@@ -31,8 +31,10 @@ export function AppSettingsProvider({ children }) {
     (async () => {
       setAdhanSound(await loadJSON('adhanSound', 'alafasy'));
       setReminders(await loadJSON('prayerReminders', defaultReminders()));
-      setNotifSound(await loadJSON('notifSound', 'chime'));
-      setAdhanNotifSound(await loadJSON('adhanNotifSound', 'bell'));
+      const savedNotif = await loadJSON('notifSound', 'chime');
+      setNotifSound(RETIRED_SOUNDS[savedNotif] || savedNotif);
+      const savedAdhanNotif = await loadJSON('adhanNotifSound', 'bell');
+      setAdhanNotifSound(RETIRED_SOUNDS[savedAdhanNotif] || savedAdhanNotif);
       setHijriOffset(await loadJSON('hijriOffset', -1));
       setDailyGoal(await loadJSON('dailyGoal', 5));
       setCalcMethod(await loadJSON('calcMethod', 'mwl'));
@@ -99,14 +101,13 @@ export const NOTIF_SOUNDS = [
   { id: 'chime',   label_en: 'Chime',   label_ru: 'Колокольчик', file: 'chime.wav' },
   { id: 'bell',    label_en: 'Bell',    label_ru: 'Колокол',     file: 'bell.wav' },
   { id: 'soft',    label_en: 'Soft',    label_ru: 'Тихий',       file: 'soft.wav' },
-  // Синтезирован scripts/sounds/thunder.py: раскат и перекатывающийся гул, 7,5 с.
-  { id: 'thunder', label_en: 'Thunder', label_ru: 'Гром',        file: 'thunder.wav' },
-  // Записи с Pixabay (Pixabay Content License, без указания автора), см.
-  // assets/sounds/SOURCES.md: переведены в WAV, громкость выровнена до −1 дБ.
-  { id: 'thunderClap',   label_en: 'Thunderclap',    label_ru: 'Раскат',       file: 'thunder_clap.wav' },
-  { id: 'thunderBig',    label_en: 'Big thunder',    label_ru: 'Большой гром', file: 'thunder_big.wav' },
-  { id: 'thunderStrike', label_en: 'Thunder strike', label_ru: 'Удар грома',   file: 'thunder_strike.wav' },
+  // Запись с Pixabay (Pixabay Content License, без указания автора), см.
+  // assets/sounds/SOURCES.md: переведена в WAV, громкость выровнена до −1 дБ.
+  { id: 'thunderBig', label_en: 'Thunder', label_ru: 'Гром', file: 'thunder_big.wav' },
 ];
+
+// Убранные варианты грома сводятся к оставшемуся, а не к системному звуку.
+export const RETIRED_SOUNDS = { thunder: 'thunderBig', thunderClap: 'thunderBig', thunderStrike: 'thunderBig' };
 
 // Файлы для прослушивания в настройках. Уведомление берёт звук по имени из
 // бандла, а плееру нужен сам ресурс — отсюда вторая таблица.
@@ -114,10 +115,7 @@ export const SOUND_ASSETS = {
   chime: require('../../assets/sounds/chime.wav'),
   bell: require('../../assets/sounds/bell.wav'),
   soft: require('../../assets/sounds/soft.wav'),
-  thunder: require('../../assets/sounds/thunder.wav'),
-  thunderClap: require('../../assets/sounds/thunder_clap.wav'),
   thunderBig: require('../../assets/sounds/thunder_big.wav'),
-  thunderStrike: require('../../assets/sounds/thunder_strike.wav'),
 };
 
 export function notifSoundFile(id) {

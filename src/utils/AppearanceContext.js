@@ -27,6 +27,11 @@ export const PATTERNS = [
   // «Скалы», «Оливы», «Миндаль», «Тюльпаны», «Розы», «Кувшинки», затем
   // «Сабля» и «Знамя».
   { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
+  // Живые абстрактные темы (src/components/LiveBackground.js): световые ленты,
+  // пылинки и пятна света рисуются кодом в цветах схемы и медленно движутся.
+  { id: 'waves',    label_en: 'Waves',    label_ru: 'Волны',    kind: 'live' },
+  { id: 'dust',     label_en: 'Dust',     label_ru: 'Пылинки',  kind: 'live' },
+  { id: 'glow',     label_en: 'Glow',     label_ru: 'Сияние',   kind: 'live' },
   // Сцены Krea-2 (scripts/tasbih_assets/build_scenes_v5.py): пейзаж в оттенках
   // серого разложен по тону на три плана.
   { id: 'caravan',  label_en: 'Caravan',  label_ru: 'Караван',  kind: 'scene' },
@@ -108,9 +113,8 @@ export function patternKind(id) {
   return PATTERNS.find((p) => p.id === id)?.kind || (id === 'none' ? 'none' : 'tile');
 }
 
-// Цветовые схемы. Первые десять — глубокие, для ночи и для того, чтобы узор
-// читался как тиснение. Остальные десять — светлые: тот же тон, но поднятая
-// светлота, поэтому обои видно как рисунок, а не как намёк.
+// Цветовые схемы: шесть глубоких и две светлые (из прежних двадцати оставлены
+// по просьбе), плюс «Свой цвет» — схема, собранная из цвета палитры.
 //
 // Потолок светлоты выбран не на глаз: у верхнего цвета градиента яркость
 // держится ниже 0.11, иначе приглушённый текст (`textMuted`) перестаёт
@@ -121,41 +125,16 @@ export function patternKind(id) {
 export const SCHEMES = [
   { id: 'ink',   label_en: 'Ink',    label_ru: 'Тушь',
     bg: ['#1b2430', '#0d131b'], tint: '190,205,220', accent: '#c8d6e2' },
-  { id: 'sand',  label_en: 'Sand',   label_ru: 'Песок',
-    bg: ['#2a241c', '#15110c'], tint: '215,195,160', accent: '#d8c49c' },
-  { id: 'moss',  label_en: 'Moss',   label_ru: 'Мох',
-    bg: ['#1a2620', '#0c130f'], tint: '165,205,180', accent: '#a6cfb6' },
-  { id: 'plum',  label_en: 'Plum',   label_ru: 'Слива',
-    bg: ['#241c2b', '#110d15'], tint: '200,180,215', accent: '#c4aed6' },
-  { id: 'ash',   label_en: 'Ash',    label_ru: 'Пепел',
-    bg: ['#232528', '#101113'], tint: '210,210,215', accent: '#d2d4d8' },
-  { id: 'sea',   label_en: 'Sea',    label_ru: 'Море',
-    bg: ['#162a2e', '#0a1517'], tint: '160,210,210', accent: '#a3d4d2' },
-  { id: 'dusk',  label_en: 'Dusk',   label_ru: 'Закат',
-    bg: ['#2d1f1a', '#150e0b'], tint: '230,180,150', accent: '#e6b496' },
   { id: 'night', label_en: 'Night',  label_ru: 'Ночь',
     bg: ['#1a1d33', '#0c0d19'], tint: '180,190,235', accent: '#b6c0ec' },
-  { id: 'olive', label_en: 'Olive',  label_ru: 'Олива',
-    bg: ['#25261a', '#11120b'], tint: '205,205,160', accent: '#cfcfa0' },
-  { id: 'berry', label_en: 'Berry',  label_ru: 'Ягода',
-    bg: ['#2b1a26', '#140c12'], tint: '230,180,210', accent: '#e3b3cf' },
-
-  { id: 'pearl', label_en: 'Pearl',  label_ru: 'Жемчуг',
-    bg: ['#4e5d6b', '#232c35'], tint: '225,236,245', accent: '#eaf2f8' },
-  { id: 'linen', label_en: 'Linen',  label_ru: 'Лён',
-    bg: ['#5c5344', '#2b2620'], tint: '240,228,205', accent: '#f0e2c6' },
-  { id: 'sage',  label_en: 'Sage',   label_ru: 'Шалфей',
-    bg: ['#46584d', '#212b25'], tint: '210,232,218', accent: '#d6ecdf' },
-  { id: 'lilac', label_en: 'Lilac',  label_ru: 'Сирень',
-    bg: ['#55495f', '#28222e'], tint: '228,216,240', accent: '#e5d9f0' },
-  { id: 'rose',  label_en: 'Rose',   label_ru: 'Роза',
-    bg: ['#5f4749', '#2c2224'], tint: '244,220,220', accent: '#f3dcdc' },
-  { id: 'sky',   label_en: 'Sky',    label_ru: 'Небо',
-    bg: ['#465c71', '#202b37'], tint: '220,236,250', accent: '#e2eefa' },
-  { id: 'apricot', label_en: 'Apricot', label_ru: 'Абрикос',
-    bg: ['#62503f', '#2e241c'], tint: '248,226,200', accent: '#f6dfc4' },
-  { id: 'mint',  label_en: 'Mint',   label_ru: 'Мята',
-    bg: ['#41605a', '#1e2d2a'], tint: '208,240,230', accent: '#d4efe6' },
+  { id: 'sea',   label_en: 'Sea',    label_ru: 'Море',
+    bg: ['#162a2e', '#0a1517'], tint: '160,210,210', accent: '#a3d4d2' },
+  { id: 'moss',  label_en: 'Moss',   label_ru: 'Мох',
+    bg: ['#1a2620', '#0c130f'], tint: '165,205,180', accent: '#a6cfb6' },
+  { id: 'sand',  label_en: 'Sand',   label_ru: 'Песок',
+    bg: ['#2a241c', '#15110c'], tint: '215,195,160', accent: '#d8c49c' },
+  { id: 'plum',  label_en: 'Plum',   label_ru: 'Слива',
+    bg: ['#241c2b', '#110d15'], tint: '200,180,215', accent: '#c4aed6' },
   { id: 'blush', label_en: 'Blush',  label_ru: 'Румянец',
     bg: ['#664a55', '#2f2228'], tint: '248,222,232', accent: '#f6dbe6' },
   { id: 'lavender', label_en: 'Lavender', label_ru: 'Лаванда',
@@ -203,7 +182,56 @@ export function arabicFontFor(id) {
   return ARABIC_FONTS.find((f) => f.id === id) || ARABIC_FONTS[0];
 }
 
-export function schemeFor(id) {
+// ---- Свой цвет ----
+// Из одного выбранного цвета собирается вся схема: фон — тот же тон, глубоко
+// затемнённый (верх градиента держится ниже порога яркости, см. выше), узор и
+// подписи — светлый вариант тона. Насыщенность фона приглушена: яркий фон
+// под текстом утомляет, а цвет и так узнаётся по узору и акценту.
+export const DEFAULT_CUSTOM = '#5b8fd6';
+
+function hexToHsl(hex) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, s, l];
+}
+
+function hslToRgb(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+    : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [r, g, b].map((v) => Math.round((v + m) * 255));
+}
+
+const toHex = (rgb) => '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
+const clamp01 = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+export function makeScheme(hex) {
+  const [h, s] = hexToHsl(hex || DEFAULT_CUSTOM);
+  const grey = s < 0.08;
+  const bgS = grey ? s : clamp01(s * 0.55, 0.12, 0.4);
+  const lightS = grey ? s : clamp01(s, 0.3, 0.6);
+  return {
+    id: 'custom', label_en: 'Custom', label_ru: 'Свой цвет',
+    bg: [toHex(hslToRgb(h, bgS, 0.135)), toHex(hslToRgb(h, bgS, 0.065))],
+    tint: hslToRgb(h, lightS, 0.8).join(','),
+    // У серого акцент тоже серый: иначе нулевой тон дал бы розоватый оттенок.
+    accent: toHex(hslToRgb(h, grey ? s : clamp01(lightS + 0.1, 0.3, 0.7), 0.8)),
+  };
+}
+
+export function schemeFor(id, custom) {
+  if (id === 'custom') return makeScheme(custom);
   return SCHEMES.find((s) => s.id === id) || SCHEMES[0];
 }
 
@@ -214,6 +242,7 @@ export function fontSetFor(id) {
 export function AppearanceProvider({ children }) {
   const [pattern, setPattern] = useState(DEFAULT_PATTERN);
   const [scheme, setScheme] = useState(SCHEMES[0].id);
+  const [customColor, setCustomColor] = useState(DEFAULT_CUSTOM);
   const [fontSet, setFontSet] = useState('system');
   const [arabicFont, setArabicFont] = useState('system');
   const [parallax, setParallax] = useState(true);
@@ -233,8 +262,11 @@ export function AppearanceProvider({ children }) {
       // Сохранённый выбор убранной темы сводится к первой схеме, иначе
       // после обновления человек остался бы с фоном, которого больше нет.
       const savedScheme = await loadJSON('scheme', SCHEMES[0].id);
-      if (!SCHEMES.some(s => s.id === savedScheme)) await saveJSON('scheme', SCHEMES[0].id);
-      setScheme(SCHEMES.some(s => s.id === savedScheme) ? savedScheme : SCHEMES[0].id);
+      const knownScheme = savedScheme === 'custom' || SCHEMES.some(s => s.id === savedScheme);
+      if (!knownScheme) await saveJSON('scheme', SCHEMES[0].id);
+      setScheme(knownScheme ? savedScheme : SCHEMES[0].id);
+      const savedCustom = await loadJSON('customColor', DEFAULT_CUSTOM);
+      setCustomColor(/^#[0-9a-f]{6}$/i.test(savedCustom) ? savedCustom : DEFAULT_CUSTOM);
 
       const savedFont = await loadJSON('fontSet', 'system');
       setFontSet(FONT_SETS.some((f) => f.id === savedFont) ? savedFont : 'system');
@@ -250,11 +282,16 @@ export function AppearanceProvider({ children }) {
 
   const choosePattern = async (id) => { setPattern(id); await saveJSON('pattern', id); };
   const chooseScheme = async (id) => { setScheme(id); await saveJSON('scheme', id); };
+  // Выбор цвета в палитре сразу включает свою схему.
+  const chooseCustomColor = async (hex) => {
+    setCustomColor(hex); setScheme('custom');
+    await saveJSON('customColor', hex); await saveJSON('scheme', 'custom');
+  };
   const chooseFontSet = async (id) => { setFontSet(id); await saveJSON('fontSet', id); };
   const chooseArabicFont = async (id) => { setArabicFont(id); await saveJSON('arabicFont', id); };
   const toggleParallax = async (v) => { setParallax(v); await saveJSON('parallax', v); };
 
-  const sc = schemeFor(scheme);
+  const sc = React.useMemo(() => schemeFor(scheme, customColor), [scheme, customColor]);
   const fonts = fontSetFor(fontSet);
 
   // Виджет красится цветами схемы и говорит на языке приложения: отдаём их
@@ -269,6 +306,7 @@ export function AppearanceProvider({ children }) {
     <AppearanceContext.Provider value={{
       pattern, choosePattern, PATTERNS,
       scheme, chooseScheme, SCHEMES,
+      customColor, chooseCustomColor,
       fontSet, chooseFontSet, FONT_SETS,
       arabicFont, chooseArabicFont, ARABIC_FONTS,
       arabicFamily: arabicFontFor(arabicFont).family,
@@ -285,6 +323,7 @@ export function AppearanceProvider({ children }) {
 export const useAppearance = () => useContext(AppearanceContext) || {
   pattern: DEFAULT_PATTERN, choosePattern: () => {}, PATTERNS,
   scheme: SCHEMES[0].id, chooseScheme: () => {}, SCHEMES,
+  customColor: DEFAULT_CUSTOM, chooseCustomColor: () => {},
   fontSet: 'system', chooseFontSet: () => {}, FONT_SETS,
   arabicFont: 'system', chooseArabicFont: () => {}, ARABIC_FONTS,
   arabicFamily: 'System',

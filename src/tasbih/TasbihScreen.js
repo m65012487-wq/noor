@@ -6,7 +6,7 @@ import { ThemedBackground, useReduceMotion } from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import Icon from '../components/Icon';
 import { ARABIC, COLORS, FONTS, RADIUS, SPACING, TYPE } from '../constants/theme';
-import { useAppearance } from '../utils/AppearanceContext';
+import { useAppearance, patternKind } from '../utils/AppearanceContext';
 import { useLang } from '../i18n/LanguageContext';
 import { hapticHeavy, hapticLight, hapticSuccess } from '../utils/haptics';
 import TreeView from './TreeView';
@@ -43,7 +43,8 @@ export default function TasbihScreen({ onClose }) {
   const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit, setSequence } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
-  const { accent } = useAppearance();
+  const appearance = useAppearance();
+  const { accent } = appearance;
   const reduceMotion = useReduceMotion();
   const [selector, setSelector] = useState(false);
   const [garden, setGarden] = useState(false);
@@ -125,7 +126,9 @@ export default function TasbihScreen({ onClose }) {
     // Свой фон — сад, а не сцена обоев главного экрана: на пейзаже обоев
     // дерево того же цвета тонуло, а у сада середина пустая, и дерево в ней
     // главное.
-    <ThemedBackground scene={GARDEN_SCENE}>
+    // Свой сад у тасбиха — для обычных тем: их рисунок спорил с деревом.
+    // Живая абстрактная тема не спорит, поэтому тасбих берёт её.
+    <ThemedBackground scene={patternKind(appearance?.pattern) === 'live' ? null : GARDEN_SCENE}>
       <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose} {...swipes.right.panHandlers}>
         {/* Шапка: закрыть — режим — сад. Названия экрана нет: о том, где
             человек находится, говорит дерево, а строка режима нужнее. */}

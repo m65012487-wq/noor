@@ -44,10 +44,7 @@
             "./assets/sounds/chime.wav",
             "./assets/sounds/bell.wav",
             "./assets/sounds/soft.wav",
-            "./assets/sounds/thunder.wav",
-            "./assets/sounds/thunder_clap.wav",
             "./assets/sounds/thunder_big.wav",
-            "./assets/sounds/thunder_strike.wav",
             "./assets/sounds/alarm.wav"
           ]
         }

@@ -203,8 +203,8 @@ src/
     SettingsModal.js        настройки
     DraggableSheet.js       выдвижной лист
   tasbih/                   счётчик зикра и дерево
-    TasbihEntry.js          веточка-вход на главном экране
-    twigArt.js, canArt.js   силуэты веточек-входа и лейки (генерирует scripts/tasbih_assets/build_v5.py)
+    PixelPal.js             пиксельный росток-вход на главном экране
+    canArt.js               силуэт лейки (генерирует scripts/tasbih_assets/build_v5.py)
     SequenceEditor.js       редактор последовательности зикра
     TasbihScreen.js         экран счёта
     TreeView.js             силуэт дерева и его анимации
@@ -256,7 +256,7 @@ assets/                     картинки, звуки, шрифты, данн
 | `scripts/scenes/build.js` | Сцены по три плана для параллакса |
 | `scripts/icon/build.js` | Иконка, adaptive-иконка, заставка |
 | `scripts/sounds/build.js` | Звуки уведомлений и будильника |
-| `scripts/tasbih_assets/build_v5.py` | Силуэты деревьев (5 пород × 8 стадий), веточек-входа и лейки из кадров Krea-2 → `assets/tasbih/{trees5,twigs,can.png}`, `src/tasbih/{treeArt,twigArt,canArt}.js`; `sheet` — лист выбора в цвете темы |
+| `scripts/tasbih_assets/build_v5.py` | Силуэты деревьев (5 пород × 8 стадий) и лейки из кадров Krea-2 → `assets/tasbih/{trees5,can.png}`, `src/tasbih/{treeArt,canArt}.js`; `sheet` — лист выбора в цвете темы |
 
 Генераторам картинок нужен `sharp` (деревьям тасбиха — нет). Он ставится без сохранения и между запусками пропадает:
 

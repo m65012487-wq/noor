@@ -3,6 +3,7 @@ import { View, TouchableOpacity, ActivityIndicator, StyleSheet, LayoutAnimation,
 import Text from './AppText';
 import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
+import ColorPicker from './ColorPicker';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppSettings, NOTIF_SOUNDS, SOUND_ASSETS } from '../utils/AppSettingsContext';
@@ -75,18 +76,27 @@ function Section({ id, icon, title, open, onToggle, children }) {
   );
 }
 
+// Группы тем в настройках: «Без узора» стоит среди узоров.
+const PATTERN_GROUPS = [
+  { kind: 'live', kinds: ['live'], title: 'themes_live' },
+  { kind: 'scene', kinds: ['scene'], title: 'themes_scenes' },
+  { kind: 'tile', kinds: ['tile'], title: 'themes_patterns' },
+];
+
 export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
     adhanNotifSound, chooseAdhanNotifSound, hijriOffset, chooseHijriOffset,
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
+    customColor, chooseCustomColor,
     fontSet, chooseFontSet, FONT_SETS, parallax, toggleParallax,
     tint, accent } = useAppearance();
   const tintRgb = tint || '180,215,230';
   const accentColor = accent || COLORS.accent;
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
   const [previewing, setPreviewing] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [loadingId, setLoadingId] = useState(null);
   // Все разделы свёрнуты при открытии: развёрнутый первый занимал экран
   // и прятал остальные за прокруткой.
@@ -224,17 +234,24 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
           open={openSection === 'appearance'} onToggle={toggle}>
 
           <Text style={styles.label}>{t("pattern")}</Text>
-          <View style={styles.themeRow}>
-            {PATTERNS.map((p) => (
-              <TouchableOpacity key={p.id} onPress={() => choosePattern(p.id)}
-                style={[styles.themeChip, pattern === p.id && styles.themeChipActive,
-                  pattern === p.id && activeBg]}>
-                <Text style={[styles.themeText, pattern === p.id && styles.themeTextActive]}>
-                  {lang === "ru" ? p.label_ru : p.label_en}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* Темы разного рода — живые, картины, узоры — шли одним рядом и
+              смешивались; по группам видно, что из чего выбираешь. */}
+          {PATTERN_GROUPS.map((g) => (
+            <View key={g.kind}>
+              <Text style={styles.subhead}>{t(g.title)}</Text>
+              <View style={styles.themeRow}>
+                {PATTERNS.filter((p) => g.kinds.includes(p.kind || 'tile') || (g.kind === 'tile' && p.id === 'none')).map((p) => (
+                  <TouchableOpacity key={p.id} onPress={() => choosePattern(p.id)}
+                    style={[styles.themeChip, pattern === p.id && styles.themeChipActive,
+                      pattern === p.id && activeBg]}>
+                    <Text style={[styles.themeText, pattern === p.id && styles.themeTextActive]}>
+                      {lang === "ru" ? p.label_ru : p.label_en}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
 
           {/* Параллакс касается только сцен: у плитки нет переднего плана,
               и сносить её целиком незачем. Выключатель нужен потому, что
@@ -261,7 +278,16 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
                 </Text>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity onPress={() => setPickerOpen(true)}
+              style={[styles.schemeChip, { borderColor: customColor }, scheme === 'custom' && styles.schemeChipActive]}>
+              <View style={[styles.schemeDot, { backgroundColor: customColor }]} />
+              <Text style={[styles.themeText, scheme === 'custom' && styles.themeTextActive]}>{t('custom_color')}</Text>
+            </TouchableOpacity>
           </View>
+
+          <ColorPicker visible={pickerOpen} value={customColor} t={t}
+            onCancel={() => setPickerOpen(false)}
+            onDone={(hex) => { setPickerOpen(false); chooseCustomColor(hex); }} />
 
           {/* Образец набирается тем самым шрифтом: название семейства
               ничего не говорит, пока не увидишь буквы. */}

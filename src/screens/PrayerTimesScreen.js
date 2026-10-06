@@ -23,7 +23,7 @@ import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
 import MoonPhase from '../components/MoonPhase';
 import CalendarSheet from '../components/CalendarSheet';
-import TasbihEntry, { ENTRY_CLEARANCE } from '../tasbih/TasbihEntry';
+import PixelPal, { ENTRY_CLEARANCE } from '../tasbih/PixelPal';
 import { formatGregorian, formatHijri } from '../utils/hijri';
 import { useLocation } from '../utils/LocationContext';
 import { useAppSettings, notifSoundFile, adhanNotifSoundFile } from '../utils/AppSettingsContext';
@@ -213,7 +213,10 @@ export default function PrayerTimesScreen() {
                       намазами, а диск внутри — лунный месяц. Два разных счёта
                       времени в одном месте, и ни один не мешает другому. */}
                   <MoonPhase size={168} color={accent} date={today} />
-                  <Text style={styles.nextLabel}>{t("next_prayer")}</Text>
+                  {/* Подпись короткая: «намаз» и так ясен по названию под ней, а
+                      капитель с разрядкой на верхней хорде круга не помещалась. */}
+                  <Text style={styles.nextLabel} numberOfLines={1} adjustsFontSizeToFit
+                    minimumFontScale={0.8}>{t("next_short")}</Text>
                   <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
                   <Text style={styles.countdown}>{countdown}</Text>
                   {!!nextName && (
@@ -274,10 +277,11 @@ export default function PrayerTimesScreen() {
         <PrayerReminderSheet prayer={reminderPrayer} onClose={() => setReminderPrayer(null)} />
         <CalendarSheet visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
       </ScreenWrapper>
-      {/* Вход в «Сад тасбиха» — веточка без подписей. При открытии приложения она
-          выпадает справа и замирает над таб-баром, поэтому живёт отдельным слоем
-          поверх всего экрана, а не в прокрутке. Касаний слой не забирает. */}
-      <TasbihEntry />
+      {/* Вход в «Сад тасбиха» — пиксельный росток без подписей. При открытии
+          приложения он выпрыгивает из-за таб-бара и гуляет по его кромке, поэтому
+          живёт отдельным слоем поверх всего экрана, а не в прокрутке. Касаний
+          слой не забирает. */}
+      <PixelPal />
     </View>
   );
 }
@@ -304,7 +308,8 @@ const styles = StyleSheet.create({
   locText: { ...TYPE.callout, color: COLORS.text, paddingVertical: SPACING.sm, fontWeight: '500' },
 
   nextCard: { alignItems: 'center', paddingVertical: SPACING.lg, marginBottom: SPACING.md },
-  nextLabel: { ...TYPE.overline, color: COLORS.accentSoft, ...SHADOW },
+  nextLabel: { ...TYPE.overline, letterSpacing: 1.2, maxWidth: 130, textAlign: 'center',
+    color: COLORS.accentSoft, ...SHADOW },
   // Внутри кольца имя намаза набирается мельче: display на 36 пунктов
   // упирался в дугу и ломал вертикальный ритм.
   nextName: { ...TYPE.heading, color: COLORS.white, marginTop: SPACING.xs, ...SHADOW },
