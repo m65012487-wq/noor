@@ -23,7 +23,8 @@ import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
 import MoonPhase from '../components/MoonPhase';
 import CalendarSheet from '../components/CalendarSheet';
-import PixelPal, { ENTRY_CLEARANCE } from '../tasbih/PixelPal';
+import PixelPal, { ENTRY_CLEARANCE, PAL_HEIGHT, PRESSED_HEIGHT, floorY } from '../tasbih/PixelPal';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatGregorian, formatHijri } from '../utils/hijri';
 import { useLocation } from '../utils/LocationContext';
 import { useAppSettings, notifSoundFile, adhanNotifSoundFile } from '../utils/AppSettingsContext';
@@ -66,25 +67,54 @@ export default function PrayerTimesScreen() {
   // иши идёт фаджр следующих суток. Считается ниже nextName — выше он попадал
   // в мёртвую зону объявления и падал на первом же рендере.
   function toggleSchedule() {
+    // Перед раскрытием — свежие замеры: баннер будильника или карточка ошибки
+    // могли сдвинуть экран без onLayout самого списка.
+    measureScroll();
+    measureList();
     // Длительность в такт пружине кольца: иначе карточка сжималась быстрее
     // кольца, и оно на миг наезжало на строку «Расписание».
-    LayoutAnimation.configureNext(LayoutAnimation.create(420, 'easeInEaseOut', 'opacity'));
+    LayoutAnimation.configureNext(LayoutAnimation.create(SCHEDULE_MS, 'easeInEaseOut', 'opacity'));
     setScheduleOpen((v) => !v);
   }
 
-  // Раскрытое расписание помещается на экран целиком: кольцо уменьшается,
-  // строки становятся плотнее. На низких экранах (SE, mini) — сильнее.
+  // Раскрытое расписание опускается до самого ростка на таб-баре и
+  // придавливает его: нижний край списка встаёт ровно на высоту
+  // придавленного ростка над кромкой. Для этого прокрутка тянется на всю
+  // высоту, список прижат к низу, а кольцо занимает то, что осталось сверху:
+  // на высоком экране остаётся полным, на низком (SE, mini) сжимается.
   const { height: winH } = useWindowDimensions();
-  const short = winH < 760;
-  const ringOpenScale = short ? 0.56 : 0.68;
-  const rowPad = short ? 8 : 11;
+  const insets = useSafeAreaInsets();
+  const rowPad = winH < 760 ? 8 : 11;
+  const pressLine = floorY(winH, insets.bottom) - PRESSED_HEIGHT;
+  const scrollBox = useRef(null);
+  const listBox = useRef(null);
+  const [scrollBottom, setScrollBottom] = useState(null);
+  const [listTop, setListTop] = useState(null);
+  const [cardH, setCardH] = useState(0);
+  const measureScroll = () => scrollBox.current?.measureInWindow((x, y, w, h) => {
+    if (h) setScrollBottom(Math.round(y + h));
+  });
+  // Где стоит верх списка, пока расписание свёрнуто: отсюда край начинает ход.
+  const measureList = () => {
+    if (scheduleOpen) return;
+    listBox.current?.measureInWindow((x, y) => setListTop(Math.round(y)));
+  };
+  const openPad = scrollBottom != null ? Math.max(0, scrollBottom - pressLine) : null;
+  const press = pressTimings(listTop != null ? pressLine - listTop : null);
+
+  // Кольцо вписывается в высоту, которая досталась карточке, но не крупнее
+  // обычного и не мельче RING_MIN (дальше расписание прокручивается).
+  const ringFit = scheduleOpen && cardH
+    ? Math.max(RING_MIN, Math.min(1, (cardH - SPACING.sm * 2) / RING)) : 1;
+  // В заметно сжатом кольце мелкие подписи не читаются — остаются название и отсчёт.
+  const compactRing = ringFit < 0.85;
   const ringScale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.spring(ringScale, {
-      toValue: scheduleOpen ? ringOpenScale : 1, friction: 11, tension: 110,
+      toValue: ringFit, friction: 11, tension: 110,
       useNativeDriver: true, isInteraction: false,
     }).start();
-  }, [scheduleOpen, ringOpenScale, ringScale]);
+  }, [ringFit, ringScale]);
 
   const [alarmWindow, setAlarmWindow] = useState(false);
 
@@ -203,10 +233,13 @@ export default function PrayerTimesScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Нижний отступ — под плавающий таб-бар (62 + отступ + безопасная зона),
-            как на остальных вкладках, и ещё под веточку-вход над таб-баром:
-            последняя строка расписания должна подниматься выше обоих. */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 + ENTRY_CLEARANCE }}>
+        {/* Нижний отступ свёрнутого расписания — под плавающий таб-бар и
+            ростка над ним, как на остальных вкладках. У раскрытого — ровно до
+            макушки придавленного ростка: туда ложится край списка. */}
+        <View ref={scrollBox} onLayout={measureScroll} collapsable={false} style={styles.scrollBox}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollBody, {
+          paddingBottom: scheduleOpen && openPad != null ? openPad : 120 + ENTRY_CLEARANCE,
+        }]}>
           {loading && <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />}
           {error && (
             <Card style={{ borderColor: COLORS.danger }}>
@@ -223,12 +256,12 @@ export default function PrayerTimesScreen() {
                   плиток. Плитка под каждой строкой закрывала ровно ту часть
                   картинки, ради которой обои и выбирают, а читаемость держат
                   тень под текстом и тонкие разделители — их хватает. */}
-              {/* Высота карточки идёт за масштабом кольца (LayoutAnimation), а само
-                  кольцо сжимается трансформом — текст внутри не перестраивается. */}
-              <View style={[styles.nextCard, {
-                height: scheduleOpen ? Math.round(RING * ringOpenScale) + SPACING.sm * 2 : RING + SPACING.lg * 2,
-                marginBottom: scheduleOpen ? SPACING.xs : SPACING.md,
-              }]}>
+              {/* Высота карточки меняется вместе с раскрытием (LayoutAnimation), а
+                  кольцо сжимается трансформом — текст внутри не перестраивается.
+                  Раскрытая карточка забирает всё место над списком (flexGrow),
+                  но не больше свёрнутой: остаток уходит в строки расписания. */}
+              <View onLayout={(e) => { if (scheduleOpen) setCardH(Math.round(e.nativeEvent.layout.height)); }}
+                style={[styles.nextCard, scheduleOpen ? styles.nextCardOpen : styles.nextCardClosed]}>
                 <Animated.View style={{ transform: [{ scale: ringScale }] }}>
                 <ProgressRing size={RING} stroke={9} progress={progress} color={accent}>
                   {/* Луна за цифрами: дуга кольца отмеряет промежуток между
@@ -237,15 +270,13 @@ export default function PrayerTimesScreen() {
                   <MoonPhase size={168} color={accent} date={today} />
                   {/* Подпись короткая: «намаз» и так ясен по названию под ней, а
                       капитель с разрядкой на верхней хорде круга не помещалась. */}
-                  {/* В сжатом кольце мелкие подписи не читаются — остаются
-                      название и отсчёт. */}
-                  {!scheduleOpen && (
+                  {!compactRing && (
                     <Text style={styles.nextLabel} numberOfLines={1} adjustsFontSizeToFit
                       minimumFontScale={0.8}>{t("next_short")}</Text>
                   )}
                   <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
                   <Text style={styles.countdown}>{countdown}</Text>
-                  {!!nextName && !scheduleOpen && (
+                  {!!nextName && !compactRing && (
                     <Text style={styles.nextAt}>{nextTime}</Text>
                   )}
                 </ProgressRing>
@@ -271,16 +302,25 @@ export default function PrayerTimesScreen() {
                 </View>
               </TouchableOpacity>
 
-              {scheduleOpen && PRAYERS.map((p, i) => {
+              {/* Список смонтирован всегда, а свёрнутый — нулевой высоты с обрезкой.
+                  Тогда раскрытие — это рост его высоты, и LayoutAnimation ведёт
+                  нижний край вниз, как шторку, до самого ростка; новые строки
+                  просто проявлялись бы на месте. */}
+              <View ref={listBox} onLayout={measureList}
+                pointerEvents={scheduleOpen ? 'auto' : 'none'}
+                accessibilityElementsHidden={!scheduleOpen}
+                importantForAccessibility={scheduleOpen ? 'auto' : 'no-hide-descendants'}
+                style={[styles.list, scheduleOpen ? styles.listOpen : styles.listClosed]}>
+              {PRAYERS.map((p, i) => {
                 const isNext = p === nextName;
                 const isSunrise = p === "Sunrise";
                 const r = reminders[p];
                 return (
                   // Для восхода экран напоминаний не открывается: «за 10 минут
                   // до восхода» — не то напоминание, ради которого его показывают.
-                  <TouchableOpacity key={p} activeOpacity={isSunrise ? 1 : 0.85}
+                  <TouchableOpacity key={p} activeOpacity={isSunrise ? 1 : 0.85} style={styles.rowWrap}
                     onPress={() => !isSunrise && setReminderPrayer(p)}>
-                    <View style={[styles.row, { paddingVertical: rowPad }, i > 0 && styles.rowDivider]}>
+                    <View style={[styles.row, styles.rowFill, { paddingVertical: rowPad }, i > 0 && styles.rowDivider]}>
                       <Text style={[styles.prayer, isNext && styles.prayerActive,
                         isSunrise && styles.sunrise]}>{prayerName(p, lang)}</Text>
                       <View style={styles.rowRight}>
@@ -294,10 +334,14 @@ export default function PrayerTimesScreen() {
                   </TouchableOpacity>
                 );
               })}
+                {/* Край шторки: им список и давит на ростка. */}
+                <View pointerEvents="none" style={styles.listEdge} />
+              </View>
             </>
           )}
 
         </ScrollView>
+        </View>
 
         <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
         <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setRefresh(v => v + 1)} />
@@ -308,15 +352,47 @@ export default function PrayerTimesScreen() {
           приложения он выпрыгивает из-за таб-бара и гуляет по его кромке, поэтому
           живёт отдельным слоем поверх всего экрана, а не в прокрутке. Касаний
           слой не забирает. */}
-      {/* Раскрытое расписание «придавливает» ростка: он сплющивается и щурится,
-          а когда спойлер закрыт — пружинкой возвращает форму. */}
-      <PixelPal squashed={scheduleOpen} />
+      {/* Раскрытое расписание «придавливает» ростка: край списка доходит до
+          макушки, и он сплющивается и щурится, а когда спойлер закрыт —
+          пружинкой возвращает форму. */}
+      <PixelPal squashed={scheduleOpen} pressDelay={press.delay} pressMs={press.pressMs}
+        releaseMs={press.releaseMs} />
     </View>
   );
 }
 
-// Диаметр кольца в обычном виде.
+// Диаметр кольца в обычном виде и предел сжатия при раскрытом расписании.
 const RING = 216;
+const RING_MIN = 0.5;
+
+// Раскрытие и сворачивание расписания.
+const SCHEDULE_MS = 420;
+
+// Когда край списка касается ростка. Край идёт по кривой easeInEaseOut —
+// cubic-bezier(0.42, 0, 0.58, 1), её ход по высоте равен 3s² − 2s³. Ищем
+// параметр s, при котором до конца хода (travel) остаётся высота, которую
+// край продавливает (PAL_HEIGHT − PRESSED_HEIGHT), и переводим его во время.
+const PRESS_DEPTH = PAL_HEIGHT - PRESSED_HEIGHT;
+function bezierTime(progress) {
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 24; i++) {
+    const s = (lo + hi) / 2;
+    if (3 * s * s - 2 * s * s * s < progress) lo = s; else hi = s;
+  }
+  const s = (lo + hi) / 2;
+  return 3 * (1 - s) * (1 - s) * s * 0.42 + 3 * (1 - s) * s * s * 0.58 + s * s * s;
+}
+function pressTimings(travel) {
+  // Пока ход не измерен — типичный для обычного телефона.
+  const d = travel > PRESS_DEPTH ? travel : 240;
+  const delay = Math.round(SCHEDULE_MS * bezierTime(1 - PRESS_DEPTH / d));
+  return {
+    delay,
+    pressMs: Math.max(40, SCHEDULE_MS - delay),
+    releaseMs: Math.max(60, Math.round(SCHEDULE_MS * bezierTime(PRESS_DEPTH / d))),
+  };
+}
 
 // Текст лежит прямо на обоях, поэтому ему нужна собственная опора: мягкая
 // тень отделяет светлые буквы от светлых участков рисунка. Плитка делала
@@ -339,7 +415,21 @@ const styles = StyleSheet.create({
   dateHijri: { ...TYPE.caption, color: COLORS.accentSoft, marginTop: 1, ...SHADOW },
   locText: { ...TYPE.callout, color: COLORS.text, paddingVertical: SPACING.sm, fontWeight: '500' },
 
-  nextCard: { alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md },
+  scrollBox: { flex: 1 },
+  scrollBody: { flexGrow: 1 },
+  nextCard: { alignItems: 'center', justifyContent: 'center' },
+  nextCardClosed: { height: RING + SPACING.lg * 2, marginBottom: SPACING.md },
+  // Вес 1000 против 1 у списка: свободное место достаётся карточке, пока она
+  // не упрётся в свой максимум, и только остаток — строкам.
+  nextCardOpen: { flexGrow: 1000, flexBasis: 0, marginBottom: SPACING.xs,
+    minHeight: Math.round(RING * RING_MIN) + SPACING.sm * 2, maxHeight: RING + SPACING.lg * 2 },
+  list: { overflow: 'hidden' },
+  listClosed: { height: 0 },
+  listOpen: { flexGrow: 1 },
+  rowWrap: { flexGrow: 1 },
+  rowFill: { flexGrow: 1 },
+  listEdge: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.32)' },
   nextLabel: { ...TYPE.overline, letterSpacing: 1.2, maxWidth: 130, textAlign: 'center',
     color: COLORS.accentSoft, ...SHADOW },
   // Внутри кольца имя намаза набирается мельче: display на 36 пунктов

@@ -2,7 +2,7 @@ import React, { memo, useEffect, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinear, RadialGradient, Stop, Path, Circle } from 'react-native-svg';
 
-// Живые абстрактные фоны: световые ленты, вращающиеся орбиты, рябь на воде. Всё рисуется в цветах схемы,
+// Живые абстрактные фоны: световые ленты, вращающиеся орбиты, пылинки. Всё рисуется в цветах схемы,
 // поэтому одна тема работает с любой палитрой, включая свой цвет.
 //
 // Движение — только transform и opacity на нативном драйвере: JS-поток
@@ -166,40 +166,44 @@ const ORBITS = [
   { r: 440, dash: 'solid',  width: 1,   alpha: 0.09, dots: [1.3, 3.9],  duration: 320000, dir: 1 },
 ];
 
-// ---- Рябь ----
-// Как капли на тихой воде: из точки расходятся три кольца подряд и тают.
-// Каждое кольцо — круг с тонкой рамкой, который растёт и гаснет.
+// ---- Пылинки ----
+// Светящиеся точки медленно поднимаются, покачиваясь, и гаснут. Ореол —
+// системная тень: у точки сплошной фон, поэтому iOS строит тень по готовому
+// контуру и не перерисовывает её вне экрана.
 
-function RippleRing({ x, y, size, tint, duration, start, still }) {
+function Mote({ tint, x, y, size, rise, sway, duration, start, peak, still }) {
   const p = useCycle(duration, start, still);
-  const style = useMemo(() => ({
-    opacity: still ? 0.2 : p.interpolate({ inputRange: [0, 0.08, 0.55, 1], outputRange: [0, 0.6, 0.26, 0] }),
-    transform: [{ scale: p.interpolate({ inputRange: [0, 1], outputRange: [0.06, 1] }) }],
-  }), [p, still]);
+  const { translateX, translateY, opacity } = useMemo(() => ({
+    translateY: p.interpolate({ inputRange: [0, 1], outputRange: [0, -rise] }),
+    translateX: p.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, sway, 0, -sway, 0] }),
+    // Появляется, светит и гаснет за один подъём — без резких вспышек на петле.
+    opacity: still ? peak * 0.7 : p.interpolate({ inputRange: [0, 0.15, 0.5, 0.85, 1], outputRange: [0, peak, peak * 0.75, peak, 0] }),
+  }), [p, rise, sway, peak, still]);
   return (
-    <Animated.View pointerEvents="none" style={[styles.ripple, {
-      left: x - size / 2, top: y - size / 2, width: size, height: size, borderRadius: size / 2,
-      borderColor: `rgb(${tint})`,
-    }, style]} />
+    <Animated.View pointerEvents="none"
+      style={[styles.mote, {
+        left: x, top: y, width: size, height: size, borderRadius: size / 2,
+        backgroundColor: `rgb(${tint})`, shadowColor: `rgb(${tint})`, shadowRadius: size * 1.6,
+        opacity, transform: [{ translateX }, { translateY }],
+      }]} />
   );
 }
 
-function Ripples({ seed, count, tint, still }) {
-  const drops = useMemo(() => {
+// Параметры пылинок считаются один раз на набор: те же места и пути при
+// каждой перерисовке.
+function Motes({ seed, count, tint, still, from = 0.25, to = 1 }) {
+  const specs = useMemo(() => {
     const r = rng(seed);
     return Array.from({ length: count }, () => ({
-      x: SW * (0.08 + r() * 0.84), y: SH * (0.22 + r() * 0.72),
-      size: 150 + r() * 170, duration: 9000 + r() * 7000, start: r(),
+      size: 1.5 + r() * 3.5, x: r() * SW, y: SH * (from + r() * (to - from)),
+      rise: SH * (0.25 + r() * 0.45), sway: 6 + r() * 18,
+      duration: 14000 + r() * 22000, start: r(), peak: 0.35 + r() * 0.5,
     }));
-  }, [seed, count]);
-  // Три кольца на каплю с отставанием по фазе — волна за волной.
-  return drops.flatMap((d, i) => [0, 0.16, 0.32].map((lag, k) => (
-    <RippleRing key={`${i}-${k}`} x={d.x} y={d.y} size={d.size * (1 - k * 0.12)} tint={tint}
-      duration={d.duration} start={(d.start + lag) % 1} still={still} />
-  )));
+  }, [seed, count, from, to]);
+  return specs.map((m, i) => <Mote key={i} tint={tint} still={still} {...m} />);
 }
 
-export const LIVE_VARIANTS = ['waves', 'orbits', 'ripples'];
+export const LIVE_VARIANTS = ['waves', 'orbits', 'dust'];
 
 function LiveBackground({ variant, scheme, still = false }) {
   const tint = scheme.tint;
@@ -219,11 +223,13 @@ function LiveBackground({ variant, scheme, still = false }) {
       </View>
     );
   }
-  if (variant === 'ripples') {
+  if (variant === 'dust') {
+    // Пылинки в луче мягкого света.
     return (
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Glow id="r0" color={accent} size={SW * 1.5} x={SW * 0.3} y={SH * 0.85} alpha={0.14} drift={20} duration={34000} start={0.5} still={still} />
-        <Ripples seed={31} count={6} tint={tint} still={still} />
+        <Glow id="d0" color={`rgb(${tint})`} size={SW * 1.7} x={SW * 0.7} y={SH * 0.05} alpha={0.22} drift={18} duration={32000} start={0.2} still={still} />
+        <Glow id="d1" color={accent} size={SW * 1.2} x={SW * 0.1} y={SH * 0.75} alpha={0.16} drift={24} duration={28000} start={0.6} still={still} />
+        <Motes seed={7} count={24} tint={tint} still={still} from={0.1} to={1} />
       </View>
     );
   }
@@ -243,5 +249,5 @@ function LiveBackground({ variant, scheme, still = false }) {
 export default memo(LiveBackground);
 
 const styles = StyleSheet.create({
-  ripple: { position: 'absolute', borderWidth: 2 },
+  mote: { position: 'absolute', shadowOpacity: 0.9, shadowOffset: { width: 0, height: 0 } },
 });

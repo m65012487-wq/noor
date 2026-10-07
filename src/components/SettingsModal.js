@@ -76,7 +76,7 @@ function Section({ id, icon, title, open, onToggle, children }) {
   );
 }
 
-// Группы тем в настройках: «Без узора» стоит среди узоров.
+// Группы тем в настройках: «Без рисунка» стоит среди картин.
 const PATTERN_GROUPS = [
   { kind: 'live', kinds: ['live'], title: 'themes_live' },
   { kind: 'scene', kinds: ['none', 'scene'], title: 'themes_scenes' },
@@ -87,6 +87,10 @@ const PATTERN_GROUPS = [
 function Grid({ children }) {
   return <View style={styles.grid}>{children}</View>;
 }
+
+// Подпись в ячейке всегда в одну строку: длинная («Свой цвет», «Без рисунка»)
+// чуть ужимается, а не переносится — перенос делал кнопку выше соседних.
+const FIT = { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.7 };
 
 function Cell({ active, onPress, style, children }) {
   return (
@@ -256,16 +260,17 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
         <Section id="appearance" icon="options" title={t("sec_appearance")}
           open={openSection === 'appearance'} onToggle={toggle}>
 
-          <Text style={styles.label}>{t("pattern")}</Text>
-          {/* Темы по группам: живые отдельно от картин. */}
+          {/* Темы по группам: живые отдельно от картин. Общего заголовка
+              «Узор» над ними нет — узоров в приложении больше нет, а группы
+              и так подписаны. */}
           {PATTERN_GROUPS.map((g) => (
             <View key={g.kind}>
-              <Text style={styles.subhead}>{t(g.title)}</Text>
+              <Text style={styles.label}>{t(g.title)}</Text>
               <Grid>
                 {PATTERNS.filter((p) => g.kinds.includes(p.kind)).map((p) => (
                   <Cell key={p.id} active={pattern === p.id} onPress={() => choosePattern(p.id)}
                     style={pattern === p.id && activeBg}>
-                    <Text style={[styles.cellText, pattern === p.id && styles.cellTextActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
+                    <Text style={[styles.cellText, pattern === p.id && styles.cellTextActive]} {...FIT}>
                       {lang === "ru" ? p.label_ru : p.label_en}
                     </Text>
                   </Cell>
@@ -295,7 +300,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               <Cell key={s.id} active={scheme === s.id} onPress={() => chooseScheme(s.id)}
                 style={[styles.schemeCell, { backgroundColor: s.bg[0], borderColor: scheme === s.id ? s.accent : 'rgba(255,255,255,0.12)' }]}>
                 <View style={[styles.schemeDot, { backgroundColor: s.accent }]} />
-                <Text style={[styles.cellText, scheme === s.id && styles.cellTextActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
+                <Text style={[styles.cellText, scheme === s.id && styles.cellTextActive]} {...FIT}>
                   {lang === "ru" ? s.label_ru : s.label_en}
                 </Text>
               </Cell>
@@ -304,7 +309,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               style={[styles.schemeCell, { backgroundColor: makeScheme(customColor).bg[0],
                 borderColor: scheme === 'custom' ? customColor : 'rgba(255,255,255,0.12)' }]}>
               <View style={[styles.schemeDot, { backgroundColor: customColor }]} />
-              <Text style={[styles.cellText, scheme === 'custom' && styles.cellTextActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
+              <Text style={[styles.cellText, scheme === 'custom' && styles.cellTextActive]} {...FIT}>
                 {t('custom_color')}
               </Text>
             </Cell>
@@ -322,7 +327,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               <Cell key={f.id} active={uiFont === f.id} onPress={() => chooseUiFont(f.id)}
                 style={[styles.fontCell, uiFont === f.id && activeBg]}>
                 <Text style={[styles.fontSample, { fontFamily: f.family }]} numberOfLines={1} adjustsFontSizeToFit>Аа 12</Text>
-                <Text style={[styles.fontName, { fontFamily: f.family }, uiFont === f.id && styles.cellTextActive]} numberOfLines={1}>
+                <Text style={[styles.fontName, { fontFamily: f.family }, uiFont === f.id && styles.cellTextActive]} {...FIT}>
                   {lang === "ru" ? f.label_ru : f.label_en}
                 </Text>
               </Cell>
@@ -422,12 +427,15 @@ const styles = StyleSheet.create({
   themeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -SPACING.xs / 2 - 1, marginBottom: SPACING.md },
   cell: { width: '33.33%', padding: SPACING.xs / 2 + 1 },
-  cellBtn: { minHeight: 44, borderRadius: RADIUS.md, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.sm,
+  // Высота задана жёстко, а не минимумом: все кнопки сетки одного роста,
+  // что бы ни было внутри — точка схемы, подпись короткая или длинная.
+  // Рамка одной толщины у выбранной и обычной: иначе выбор сдвигал подпись.
+  cellBtn: { height: 46, borderRadius: RADIUS.md, paddingHorizontal: SPACING.sm,
     alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  cellBtnActive: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)' },
-  // Пиксельный шрифт моноширинный и на треть шире системного: подпись может
-  // уйти во вторую строку и чуть ужаться, но не обрезается многоточием.
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)' },
+  cellBtnActive: { borderColor: 'rgba(255,255,255,0.55)' },
+  // Пиксельный шрифт моноширинный и на треть шире системного: длинная
+  // подпись ужимается (FIT), но не переносится и не обрезается многоточием.
   cellText: { ...TYPE.caption, fontSize: 13, color: COLORS.text, textAlign: 'center', flexShrink: 1 },
   cellTextActive: { color: COLORS.white, fontWeight: '700' },
   schemeCell: { flexDirection: 'row', justifyContent: 'flex-start', gap: SPACING.xs },

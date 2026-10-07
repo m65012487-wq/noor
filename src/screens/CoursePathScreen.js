@@ -11,6 +11,10 @@ import {
 } from '../utils/alphabetEngine';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppearance } from '../utils/AppearanceContext';
+import { loadJSON, saveJSON } from '../utils/helpers';
+import { SproutSays } from '../components/SproutGuide';
+
+const stepKey = (s) => `${s.type}:${s.lessonIndex}:${s.letterId}`;
 
 // Вложен во вкладку «Коран» (сегмент «Учиться»). Сверху сводка и кнопка
 // «Продолжить», ниже вступление и уроки: каждый урок — карточка с сеткой
@@ -20,9 +24,23 @@ export default function CoursePathScreen({ onOpen, refreshKey }) {
   const { accent, tint } = useAppearance();
   const tintRgba = (a) => `rgba(${tint || '190,205,220'},${a})`;
   const [progress, setProgress] = useState(null);
+  // Урок, пройденный с прошлого раза: росток радуется ему, пока следующий
+  // шаг тот же, что был в момент радости, — дальше зовёт к новому шагу.
+  const [cheer, setCheer] = useState(null);
 
   const reload = useCallback(() => {
-    (async () => { setProgress(await getAlphabetProgress()); })();
+    (async () => {
+      const p = await getAlphabetProgress();
+      setProgress(p);
+      // Число пройденных уроков запоминается, поэтому радость — один раз на
+      // урок. При первом запуске ничего не празднуем, только запоминаем.
+      const passed = LESSONS.filter((l) => isQuizPassed(p, l.index));
+      const seen = await loadJSON('sproutCheered', null);
+      if (seen !== null && passed.length > seen) {
+        setCheer({ lesson: passed[passed.length - 1].index, at: stepKey(nextStep(p)) });
+      }
+      if (seen !== passed.length) await saveJSON('sproutCheered', passed.length);
+    })();
   }, []);
 
   useFocusEffect(reload);
@@ -35,8 +53,23 @@ export default function CoursePathScreen({ onOpen, refreshKey }) {
   const learned = lettersDone(progress);
   const isNext = (s) => next.type === s.type && next.lessonIndex === s.lessonIndex && next.letterId === s.letterId;
 
+  // Что говорит росток: радуется пройденному или зовёт к следующему шагу.
+  const cheering = !!cheer && cheer.at === stepKey(next);
+  let speech;
+  let mood = 'idle';
+  if (next.type === 'done') { speech = t('sprout_course_done'); mood = 'happy'; }
+  else if (cheering) { speech = t('sprout_lesson_done').replace('{n}', String(cheer.lesson + 1)); mood = 'happy'; }
+  else if (next.type === 'intro') speech = t('sprout_hello');
+  else if (next.type === 'quiz') speech = t('sprout_go_quiz');
+  else {
+    const letter = ALPHABET.find((l) => l.id === next.letterId);
+    speech = t('sprout_go_letter').replace('{name}', letterName(letter, lang));
+  }
+
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 160 }}>
+      <SproutSays text={speech} mood={mood} cheerKey={cheering ? cheer.lesson : undefined}
+        style={styles.says} />
       <Summary t={t} lang={lang} accent={accent} tintRgba={tintRgba} next={next}
         learned={learned} stars={totalStars(progress)} onOpen={onOpen} />
 
@@ -190,6 +223,7 @@ function Stars({ n }) {
 }
 
 const styles = StyleSheet.create({
+  says: { marginBottom: SPACING.md, marginTop: SPACING.xs },
   summary: { padding: SPACING.md, marginBottom: SPACING.md },
   overline: { ...TYPE.overline },
   nextLabel: { ...TYPE.heading, color: COLORS.white, marginTop: SPACING.xs },

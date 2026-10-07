@@ -15,6 +15,7 @@ import { speakArabic, stopSpeech } from '../utils/speech';
 import { hapticLight, hapticSuccess, hapticError } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
 import { ThemedBackground } from '../components/ScreenWrapper';
+import { Sprout, SproutPerch, SproutSays, talkTime } from '../components/SproutGuide';
 
 // Больше стольких шагов сегменты в полосе сливаются в крошки, поэтому
 // вместо них рисуется сплошная полоса и счётчик.
@@ -168,11 +169,13 @@ function LetterInfo({ letter, lang, t, accent }) {
   );
 }
 
-// Экран итога: значок, заголовок, дополнительное содержимое и выход.
-function DoneScreen({ badge, title, children, accent, onExit, t, action }) {
+// Экран итога: значок, заголовок, дополнительное содержимое и выход. Росток
+// стоит на медали и радуется пройденному — или грустит над несданной проверкой.
+function DoneScreen({ badge, title, children, accent, onExit, t, action, mood = 'happy' }) {
   return (
     <LessonBg>
       <View style={styles.doneWrap}>
+        <Sprout px={5} mood={mood} />
         <View style={[styles.bigCircle, { borderColor: accent }]}>{badge}</View>
         <Text style={styles.doneTitle}>{title}</Text>
         {children}
@@ -240,11 +243,15 @@ function IntroPlayer({ onExit }) {
       <TopBar title={t('alphabet_intro')} step={idx} total={INTRO.length} onExit={onExit} accent={accent} />
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}>
-        <GlassView azure radius={RADIUS.lg} style={styles.textCard}>
-          {!!title && <Text style={styles.stepTitle}>{title}</Text>}
-          {!!text && <Text style={styles.dialogText}>{text}</Text>}
-          {s.points && <Points items={s.points} lang={lang} accent={accent} />}
-        </GlassView>
+        {/* Объяснение «говорит» росток: он стоит на карточке и шевелит ртом,
+            пока читается новый шаг. */}
+        <SproutPerch talkKey={idx} talkMs={talkTime(text)}>
+          <GlassView azure radius={RADIUS.lg} style={styles.textCard}>
+            {!!title && <Text style={styles.stepTitle}>{title}</Text>}
+            {!!text && <Text style={styles.dialogText}>{text}</Text>}
+            {s.points && <Points items={s.points} lang={lang} accent={accent} />}
+          </GlassView>
+        </SproutPerch>
         {s.marks && <MarksTable marks={s.marks} lang={lang} accent={accent} onPlay={(m) => play(m.ar, m.audio)} />}
         {!!s.ar && <ArCard text={s.ar} onPress={() => play(s.ar, s.audio)} hint={t('tap_to_hear_q')} />}
       </ScrollView>
@@ -302,14 +309,19 @@ function LetterPlayer({ letterId, onExit }) {
                 <Hint text={t('tap_to_hear_q')} />
               </GlassView>
             </TouchableOpacity>
-            <LetterInfo letter={letter} lang={lang} t={t} accent={accent} />
+            {/* Как звучит буква и как её произносить — рассказывает росток. */}
+            <SproutPerch talkKey={letter.id} talkMs={talkTime(lang === 'ru' ? letter.tip_ru : letter.tip_en)}>
+              <LetterInfo letter={letter} lang={lang} t={t} accent={accent} />
+            </SproutPerch>
           </>
         ) : (
           <>
             <View style={[styles.kindChip, { borderColor: accent }]}>
               <Text style={[styles.kindText, { color: accent }]}>{t(`kind_${item.kind}`)}</Text>
             </View>
-            <ArCard text={item.ar} onPress={() => { hapticLight(); playKey(item.key); }} hint={t('read_first_hint')} />
+            {/* Подсказку «прочитай сам» говорит росток, а не мелкая строка в карточке. */}
+            <SproutSays text={t('read_first_hint')} talkKey={idx} style={styles.says} />
+            <ArCard text={item.ar} onPress={() => { hapticLight(); playKey(item.key); }} />
           </>
         )}
       </ScrollView>
@@ -491,6 +503,7 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
     const failed = stars < 1 && !passedBefore;
     return (
       <DoneScreen accent={accent} onExit={onExit} t={t} title={failed ? t('quiz_retry') : t('quiz_done')}
+        mood={failed ? 'sad' : 'happy'}
         action={failed ? { label: t('quiz_again'), onPress: onRetry } : null}
         badge={<Icon name={failed ? 'refresh' : 'check'} size={56} color={accent} />}>
         {failed && <Text style={styles.doneNote}>{t('quiz_need_star')}</Text>}
@@ -513,6 +526,12 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
     return isSel ? 'wrong' : 'dim';
   };
 
+  // Задание говорит росток. После проверки — его реакция: радуется верному
+  // ответу, огорчается ошибке. Реплики чередуются от шага к шагу.
+  const say = (key) => { const v = t(key).split('|'); return v[step % v.length]; };
+  const speech = !checked ? promptFor(ex.type, t) : isCorrect ? say('sprout_right') : say('sprout_wrong');
+  const mood = !checked ? 'idle' : isCorrect ? 'happy' : 'sad';
+
   // Подпись плашки при ошибке: какой ответ был верным.
   let detail = null;
   let detailAr = null;
@@ -528,7 +547,7 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
 
       <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}>
-        <Text style={styles.prompt}>{promptFor(ex.type, t)}</Text>
+        <SproutSays text={speech} mood={mood} talkKey={`${step}:${checked}`} cheerKey={step} style={styles.says} />
 
         {/* Кнопка записи для «услышь и выбери» */}
         {ex.type === 'listen_choose' && (
@@ -693,7 +712,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden', alignItems: 'stretch' },
   progressBar: { height: 6, borderRadius: 3 },
   counter: { ...TYPE.caption, color: COLORS.textMuted, minWidth: 44, textAlign: 'right', marginRight: SPACING.xs },
-  prompt: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', marginBottom: SPACING.lg, textAlign: 'center', letterSpacing: 0.2 },
+  says: { marginBottom: SPACING.lg },
   speakerWrap: { alignSelf: 'center', alignItems: 'center', marginBottom: SPACING.lg },
   speaker: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
   speakerHint: { ...TYPE.caption, color: COLORS.textMuted, marginTop: SPACING.sm },

@@ -5,7 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useReduceMotion } from '../components/ScreenWrapper';
 import { TAB_ISLAND } from '../components/GlassTabBar';
 import { COLORS } from '../constants/theme';
-import { useAppearance } from '../utils/AppearanceContext';
+import { COLS, ROWS, Sprite, useSproutColors } from './sproutArt';
 import { hapticLight } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
 import useTasbih from './useTasbih';
@@ -23,72 +23,11 @@ import TasbihScreen from './TasbihScreen';
 // пока не выпрыгнул, и не перекрывает иконки. Движения — нативный драйвер, только
 // transform и opacity; смену кадров и выбор следующего шага ведут таймеры.
 
-// Пиксель в пунктах и размер кадра в пикселях.
+// Пиксель в пунктах и размер кадра. Сам рисунок и кадры — в sproutArt.js:
+// тот же росток сопровождает в обучении.
 const PX = 4;
-const COLS = 12;
-const ROWS = 13;
 const SPRITE_W = COLS * PX;
 const SPRITE_H = ROWS * PX;
-
-// Кадры: '.' — пусто, 'L' — лист и стебель, 'B' — тело, 'W' — блик, 'E' — глаз.
-// top — строка, с которой начинается кадр: в шаге-прыжке тело на пиксель выше.
-const IDLE = [
-  '.....LL.....',
-  '....LLL.LL..',
-  '......LLL...',
-  '......L.....',
-  '...BBBBBB...',
-  '..BBBBBBBB..',
-  '.BBWBBBBBBB.',
-  '.BBEBBBBEBB.',
-  '.BBEBBBBEBB.',
-  '.BBBBBBBBBB.',
-  '.BBBBBBBBBB.',
-  '..BBBBBBBB..',
-  '...B....B...',
-];
-const withRow = (rows, index, row) => rows.map((r, i) => (i === index ? row : r));
-const FRAMES = {
-  idle: { top: 0, rows: IDLE },
-  // Шаг: ноги разведены.
-  walkA: { top: 0, rows: withRow(IDLE, 12, '..B......B..') },
-  // Шаг-прыжок: тело на пиксель выше, ноги сведены и вытянуты на два пикселя.
-  walkB: { top: -1, rows: [...IDLE.slice(0, 12), '....B..B....', '....B..B....'] },
-  // Моргание: на месте каждого глаза — короткая чёрточка вместо двух пикселей.
-  blink: { top: 0, rows: withRow(withRow(IDLE, 7, '.BBBBBBBBBB.'), 8, '.BEEBBBBEEB.') },
-  // Придавило: глаза зажмурены косыми чёрточками (> <), рот — удивлённое «о».
-  squish: { top: 0, rows: withRow(withRow(withRow(IDLE, 7, '.BEBBBBBBEB.'), 8, '.BBEBBBBEBB.'), 10, '.BBBBEEBBBB.') },
-};
-
-// Строки сливаются в отрезки, а одинаковые отрезки подряд — в прямоугольники:
-// вместо сотни View на кадр получается два-три десятка.
-function buildRects({ top, rows }) {
-  const open = new Map();
-  const rects = [];
-  rows.forEach((row, r) => {
-    const y = top + r;
-    let x = 0;
-    while (x < row.length) {
-      const c = row[x];
-      let w = 1;
-      while (x + w < row.length && row[x + w] === c) w += 1;
-      if (c !== '.') {
-        const key = `${c}:${x}:${w}`;
-        const prev = open.get(key);
-        if (prev && prev.y + prev.h === y) {
-          prev.h += 1;
-        } else {
-          const rect = { c, x, y, w, h: 1 };
-          open.set(key, rect);
-          rects.push(rect);
-        }
-      }
-      x += w;
-    }
-  });
-  return rects;
-}
-const RECTS = Object.fromEntries(Object.entries(FRAMES).map(([name, def]) => [name, buildRects(def)]));
 
 // Ходьба и повадки.
 const STEP_MS = 1000 / 6;                // смена кадров ходьбы
@@ -111,6 +50,9 @@ const FOOT_L = 3 * PX;
 const FOOT_R = 9 * PX;
 const EDGE_MARGIN = 4;
 const SHADOW = { w: 28, h: 6, opacity: 0.25 };
+// Придавленный росток: вдвое ниже и на 40 % шире.
+const PRESS_SCALE_Y = 0.5;
+const PRESS_SCALE_X = 1.4;
 const EMBER_SIZE = 8;
 const BEAT_MS = 1800;
 
@@ -161,20 +103,6 @@ function makeEnter(m) {
   ]);
 }
 
-// Лист, тело, блик, глаз — цвета схемы.
-const Sprite = memo(function Sprite({ frame, colors }) {
-  return (
-    <View style={styles.sprite}>
-      {RECTS[frame].map(r => (
-        <View key={`${r.c}:${r.x}:${r.y}`} style={{
-          position: 'absolute', left: r.x * PX, top: r.y * PX, width: r.w * PX, height: r.h * PX,
-          backgroundColor: colors[r.c],
-        }} />
-      ))}
-    </View>
-  );
-});
-
 // Тёплая точка над макушкой: есть зёрна для посадки.
 const Ember = memo(function Ember({ reduceMotion }) {
   const [beat] = useState(() => new Animated.Value(0));
@@ -197,16 +125,33 @@ const Ember = memo(function Ember({ reduceMotion }) {
 
 // Сам зверёк: выпрыгивание, прогулка по кромке, моргание, прыжки, нажатие.
 // active — приложение на экране, вкладка в фокусе, сад не открыт.
-const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, reduceMotion, label, hint, onOpen }) {
+const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, pressDelay, pressMs, releaseMs,
+  reduceMotion, label, hint, onOpen }) {
   const [motion] = useState(() => makeMotion(rand(place.minX, place.maxX)));
   const [landed, setLanded] = useState(false);
   const [base, setBase] = useState('idle');
   const [blink, setBlink] = useState(false);
   const [facing, setFacing] = useState(1);
+  // squashed — расписание раскрывается или раскрыто: росток замирает.
+  // pressed — край расписания дошёл до макушки: росток сплющен.
+  const [pressed, setPressed] = useState(false);
   const pos = useRef(motion.start);
   const walking = useRef(false);
   const hop = useRef(null);
+  const squashedRef = useRef(squashed);
+  // Вход начался под уже раскрытым расписанием — росток выходит сплющенным.
+  const enterFlat = useRef(false);
+  const wasSquashed = useRef(squashed);
+  const lastPressed = useRef(pressed);
+  const timings = useRef({ pressDelay, pressMs, releaseMs });
   const { minX, maxX } = place;
+
+  // Таймингам хода края хватает последнего значения: экран пересчитывает их
+  // при каждой перерисовке, а перезапускать из-за этого анимации незачем.
+  useEffect(() => {
+    squashedRef.current = squashed;
+    timings.current = { pressDelay, pressMs, releaseMs };
+  });
 
   // isInteraction: false — иначе InteractionManager ждал бы конца входа.
   useEffect(() => {
@@ -217,25 +162,58 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, reduce
     fade.setValue(reduceMotion ? 0 : 1);
     let animation = null;
     const timer = setTimeout(() => {
-      animation = reduceMotion ? timing(fade, 1, 300) : makeEnter(motion);
+      // Расписание уже раскрыто — над кромкой лежит его край, и прыгать
+      // некуда: росток выходит снизу сразу сплющенным.
+      enterFlat.current = squashedRef.current;
+      if (enterFlat.current) setPressed(true);
+      animation = reduceMotion ? timing(fade, 1, 300)
+        : enterFlat.current ? timing(y, 0, 280, Easing.out(Easing.quad))
+        : makeEnter(motion);
       animation.start(({ finished }) => { if (finished) setLanded(true); });
     }, reduceMotion ? 0 : ENTER_DELAY_MS);
     return () => { clearTimeout(timer); animation?.stop(); };
   }, [motion, reduceMotion]);
 
-  // Придавило — пружина с небольшим «дрожанием», отпустило — с перехлёстом:
-  // он на миг вытягивается выше обычного и только потом успокаивается.
+  // Край расписания идёт сверху, как пресс. Росток сплющивается не сразу, а
+  // в миг касания — экран знает, когда край дойдёт до макушки (pressDelay).
+  // Если край уже внизу (росток только вышел), сплющен сразу. Раскрыли
+  // посреди прыжка входа — сплющится в миг приземления, а не в воздухе.
   useEffect(() => {
-    // До приземления росток не придавлен: при новом входе форма обычная.
-    if (!landed) { motion.press.setValue(0); return undefined; }
-    if (reduceMotion) { motion.press.setValue(squashed ? 1 : 0); return undefined; }
-    if (squashed) hop.current?.stop();
-    const anim = Animated.spring(motion.press, squashed
-      ? { toValue: 1, friction: 5, tension: 200, useNativeDriver: true, isInteraction: false }
-      : { toValue: 0, friction: 3, tension: 110, useNativeDriver: true, isInteraction: false });
+    const falling = squashed && !wasSquashed.current && landed;
+    wasSquashed.current = squashed;
+    if (!landed) { setPressed(squashed && enterFlat.current); return undefined; }
+    if (!falling) { setPressed(squashed); return undefined; }
+    const timer = setTimeout(() => setPressed(true), timings.current.pressDelay);
+    return () => clearTimeout(timer);
+  }, [squashed, landed]);
+
+  // Сплющивание идёт вровень с ходом края, а дальше росток пружинит под ним —
+  // только ниже, не выше: из-под края он не выпирает. Отпустило — расправляется
+  // вслед за уходящим краем, на миг вытягивается выше обычного и успокаивается.
+  useEffect(() => {
+    const { press } = motion;
+    const changed = lastPressed.current !== pressed;
+    lastPressed.current = pressed;
+    // Без перехода (вход, смена «уменьшения движения») — сразу в нужную форму.
+    if (!changed || !landed || reduceMotion) { press.setValue(pressed ? 1 : 0); return undefined; }
+    const { pressMs: inMs, releaseMs: outMs } = timings.current;
+    const anim = pressed
+      ? Animated.sequence([
+        timing(press, 1, inMs, Easing.out(Easing.cubic)),
+        timing(press, 1.3, 90, Easing.out(Easing.quad)),
+        timing(press, 1, 150, Easing.inOut(Easing.quad)),
+        timing(press, 1.1, 80, Easing.out(Easing.quad)),
+        timing(press, 1, 130, Easing.inOut(Easing.quad)),
+      ])
+      : Animated.sequence([
+        timing(press, 0, outMs, Easing.in(Easing.cubic)),
+        timing(press, -0.36, 110, Easing.out(Easing.quad)),
+        timing(press, 0.12, 150, Easing.inOut(Easing.quad)),
+        timing(press, 0, 120, Easing.inOut(Easing.quad)),
+      ]);
     anim.start();
     return () => anim.stop();
-  }, [squashed, landed, reduceMotion, motion]);
+  }, [pressed, landed, reduceMotion, motion]);
 
   const playHop = useCallback(height => {
     hop.current?.stop();
@@ -319,7 +297,7 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, reduce
     return () => { clearTimeout(timer); setBlink(false); };
   }, [landed, active, squashed]);
 
-  const frame = squashed && landed ? 'squish' : blink && base === 'idle' ? 'blink' : base;
+  const frame = pressed ? 'squish' : blink && base === 'idle' ? 'blink' : base;
 
   const palStyle = useMemo(() => ({ transform: [{ translateX: motion.x }] }), [motion]);
   const bodyStyle = useMemo(() => ({
@@ -328,12 +306,13 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, reduce
       { translateY: motion.y },
       // Присед и придавленность перемножаются: повторять ключ scale в
       // transform нельзя.
+      // press выходит за 0…1 в пружинке: интерполяция продолжает линию.
       { scaleX: Animated.multiply(
         motion.sq.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }),
-        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, 1.4] })) },
+        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, PRESS_SCALE_X] })) },
       { scaleY: Animated.multiply(
         motion.sq.interpolate({ inputRange: [0, 1], outputRange: [1, 0.84] }),
-        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] })) },
+        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, PRESS_SCALE_Y] })) },
     ],
   }), [motion]);
   // Тень появляется, когда зверёк уже над кромкой, и сжимается в прыжке.
@@ -346,7 +325,8 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, reduce
 
   const press = () => {
     hapticLight();
-    if (!reduceMotion) playHop(HOP_JOY);
+    // Под краем расписания прыгать некуда.
+    if (!reduceMotion && !squashed) playHop(HOP_JOY);
     onOpen();
   };
 
@@ -354,15 +334,17 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, reduce
     <Animated.View pointerEvents="box-none" style={[styles.pal, { top: place.barTop - SPRITE_H }, palStyle]}>
       <Animated.View pointerEvents="none" style={[styles.shadow, shadowStyle]} />
       <Animated.View pointerEvents={landed ? 'box-none' : 'none'} style={[styles.body, bodyStyle]}>
-        {/* Зона нажатия шире рисунка; вниз — без запаса, там таб-бар. */}
-        <Pressable onPress={press} hitSlop={{ top: 18, left: 14, right: 14, bottom: 0 }}
+        {/* Зона нажатия шире рисунка; вниз — без запаса, там таб-бар. Под
+            раскрытым расписанием и вверх без запаса: там его последняя строка. */}
+        <Pressable onPress={press} hitSlop={{ top: squashed ? 0 : 18, left: 14, right: 14, bottom: 0 }}
           accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
           style={StyleSheet.absoluteFill}>
           <View style={{ transform: [{ scaleX: facing }] }}>
             <Sprite frame={frame} colors={colors} />
           </View>
         </Pressable>
-        {hasGift && landed ? <Ember reduceMotion={reduceMotion} /> : null}
+        {/* Огонёк над макушкой упёрся бы в край расписания — пока оно раскрыто, его нет. */}
+        {hasGift && landed && !squashed ? <Ember reduceMotion={reduceMotion} /> : null}
       </Animated.View>
     </Animated.View>
   );
@@ -370,11 +352,13 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, reduce
 
 // Мемоизирован и без пропсов: обновляется только вместе с состоянием тасбиха,
 // языком и схемой, а не с каждым тиком часов главного экрана.
-export default memo(function PixelPal({ squashed = false }) {
+// pressDelay — через сколько после раскрытия край расписания коснётся макушки;
+// pressMs — сколько он ещё идёт до конца, сплющивая ростка; releaseMs — за
+// сколько при закрытии край поднимается выше макушки. Считает экран.
+export default memo(function PixelPal({ squashed = false, pressDelay = 320, pressMs = 100, releaseMs = 110 }) {
   const { state, error } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
-  const { accent, tint, schemeColors } = useAppearance();
   const reduceMotion = useReduceMotion();
   const focused = useIsFocused();
   const [open, setOpen] = useState(false);
@@ -422,17 +406,12 @@ export default memo(function PixelPal({ squashed = false }) {
     const edge = TAB_ISLAND.height / 2 + EDGE_MARGIN;
     const minX = left + edge - FOOT_L;
     return {
-      barTop: Math.max(0, height - insets.bottom - TAB_ISLAND.bottomGap - TAB_ISLAND.height - frame.y),
+      barTop: Math.max(0, floorY(height, insets.bottom) - frame.y),
       minX,
       maxX: Math.max(minX, left + islandW - edge - FOOT_R),
     };
   }, [frame, height, insets.bottom]);
-  const colors = useMemo(() => ({
-    L: accent,
-    B: `rgba(${tint || '150,200,225'},1)`,
-    W: 'rgba(255,255,255,0.9)',
-    E: schemeColors.bg[1],
-  }), [accent, tint, schemeColors]);
+  const colors = useSproutColors();
   const hasGift = !!state && (
     Object.values(state.seeds || {}).reduce((sum, n) => sum + n, 0) > 0 || (state.pendingDrops?.length ?? 0) > 0
   );
@@ -450,6 +429,7 @@ export default memo(function PixelPal({ squashed = false }) {
         <View pointerEvents="box-none" style={[styles.clip, { height: place.barTop }]}>
           <Pal key={entryKey} place={place} colors={colors} hasGift={hasGift}
             active={appActive && focused && !open} squashed={squashed} reduceMotion={reduceMotion}
+            pressDelay={pressDelay} pressMs={pressMs} releaseMs={releaseMs}
             label={label} hint={hint} onOpen={openGarden} />
         </View>
       ) : null}
@@ -468,11 +448,21 @@ export default memo(function PixelPal({ squashed = false }) {
 // добавляет это к отступу под таб-бар, чтобы последняя строка поднималась выше.
 export const ENTRY_CLEARANCE = SPRITE_H + 6;
 
+// Верх таб-бара в координатах окна — кромка, по которой ходит росток.
+export function floorY(windowHeight, insetBottom) {
+  return windowHeight - insetBottom - TAB_ISLAND.bottomGap - TAB_ISLAND.height;
+}
+
+// Рост ростка обычный и придавленный. Край раскрытого расписания ложится на
+// высоту PRESSED_HEIGHT над кромкой; последние PAL_HEIGHT − PRESSED_HEIGHT
+// пунктов своего хода он сплющивает ростка.
+export const PAL_HEIGHT = SPRITE_H;
+export const PRESSED_HEIGHT = SPRITE_H * PRESS_SCALE_Y;
+
 const styles = StyleSheet.create({
   clip: { position: 'absolute', left: 0, right: 0, top: 0, overflow: 'hidden' },
   pal: { position: 'absolute', left: 0, width: SPRITE_W, height: SPRITE_H },
   body: { width: SPRITE_W, height: SPRITE_H, transformOrigin: '50% 100%' },
-  sprite: { width: SPRITE_W, height: SPRITE_H },
   shadow: {
     position: 'absolute', left: (SPRITE_W - SHADOW.w) / 2, top: SPRITE_H - SHADOW.h + 1,
     width: SHADOW.w, height: SHADOW.h, borderRadius: SHADOW.h / 2, backgroundColor: '#000',

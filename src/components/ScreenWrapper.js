@@ -92,7 +92,7 @@ export function useReduceMotion() {
 // В фокусе ли экран. Вкладки после первого открытия остаются смонтированными,
 // и живой фон на каждой из них крутился бы впустую. Вне навигатора (фон
 // бывает и в модальном окне) экран считается видимым.
-function useScreenFocused() {
+export function useScreenFocused() {
   const nav = useContext(NavigationContext);
   const [focused, setFocused] = useState(true);
   useEffect(() => {

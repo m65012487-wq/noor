@@ -33,11 +33,12 @@ export const PATTERNS = [
   // в цветах схемы и медленно движутся.
   { id: 'waves',    label_en: 'Waves',    label_ru: 'Волны',    kind: 'live' },
   { id: 'orbits',   label_en: 'Orbits',   label_ru: 'Орбиты',   kind: 'live' },
-  { id: 'ripples',  label_en: 'Ripples',  label_ru: 'Рябь',     kind: 'live' },
+  { id: 'dust',     label_en: 'Dust',     label_ru: 'Пылинки',  kind: 'live' },
 ];
 
 // Убранные живые темы переходят на ближайшие по духу, а не на тему по умолчанию.
-const RETIRED_PATTERNS = { dust: 'orbits', glow: 'ripples' };
+// «Рябь» прожила одну сборку и уступила место вернувшимся «Пылинкам».
+const RETIRED_PATTERNS = { glow: 'dust', ripples: 'dust' };
 
 // Узор по умолчанию и замена убранных узоров и сцен: сохранённый выбор, которого
 // больше нет в PATTERNS, откатывается сюда.
@@ -116,9 +117,15 @@ export const SCHEMES = [
 // Для чтения перевода — только удобные для долгого чтения начертания; их
 // выбор живёт в настройках чтения. PT Sans и PT Serif рисовала ParaType под
 // кириллицу; Georgia встроена в iOS. Файлы подключает плагин expo-font.
+//
+// Скруглённый и моноширинный — варианты системного San Francisco (SF Pro
+// Rounded и SF Mono): React Native на iOS отдаёт их по родовым именам
+// ui-rounded и ui-monospace. Ничего не скачивается, кириллица в них полная.
 export const UI_FONTS = [
-  { id: 'pixel',   label_en: 'Pixel',   label_ru: 'Пиксельный', family: 'Departure Mono' },
-  { id: 'system',  label_en: 'System',  label_ru: 'Системный',  family: undefined },
+  { id: 'pixel',   label_en: 'Pixel',   label_ru: 'Пиксельный',  family: 'Departure Mono' },
+  { id: 'system',  label_en: 'System',  label_ru: 'Системный',   family: undefined },
+  { id: 'rounded', label_en: 'Rounded', label_ru: 'Скруглённый', family: 'ui-rounded' },
+  { id: 'mono',    label_en: 'Mono',    label_ru: 'Моно',        family: 'ui-monospace' },
 ];
 
 export const READING_FONTS = [
