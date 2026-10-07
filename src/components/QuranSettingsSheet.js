@@ -35,7 +35,7 @@ function ToggleRow({ label, value, onToggle }) {
 }
 
 export default function QuranSettingsSheet({ visible, onClose }) {
-  const { arabicFont, chooseArabicFont, ARABIC_FONTS } = useAppearance();
+  const { arabicFont, chooseArabicFont, ARABIC_FONTS, readingFont, chooseReadingFont, READING_FONTS } = useAppearance();
   const { t, lang } = useLang();
   const { translationId, reciterId, chooseTranslation, chooseReciter,
     showArabic, showTranslit, showTranslation,
@@ -112,6 +112,23 @@ export default function QuranSettingsSheet({ visible, onClose }) {
           ))}
         </View>
 
+        {/* Шрифт перевода и транслитерации — только начертания, удобные
+            для долгого чтения; шрифт интерфейса настраивается отдельно. */}
+        <Text style={styles.section}>{t("font_reading")}</Text>
+        <View style={styles.fontRow}>
+          {READING_FONTS.map((f) => (
+            <TouchableOpacity key={f.id} onPress={() => chooseReadingFont(f.id)}
+              style={[styles.fontChip, readingFont === f.id && styles.fontChipActive]}>
+              <Text style={[styles.readingSample, { fontFamily: f.family }]}>
+                {lang === "ru" ? "Во имя Аллаха" : "In the name of Allah"}
+              </Text>
+              <Text style={[styles.fontName, readingFont === f.id && styles.fontNameActive]}>
+                {lang === "ru" ? f.label_ru : f.label_en}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <Text style={styles.section}>{t('translation')}</Text>
         {translations.map((tr) => (
           <Row key={tr.id} label={tr.label} active={translationId === tr.id}
@@ -166,6 +183,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', minWidth: 96 },
   fontChipActive: { backgroundColor: COLORS.surfaceActive, borderColor: COLORS.glassBorder },
   fontSample: { fontSize: 22, color: COLORS.white, marginBottom: 2 },
+  readingSample: { fontSize: 16, color: COLORS.white, marginBottom: 2 },
   fontName: { ...TYPE.caption, color: COLORS.textMuted },
   fontNameActive: { color: COLORS.white, fontWeight: '700' },
   section: { ...TYPE.overline, color: COLORS.accentSoft, marginTop: SPACING.lg, marginBottom: SPACING.sm },

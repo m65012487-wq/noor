@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import { TouchableOpacity, StyleSheet } from 'react-native';
 import Text from './AppText';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
@@ -12,15 +12,20 @@ const OPTIONS = [0, 5, 10, 15, 30];
 export default function PrayerReminderSheet({ prayer, onClose }) {
   const { t, lang } = useLang();
   const { reminders, setReminder } = useAppSettings();
-  if (!prayer) return null;
-  const cfg = reminders[prayer] || { minutesBefore: 0, enabled: true };
+  // Последний намаз держится, пока шторка уезжает: иначе при prayer=null
+  // содержимое пропадало бы до конца анимации закрытия.
+  const last = useRef(prayer);
+  if (prayer) last.current = prayer;
+  const shown = prayer || last.current;
+  if (!shown) return null;
+  const cfg = reminders[shown] || { minutesBefore: 0, enabled: true };
 
   return (
-    <DraggableSheet visible={!!prayer} onClose={onClose} title={prayerName(prayer, lang)}>
+    <DraggableSheet visible={!!prayer} onClose={onClose} title={prayerName(shown, lang)}>
       <Text style={styles.section}>{t('reminder_before')}</Text>
 
         <TouchableOpacity style={[styles.row, !cfg.enabled && styles.rowActive]}
-          onPress={() => setReminder(prayer, { enabled: false })}>
+          onPress={() => setReminder(shown, { enabled: false })}>
           <Text style={[styles.rowText, !cfg.enabled && styles.rowTextActive]}>{t('no_reminder')}</Text>
           {!cfg.enabled && <Text style={styles.check}>✓</Text>}
         </TouchableOpacity>
@@ -29,7 +34,7 @@ export default function PrayerReminderSheet({ prayer, onClose }) {
           const active = cfg.enabled && cfg.minutesBefore === m;
           return (
             <TouchableOpacity key={m} style={[styles.row, active && styles.rowActive]}
-              onPress={() => setReminder(prayer, { enabled: true, minutesBefore: m })}>
+              onPress={() => setReminder(shown, { enabled: true, minutesBefore: m })}>
               <Text style={[styles.rowText, active && styles.rowTextActive]}>
                 {m === 0 ? t('at_adhan') : `${m} ${t('minutes_before')}`}
               </Text>

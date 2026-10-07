@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ActivityIndicator, ScrollView, TouchableOpacity, AppState, LayoutAnimation, Platform, UIManager } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View, ActivityIndicator, ScrollView, TouchableOpacity, AppState, LayoutAnimation, Platform, UIManager, Animated, useWindowDimensions } from 'react-native';
 import Text from '../components/AppText';
 import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
@@ -66,9 +66,25 @@ export default function PrayerTimesScreen() {
   // иши идёт фаджр следующих суток. Считается ниже nextName — выше он попадал
   // в мёртвую зону объявления и падал на первом же рендере.
   function toggleSchedule() {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    // Длительность в такт пружине кольца: иначе карточка сжималась быстрее
+    // кольца, и оно на миг наезжало на строку «Расписание».
+    LayoutAnimation.configureNext(LayoutAnimation.create(420, 'easeInEaseOut', 'opacity'));
     setScheduleOpen((v) => !v);
   }
+
+  // Раскрытое расписание помещается на экран целиком: кольцо уменьшается,
+  // строки становятся плотнее. На низких экранах (SE, mini) — сильнее.
+  const { height: winH } = useWindowDimensions();
+  const short = winH < 760;
+  const ringOpenScale = short ? 0.56 : 0.68;
+  const rowPad = short ? 8 : 11;
+  const ringScale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.spring(ringScale, {
+      toValue: scheduleOpen ? ringOpenScale : 1, friction: 11, tension: 110,
+      useNativeDriver: true, isInteraction: false,
+    }).start();
+  }, [scheduleOpen, ringOpenScale, ringScale]);
 
   const [alarmWindow, setAlarmWindow] = useState(false);
 
@@ -207,22 +223,33 @@ export default function PrayerTimesScreen() {
                   плиток. Плитка под каждой строкой закрывала ровно ту часть
                   картинки, ради которой обои и выбирают, а читаемость держат
                   тень под текстом и тонкие разделители — их хватает. */}
-              <View style={styles.nextCard}>
-                <ProgressRing size={216} stroke={9} progress={progress} color={accent}>
+              {/* Высота карточки идёт за масштабом кольца (LayoutAnimation), а само
+                  кольцо сжимается трансформом — текст внутри не перестраивается. */}
+              <View style={[styles.nextCard, {
+                height: scheduleOpen ? Math.round(RING * ringOpenScale) + SPACING.sm * 2 : RING + SPACING.lg * 2,
+                marginBottom: scheduleOpen ? SPACING.xs : SPACING.md,
+              }]}>
+                <Animated.View style={{ transform: [{ scale: ringScale }] }}>
+                <ProgressRing size={RING} stroke={9} progress={progress} color={accent}>
                   {/* Луна за цифрами: дуга кольца отмеряет промежуток между
                       намазами, а диск внутри — лунный месяц. Два разных счёта
                       времени в одном месте, и ни один не мешает другому. */}
                   <MoonPhase size={168} color={accent} date={today} />
                   {/* Подпись короткая: «намаз» и так ясен по названию под ней, а
                       капитель с разрядкой на верхней хорде круга не помещалась. */}
-                  <Text style={styles.nextLabel} numberOfLines={1} adjustsFontSizeToFit
-                    minimumFontScale={0.8}>{t("next_short")}</Text>
+                  {/* В сжатом кольце мелкие подписи не читаются — остаются
+                      название и отсчёт. */}
+                  {!scheduleOpen && (
+                    <Text style={styles.nextLabel} numberOfLines={1} adjustsFontSizeToFit
+                      minimumFontScale={0.8}>{t("next_short")}</Text>
+                  )}
                   <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
                   <Text style={styles.countdown}>{countdown}</Text>
-                  {!!nextName && (
+                  {!!nextName && !scheduleOpen && (
                     <Text style={styles.nextAt}>{nextTime}</Text>
                   )}
                 </ProgressRing>
+                </Animated.View>
               </View>
 
               {/* Свёрнутое расписание показывает намаз ЧЕРЕЗ ОДИН, а не
@@ -253,7 +280,7 @@ export default function PrayerTimesScreen() {
                   // до восхода» — не то напоминание, ради которого его показывают.
                   <TouchableOpacity key={p} activeOpacity={isSunrise ? 1 : 0.85}
                     onPress={() => !isSunrise && setReminderPrayer(p)}>
-                    <View style={[styles.row, i > 0 && styles.rowDivider]}>
+                    <View style={[styles.row, { paddingVertical: rowPad }, i > 0 && styles.rowDivider]}>
                       <Text style={[styles.prayer, isNext && styles.prayerActive,
                         isSunrise && styles.sunrise]}>{prayerName(p, lang)}</Text>
                       <View style={styles.rowRight}>
@@ -281,10 +308,15 @@ export default function PrayerTimesScreen() {
           приложения он выпрыгивает из-за таб-бара и гуляет по его кромке, поэтому
           живёт отдельным слоем поверх всего экрана, а не в прокрутке. Касаний
           слой не забирает. */}
-      <PixelPal />
+      {/* Раскрытое расписание «придавливает» ростка: он сплющивается и щурится,
+          а когда спойлер закрыт — пружинкой возвращает форму. */}
+      <PixelPal squashed={scheduleOpen} />
     </View>
   );
 }
+
+// Диаметр кольца в обычном виде.
+const RING = 216;
 
 // Текст лежит прямо на обоях, поэтому ему нужна собственная опора: мягкая
 // тень отделяет светлые буквы от светлых участков рисунка. Плитка делала
@@ -307,7 +339,7 @@ const styles = StyleSheet.create({
   dateHijri: { ...TYPE.caption, color: COLORS.accentSoft, marginTop: 1, ...SHADOW },
   locText: { ...TYPE.callout, color: COLORS.text, paddingVertical: SPACING.sm, fontWeight: '500' },
 
-  nextCard: { alignItems: 'center', paddingVertical: SPACING.lg, marginBottom: SPACING.md },
+  nextCard: { alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md },
   nextLabel: { ...TYPE.overline, letterSpacing: 1.2, maxWidth: 130, textAlign: 'center',
     color: COLORS.accentSoft, ...SHADOW },
   // Внутри кольца имя намаза набирается мельче: display на 36 пунктов

@@ -29,14 +29,12 @@ SOFT = 0.07            # ширина мягкого края между тон�
 
 # id сцены → кадр (путь от RAW без расширения).
 SCENES = {
-    "caravan": "scene/caravan_5602", "cedars": "scene/cedars_5601",
-    # Всадник, Скачка и Привал — бородатые варианты (prompts_wall_v5.py bearded).
-    "rider": "wall/rider_b_6201", "blossom": "wall/blossom_5704",
+    "caravan": "scene/caravan_5602",
+    # Скачка и Привал — бородатые варианты (prompts_wall_v5.py bearded).
+    "blossom": "wall/blossom_5704",
     # Кони и сабли (prompts_wall_v5.py riders). «Сабля» и «Знамя» убраны по просьбе.
     "gallop": "wall/riders_gallop_b_6201",
-    "herd": "wall/herd_6103",
     "rest": "wall/warrior_rest_b_6203",
-    "blades": "wall/swords_6103",
     # Свой сад экрана тасбиха (не тема обоев): src/tasbih/gardenScene.js.
     "tasbih-garden": "wall/garden_5801",
 }
@@ -47,12 +45,12 @@ SCENES = {
 # при уменьшении до 900 px и медиане тонкие линии плащей и упряжи плыли.
 # id → (прозрачности планов, размер медианы — 1 значит без неё, ширина края, полный размер).
 CRISP = ((0.12, 0.24, 0.45), 1, 0.05, True)
-STYLE = {sid: CRISP for sid in ("gallop", "herd", "rest", "blades")}
-STYLE.update({sid: (LAYER_ALPHA, 1, SOFT, True) for sid in ("rider", "blossom")})
+STYLE = {sid: CRISP for sid in ("gallop", "rest")}
+STYLE.update({sid: (LAYER_ALPHA, 1, SOFT, True) for sid in ("blossom",)})
 
 # Сцены, где рисунок дотягивается до кольца отсчёта: верх плавно растворяется
 # в небе между долями высоты (начало, конец).
-FADE_TOP = {"blades": (0.40, 0.56)}
+FADE_TOP = {}
 
 BG = ((27, 36, 48), (13, 19, 27))
 TINT = (190, 205, 220)

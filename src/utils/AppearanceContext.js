@@ -5,7 +5,7 @@ import { useLang } from '../i18n/LanguageContext';
 
 const AppearanceContext = createContext(null);
 
-// Оформление держится на трёх осях: узор, цветовая схема и шрифт.
+// Оформление держится на осях: тема (сцена или живой фон), цветовая схема и шрифт.
 // Фотообои («Лазурь», «Рассвет», «Космос» и прочие) убраны: они тянули
 // за собой одиннадцать полноэкранных картинок, конкурировали с текстом
 // и всё равно уступали узорам по читаемости.
@@ -13,50 +13,36 @@ const AppearanceContext = createContext(null);
 // Плитка одна на все схемы: она белая на прозрачном фоне и красится через
 // tintColor, поэтому «узор × цвет» не размножается файлами.
 export const PATTERNS = [
-  { id: 'none',   label_en: 'Plain',   label_ru: 'Без узора' },
-  { id: 'bloom',  label_en: 'Bloom',   label_ru: 'Цветок' },
-  { id: 'girih',  label_en: 'Girih',   label_ru: 'Гирих' },
+  // Однотонный градиент схемы — для тех, кому рисунок под текстом мешает.
+  { id: 'none',     label_en: 'Plain',    label_ru: 'Без рисунка', kind: 'none' },
 
-  // Сцены — не плитки: они не повторяются, а растягиваются на весь экран
-  // и разложены на три плана, которые сдвигаются при наклоне телефона.
-  // Глубина держится на прозрачности слоёв, поэтому цвет по-прежнему
-  // задаётся схемой, и одна картинка работает со всеми.
-  // «Город» убран по просьбе пользователя; сцены «Горы», «Оазис», «Сад» и
-  // «Мечеть у воды» пробовали и тоже убрали — не понравились. Позже по
-  // просьбе убраны узоры «Купола» и «Фонари» и сцены «Полумесяц», «Скакуны»,
-  // «Скалы», «Оливы», «Миндаль», «Тюльпаны», «Розы», «Кувшинки», затем
-  // «Сабля» и «Знамя».
+  // Сцены — растягиваются на весь экран и разложены на три плана, которые
+  // сдвигаются при наклоне телефона; цвет задаёт схема. Убраны по просьбе:
+  // «Город», «Горы», «Оазис», «Сад», «Мечеть у воды», узоры «Купола», «Фонари»,
+  // «Цветок», «Гирих», сцены «Полумесяц», «Скакуны», «Скалы», «Оливы»,
+  // «Миндаль», «Тюльпаны», «Розы», «Кувшинки», «Сабля», «Знамя», «Кедры»,
+  // «Всадник», «Табун», «Клинки».
   { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
-  // Живые абстрактные темы (src/components/LiveBackground.js): световые ленты,
-  // пылинки и пятна света рисуются кодом в цветах схемы и медленно движутся.
-  { id: 'waves',    label_en: 'Waves',    label_ru: 'Волны',    kind: 'live' },
-  { id: 'dust',     label_en: 'Dust',     label_ru: 'Пылинки',  kind: 'live' },
-  { id: 'glow',     label_en: 'Glow',     label_ru: 'Сияние',   kind: 'live' },
-  // Сцены Krea-2 (scripts/tasbih_assets/build_scenes_v5.py): пейзаж в оттенках
-  // серого разложен по тону на три плана.
+  // Сцены Krea-2 (scripts/tasbih_assets/build_scenes_v5.py).
   { id: 'caravan',  label_en: 'Caravan',  label_ru: 'Караван',  kind: 'scene' },
-  { id: 'cedars',   label_en: 'Cedars',   label_ru: 'Кедры',    kind: 'scene' },
-  // Детальные обои под раскладку главного экрана (prompts_wall_v5.py): верх и
-  // середина пустые — там заголовок, кольцо и расписание; рисунок внизу слева,
-  // правый нижний угол спокойный — туда входит веточка.
-  { id: 'rider',    label_en: 'Rider',    label_ru: 'Всадник',  kind: 'scene' },
   { id: 'blossom',  label_en: 'Blossom',  label_ru: 'Цветение', kind: 'scene' },
-  // Всадники, кони и сабли — та же раскладка, что у «Всадника». У всадников
-  // бороды: мужчина в чалме и в профиль, иначе борода в силуэте не читается.
-  { id: 'gallop',  label_en: 'Gallop',  label_ru: 'Скачка',  kind: 'scene' },
-  { id: 'herd',    label_en: 'Herd',    label_ru: 'Табун',   kind: 'scene' },
-  { id: 'rest',    label_en: 'Rest',    label_ru: 'Привал',  kind: 'scene' },
-  { id: 'blades',  label_en: 'Blades',  label_ru: 'Клинки',  kind: 'scene' },
+  { id: 'gallop',   label_en: 'Gallop',   label_ru: 'Скачка',   kind: 'scene' },
+  { id: 'rest',     label_en: 'Rest',     label_ru: 'Привал',   kind: 'scene' },
+
+  // Живые абстрактные темы (src/components/LiveBackground.js): рисуются кодом
+  // в цветах схемы и медленно движутся.
+  { id: 'waves',    label_en: 'Waves',    label_ru: 'Волны',    kind: 'live' },
+  { id: 'orbits',   label_en: 'Orbits',   label_ru: 'Орбиты',   kind: 'live' },
+  { id: 'ripples',  label_en: 'Ripples',  label_ru: 'Рябь',     kind: 'live' },
 ];
+
+// Убранные живые темы переходят на ближайшие по духу, а не на тему по умолчанию.
+const RETIRED_PATTERNS = { dust: 'orbits', glow: 'ripples' };
 
 // Узор по умолчанию и замена убранных узоров и сцен: сохранённый выбор, которого
 // больше нет в PATTERNS, откатывается сюда.
 export const DEFAULT_PATTERN = 'desert';
 
-export const PATTERN_TILES = {
-  bloom: require('../../assets/patterns/bloom.png'),
-  girih: require('../../assets/patterns/girih.png'),
-};
 
 // Сцена — не один файл, а три плана от дальнего к ближнему. Разложены они
 // ради параллакса: при наклоне телефона ближний план уезжает заметно
@@ -72,16 +58,6 @@ export const SCENE_LAYERS = {
     require('../../assets/scenes/caravan-2.png'),
     require('../../assets/scenes/caravan-3.png'),
   ],
-  cedars: [
-    require('../../assets/scenes/cedars-1.png'),
-    require('../../assets/scenes/cedars-2.png'),
-    require('../../assets/scenes/cedars-3.png'),
-  ],
-  rider: [
-    require('../../assets/scenes/rider-1.png'),
-    require('../../assets/scenes/rider-2.png'),
-    require('../../assets/scenes/rider-3.png'),
-  ],
   blossom: [
     require('../../assets/scenes/blossom-1.png'),
     require('../../assets/scenes/blossom-2.png'),
@@ -92,25 +68,15 @@ export const SCENE_LAYERS = {
     require('../../assets/scenes/gallop-2.png'),
     require('../../assets/scenes/gallop-3.png'),
   ],
-  herd: [
-    require('../../assets/scenes/herd-1.png'),
-    require('../../assets/scenes/herd-2.png'),
-    require('../../assets/scenes/herd-3.png'),
-  ],
   rest: [
     require('../../assets/scenes/rest-1.png'),
     require('../../assets/scenes/rest-2.png'),
     require('../../assets/scenes/rest-3.png'),
   ],
-  blades: [
-    require('../../assets/scenes/blades-1.png'),
-    require('../../assets/scenes/blades-2.png'),
-    require('../../assets/scenes/blades-3.png'),
-  ],
 };
 
 export function patternKind(id) {
-  return PATTERNS.find((p) => p.id === id)?.kind || (id === 'none' ? 'none' : 'tile');
+  return PATTERNS.find((p) => p.id === id)?.kind || 'none';
 }
 
 // Цветовые схемы: шесть глубоких и две светлые (из прежних двадцати оставлены
@@ -143,28 +109,23 @@ export const SCHEMES = [
 
 // Шрифты. Обязательное условие — кириллица: интерфейс русский, и семейство
 // без русских букв не ломает приложение, а тихо подменяется системным
-// посимвольно. Настройка при этом выглядит нерабочей.
+// посимвольно. Проверено по таблице cmap каждого файла, а не по памяти.
 //
-// Проверено по таблице cmap каждого файла, а не по памяти. Из прошлого набора
-// выброшены Gill Sans (кириллицы нет вовсе), Avenir Next, Optima, Futura и
-// Iowan Old Style — латиница и всё.
-//
-// PT Sans и PT Serif лежат в assets/fonts и подключаются плагином expo-font
-// на этапе сборки: их рисовала ParaType под кириллицу, а не добавляла её
-// потом. Georgia и Verdana встроены в iOS и кириллицу содержат.
-export const FONT_SETS = [
-  { id: 'system',  label_en: 'System',  label_ru: 'Системный',
-    ui: undefined,     reading: undefined },
-  { id: 'rounded', label_en: 'Rounded', label_ru: 'Округлый',
-    ui: 'SF Pro Rounded', reading: 'SF Pro Rounded' },
-  { id: 'ptsans',  label_en: 'Grotesk', label_ru: 'Гротеск',
-    ui: 'PT Sans',     reading: 'PT Sans' },
-  { id: 'verdana', label_en: 'Wide',    label_ru: 'Широкий',
-    ui: 'Verdana',     reading: 'Verdana' },
-  { id: 'georgia', label_en: 'Serif',   label_ru: 'С засечками',
-    ui: 'Georgia',     reading: 'Georgia' },
-  { id: 'ptserif', label_en: 'Book',    label_ru: 'Книжный',
-    ui: 'PT Serif',    reading: 'PT Serif' },
+// Интерфейс и чтение настраиваются отдельно. Интерфейс по умолчанию —
+// пиксельный Departure Mono (Helena Zhang, OFL): подписи, цифры и кнопки.
+// Для чтения перевода — только удобные для долгого чтения начертания; их
+// выбор живёт в настройках чтения. PT Sans и PT Serif рисовала ParaType под
+// кириллицу; Georgia встроена в iOS. Файлы подключает плагин expo-font.
+export const UI_FONTS = [
+  { id: 'pixel',   label_en: 'Pixel',   label_ru: 'Пиксельный', family: 'Departure Mono' },
+  { id: 'system',  label_en: 'System',  label_ru: 'Системный',  family: undefined },
+];
+
+export const READING_FONTS = [
+  { id: 'system',  label_en: 'System',  label_ru: 'Системный',   family: undefined },
+  { id: 'ptsans',  label_en: 'Grotesk', label_ru: 'Гротеск',     family: 'PT Sans' },
+  { id: 'ptserif', label_en: 'Book',    label_ru: 'Книжный',     family: 'PT Serif' },
+  { id: 'georgia', label_en: 'Serif',   label_ru: 'С засечками', family: 'Georgia' },
 ];
 
 // Арабские начертания. Все встроены в iOS, поэтому ничего не скачивается.
@@ -235,15 +196,15 @@ export function schemeFor(id, custom) {
   return SCHEMES.find((s) => s.id === id) || SCHEMES[0];
 }
 
-export function fontSetFor(id) {
-  return FONT_SETS.find((f) => f.id === id) || FONT_SETS[0];
-}
+const uiFontFor = (id) => UI_FONTS.find((f) => f.id === id) || UI_FONTS[0];
+const readingFontFor = (id) => READING_FONTS.find((f) => f.id === id) || READING_FONTS[0];
 
 export function AppearanceProvider({ children }) {
   const [pattern, setPattern] = useState(DEFAULT_PATTERN);
   const [scheme, setScheme] = useState(SCHEMES[0].id);
   const [customColor, setCustomColor] = useState(DEFAULT_CUSTOM);
-  const [fontSet, setFontSet] = useState('system');
+  const [uiFont, setUiFont] = useState(UI_FONTS[0].id);
+  const [readingFont, setReadingFont] = useState('system');
   const [arabicFont, setArabicFont] = useState('system');
   const [parallax, setParallax] = useState(true);
   const [ready, setReady] = useState(false);
@@ -252,11 +213,12 @@ export function AppearanceProvider({ children }) {
     (async () => {
       // Значения из удалённых наборов откатываются на первое: сохранённый
       // идентификатор старой темы иначе молча тянул бы дефолты.
-      const savedPattern = await loadJSON('pattern', DEFAULT_PATTERN);
+      const rawPattern = await loadJSON('pattern', DEFAULT_PATTERN);
+      const savedPattern = RETIRED_PATTERNS[rawPattern] || rawPattern;
       const knownPattern = PATTERNS.some((p) => p.id === savedPattern);
       // Убранная сцена откатывается и записывается сразу: иначе откат
       // повторялся бы на каждом запуске.
-      if (!knownPattern) await saveJSON('pattern', DEFAULT_PATTERN);
+      if (!knownPattern || savedPattern !== rawPattern) await saveJSON('pattern', knownPattern ? savedPattern : DEFAULT_PATTERN);
       setPattern(knownPattern ? savedPattern : DEFAULT_PATTERN);
 
       // Сохранённый выбор убранной темы сводится к первой схеме, иначе
@@ -268,8 +230,13 @@ export function AppearanceProvider({ children }) {
       const savedCustom = await loadJSON('customColor', DEFAULT_CUSTOM);
       setCustomColor(/^#[0-9a-f]{6}$/i.test(savedCustom) ? savedCustom : DEFAULT_CUSTOM);
 
-      const savedFont = await loadJSON('fontSet', 'system');
-      setFontSet(FONT_SETS.some((f) => f.id === savedFont) ? savedFont : 'system');
+      // Раньше шрифт был один на всё (fontSet): его чтение переезжает в
+      // шрифт для чтения, а интерфейс получает новый пиксельный по умолчанию.
+      const legacy = await loadJSON('fontSet', null);
+      const savedUi = await loadJSON('uiFont', UI_FONTS[0].id);
+      setUiFont(UI_FONTS.some((f) => f.id === savedUi) ? savedUi : UI_FONTS[0].id);
+      const savedReading = await loadJSON('readingFont', legacy || 'system');
+      setReadingFont(READING_FONTS.some((f) => f.id === savedReading) ? savedReading : 'system');
 
       const savedArabic = await loadJSON('arabicFont', 'system');
       setArabicFont(ARABIC_FONTS.some((f) => f.id === savedArabic) ? savedArabic : 'system');
@@ -287,12 +254,14 @@ export function AppearanceProvider({ children }) {
     setCustomColor(hex); setScheme('custom');
     await saveJSON('customColor', hex); await saveJSON('scheme', 'custom');
   };
-  const chooseFontSet = async (id) => { setFontSet(id); await saveJSON('fontSet', id); };
+  const chooseUiFont = async (id) => { setUiFont(id); await saveJSON('uiFont', id); };
+  const chooseReadingFont = async (id) => { setReadingFont(id); await saveJSON('readingFont', id); };
   const chooseArabicFont = async (id) => { setArabicFont(id); await saveJSON('arabicFont', id); };
   const toggleParallax = async (v) => { setParallax(v); await saveJSON('parallax', v); };
 
   const sc = React.useMemo(() => schemeFor(scheme, customColor), [scheme, customColor]);
-  const fonts = fontSetFor(fontSet);
+  const fonts = React.useMemo(() => ({ ui: uiFontFor(uiFont).family, reading: readingFontFor(readingFont).family }),
+    [uiFont, readingFont]);
 
   // Виджет красится цветами схемы и говорит на языке приложения: отдаём их
   // в общий контейнер при запуске и при каждой смене.
@@ -307,7 +276,8 @@ export function AppearanceProvider({ children }) {
       pattern, choosePattern, PATTERNS,
       scheme, chooseScheme, SCHEMES,
       customColor, chooseCustomColor,
-      fontSet, chooseFontSet, FONT_SETS,
+      uiFont, chooseUiFont, UI_FONTS,
+      readingFont, chooseReadingFont, READING_FONTS,
       arabicFont, chooseArabicFont, ARABIC_FONTS,
       arabicFamily: arabicFontFor(arabicFont).family,
       parallax, toggleParallax,
@@ -324,10 +294,11 @@ export const useAppearance = () => useContext(AppearanceContext) || {
   pattern: DEFAULT_PATTERN, choosePattern: () => {}, PATTERNS,
   scheme: SCHEMES[0].id, chooseScheme: () => {}, SCHEMES,
   customColor: DEFAULT_CUSTOM, chooseCustomColor: () => {},
-  fontSet: 'system', chooseFontSet: () => {}, FONT_SETS,
+  uiFont: UI_FONTS[0].id, chooseUiFont: () => {}, UI_FONTS,
+  readingFont: 'system', chooseReadingFont: () => {}, READING_FONTS,
   arabicFont: 'system', chooseArabicFont: () => {}, ARABIC_FONTS,
   arabicFamily: 'System',
   parallax: true, toggleParallax: () => {},
-  patterned: true, schemeColors: SCHEMES[0], fonts: FONT_SETS[0],
+  patterned: true, schemeColors: SCHEMES[0], fonts: { ui: UI_FONTS[0].family, reading: undefined },
   accent: SCHEMES[0].accent, tint: SCHEMES[0].tint,
 };

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
-  StyleSheet, View, ImageBackground, Animated, AccessibilityInfo, Platform,
+  StyleSheet, View, Animated, AccessibilityInfo, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,14 +9,13 @@ import { NavigationContext } from '@react-navigation/native';
 import { SPACING } from '../constants/theme';
 import LiveBackground from './LiveBackground';
 import {
-  useAppearance, PATTERN_TILES, SCENE_LAYERS, patternKind,
+  useAppearance, SCENE_LAYERS, patternKind,
 } from '../utils/AppearanceContext';
 
 // Насколько уезжает каждый план при полном наклоне, в точках: дальний почти
 // стоит, ближний идёт заметно. Разница и есть весь эффект — если развести
 // планы слабо, движение читается как дрожание картинки, а не как глубина.
 const DEPTH = [7, 17, 30];
-const TILE_DEPTH = 9;
 
 // Запас по краям: слои сдвигаются, и без него у границы кадра открылась бы
 // пустота. Берётся с двойным перекрытием самого подвижного плана.
@@ -145,15 +144,15 @@ export function ThemedBackground({ children, plain = false, scene = null, style 
   if (kind === 'live') {
     return (
       <LinearGradient colors={bg} style={[styles.flex, style]}>
-        <LiveBackground variant={appearance.pattern} scheme={sc} still={reduceMotion || !focused} />
+        {/* На скрытой вкладке живой фон не рисуется вовсе: замереть мало —
+            слои и их память оставались бы на каждой открытой вкладке. */}
+        {focused && <LiveBackground variant={appearance.pattern} scheme={sc} still={reduceMotion} />}
         {children}
       </LinearGradient>
     );
   }
 
-  // Сцена разложена на три плана и собирается стопкой. Плитка остаётся одним
-  // повторяющимся слоем: у неё нет переднего и заднего края, и разносить
-  // по глубине там нечего — ей достаётся общий лёгкий снос.
+  // Сцена разложена на три плана и собирается стопкой.
   const layers = scene || SCENE_LAYERS[appearance.pattern];
   if (kind === 'scene' && layers) {
     return (
@@ -180,36 +179,10 @@ export function ThemedBackground({ children, plain = false, scene = null, style 
     );
   }
 
-  const tile = PATTERN_TILES[appearance.pattern];
-  if (!tile) {
-    return (
-      <LinearGradient colors={bg} style={[styles.flex, style]}>
-        {children}
-      </LinearGradient>
-    );
-  }
-
+  // Сохранённой сцены нет (обновление убрало тему) — чистый градиент.
   return (
     <LinearGradient colors={bg} style={[styles.flex, style]}>
-      <View style={styles.flex} pointerEvents="box-none">
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.plane, {
-            transform: [
-              { translateX: shift(tx, TILE_DEPTH) },
-              { translateY: shift(ty, TILE_DEPTH, 0.6) },
-            ],
-          }]}
-        >
-          <ImageBackground
-            source={tile}
-            resizeMode="repeat"
-            imageStyle={{ tintColor: `rgba(${sc.tint},0.14)` }}
-            style={styles.flex}
-          />
-        </Animated.View>
-        {children}
-      </View>
+      {children}
     </LinearGradient>
   );
 }

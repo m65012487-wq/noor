@@ -7,7 +7,7 @@ import ColorPicker from './ColorPicker';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppSettings, NOTIF_SOUNDS, SOUND_ASSETS } from '../utils/AppSettingsContext';
-import { useAppearance } from '../utils/AppearanceContext';
+import { useAppearance, makeScheme } from '../utils/AppearanceContext';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
 import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm } from '../utils/fajrAlarm';
@@ -79,9 +79,25 @@ function Section({ id, icon, title, open, onToggle, children }) {
 // Группы тем в настройках: «Без узора» стоит среди узоров.
 const PATTERN_GROUPS = [
   { kind: 'live', kinds: ['live'], title: 'themes_live' },
-  { kind: 'scene', kinds: ['scene'], title: 'themes_scenes' },
-  { kind: 'tile', kinds: ['tile'], title: 'themes_patterns' },
+  { kind: 'scene', kinds: ['none', 'scene'], title: 'themes_scenes' },
 ];
+
+// Сетка в три колонки: кнопки одной ширины встают ровными рядами, а не
+// «лесенкой» из чипов разной длины.
+function Grid({ children }) {
+  return <View style={styles.grid}>{children}</View>;
+}
+
+function Cell({ active, onPress, style, children }) {
+  return (
+    <View style={styles.cell}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.85}
+        style={[styles.cellBtn, active && styles.cellBtnActive, style]}>
+        {children}
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
@@ -90,7 +106,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
     timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
     customColor, chooseCustomColor,
-    fontSet, chooseFontSet, FONT_SETS, parallax, toggleParallax,
+    uiFont, chooseUiFont, UI_FONTS, parallax, toggleParallax,
     tint, accent } = useAppearance();
   const tintRgb = tint || '180,215,230';
   const accentColor = accent || COLORS.accent;
@@ -108,7 +124,14 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   })(); }, [visible]);
 
   function toggle(id) {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    // Короткая и без масштабирования новых элементов: пресет на 300 мс с
+    // scaleXY подёргивал всё содержимое шторки.
+    LayoutAnimation.configureNext({
+      duration: 220,
+      update: { type: 'easeInEaseOut' },
+      create: { type: 'easeInEaseOut', property: 'opacity' },
+      delete: { type: 'easeInEaseOut', property: 'opacity' },
+    });
     setOpenSection((cur) => (cur === id ? null : id));
   }
 
@@ -234,29 +257,26 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
           open={openSection === 'appearance'} onToggle={toggle}>
 
           <Text style={styles.label}>{t("pattern")}</Text>
-          {/* Темы разного рода — живые, картины, узоры — шли одним рядом и
-              смешивались; по группам видно, что из чего выбираешь. */}
+          {/* Темы по группам: живые отдельно от картин. */}
           {PATTERN_GROUPS.map((g) => (
             <View key={g.kind}>
               <Text style={styles.subhead}>{t(g.title)}</Text>
-              <View style={styles.themeRow}>
-                {PATTERNS.filter((p) => g.kinds.includes(p.kind || 'tile') || (g.kind === 'tile' && p.id === 'none')).map((p) => (
-                  <TouchableOpacity key={p.id} onPress={() => choosePattern(p.id)}
-                    style={[styles.themeChip, pattern === p.id && styles.themeChipActive,
-                      pattern === p.id && activeBg]}>
-                    <Text style={[styles.themeText, pattern === p.id && styles.themeTextActive]}>
+              <Grid>
+                {PATTERNS.filter((p) => g.kinds.includes(p.kind)).map((p) => (
+                  <Cell key={p.id} active={pattern === p.id} onPress={() => choosePattern(p.id)}
+                    style={pattern === p.id && activeBg}>
+                    <Text style={[styles.cellText, pattern === p.id && styles.cellTextActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
                       {lang === "ru" ? p.label_ru : p.label_en}
                     </Text>
-                  </TouchableOpacity>
+                  </Cell>
                 ))}
-              </View>
+              </Grid>
             </View>
           ))}
 
-          {/* Параллакс касается только сцен: у плитки нет переднего плана,
-              и сносить её целиком незачем. Выключатель нужен потому, что
-              движущийся фон переносят не все — и потому, что при включённом
-              «Уменьшении движения» в iOS он и так не работает. */}
+          {/* Параллакс касается только картин: живые темы движутся сами.
+              Выключатель нужен потому, что движущийся фон переносят не все,
+              а при «Уменьшении движения» в iOS он и так не работает. */}
           <TouchableOpacity style={styles.row}
             onPress={() => toggleParallax(!parallax)} activeOpacity={0.8}>
             <View style={{ flex: 1 }}>
@@ -266,44 +286,48 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
             {parallax && <Icon name="check" size={17} color={COLORS.white} />}
           </TouchableOpacity>
 
+          {/* Кнопка схемы окрашена её же фоном: подпись без образца ничего не
+              говорит. «Свой цвет» — такой же, только фон собран из выбранного
+              цвета; по нажатию открывается палитра. */}
           <Text style={styles.label}>{t("color_scheme")}</Text>
-          <View style={styles.themeRow}>
+          <Grid>
             {SCHEMES.map((s) => (
-              <TouchableOpacity key={s.id} onPress={() => chooseScheme(s.id)}
-                style={[styles.schemeChip, { backgroundColor: s.bg[0], borderColor: s.accent },
-                  scheme === s.id && styles.schemeChipActive]}>
+              <Cell key={s.id} active={scheme === s.id} onPress={() => chooseScheme(s.id)}
+                style={[styles.schemeCell, { backgroundColor: s.bg[0], borderColor: scheme === s.id ? s.accent : 'rgba(255,255,255,0.12)' }]}>
                 <View style={[styles.schemeDot, { backgroundColor: s.accent }]} />
-                <Text style={[styles.themeText, scheme === s.id && styles.themeTextActive]}>
+                <Text style={[styles.cellText, scheme === s.id && styles.cellTextActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
                   {lang === "ru" ? s.label_ru : s.label_en}
                 </Text>
-              </TouchableOpacity>
+              </Cell>
             ))}
-            <TouchableOpacity onPress={() => setPickerOpen(true)}
-              style={[styles.schemeChip, { borderColor: customColor }, scheme === 'custom' && styles.schemeChipActive]}>
+            <Cell active={scheme === 'custom'} onPress={() => setPickerOpen(true)}
+              style={[styles.schemeCell, { backgroundColor: makeScheme(customColor).bg[0],
+                borderColor: scheme === 'custom' ? customColor : 'rgba(255,255,255,0.12)' }]}>
               <View style={[styles.schemeDot, { backgroundColor: customColor }]} />
-              <Text style={[styles.themeText, scheme === 'custom' && styles.themeTextActive]}>{t('custom_color')}</Text>
-            </TouchableOpacity>
-          </View>
+              <Text style={[styles.cellText, scheme === 'custom' && styles.cellTextActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
+                {t('custom_color')}
+              </Text>
+            </Cell>
+          </Grid>
 
           <ColorPicker visible={pickerOpen} value={customColor} t={t}
             onCancel={() => setPickerOpen(false)}
             onDone={(hex) => { setPickerOpen(false); chooseCustomColor(hex); }} />
 
-          {/* Образец набирается тем самым шрифтом: название семейства
-              ничего не говорит, пока не увидишь буквы. */}
-          <Text style={styles.label}>{t("font")}</Text>
-          <View style={styles.themeRow}>
-            {FONT_SETS.map((f) => (
-              <TouchableOpacity key={f.id} onPress={() => chooseFontSet(f.id)}
-                style={[styles.themeChip, fontSet === f.id && styles.themeChipActive,
-                  fontSet === f.id && activeBg]}>
-                <Text style={[styles.themeText, { fontFamily: f.ui },
-                  fontSet === f.id && styles.themeTextActive]}>
+          {/* Шрифт интерфейса; шрифт для чтения выбирается в настройках чтения.
+              Образец набран самим шрифтом. */}
+          <Text style={styles.label}>{t("font_ui")}</Text>
+          <Grid>
+            {UI_FONTS.map((f) => (
+              <Cell key={f.id} active={uiFont === f.id} onPress={() => chooseUiFont(f.id)}
+                style={[styles.fontCell, uiFont === f.id && activeBg]}>
+                <Text style={[styles.fontSample, { fontFamily: f.family }]} numberOfLines={1} adjustsFontSizeToFit>Аа 12</Text>
+                <Text style={[styles.fontName, { fontFamily: f.family }, uiFont === f.id && styles.cellTextActive]} numberOfLines={1}>
                   {lang === "ru" ? f.label_ru : f.label_en}
                 </Text>
-              </TouchableOpacity>
+              </Cell>
             ))}
-          </View>
+          </Grid>
 
         </Section>
 
@@ -396,6 +420,20 @@ const styles = StyleSheet.create({
   tuneVal: { ...TYPE.body, ...TYPE.mono, color: COLORS.white, width: 44, textAlign: 'center' },
 
   themeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -SPACING.xs / 2 - 1, marginBottom: SPACING.md },
+  cell: { width: '33.33%', padding: SPACING.xs / 2 + 1 },
+  cellBtn: { minHeight: 44, borderRadius: RADIUS.md, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.sm,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  cellBtnActive: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)' },
+  // Пиксельный шрифт моноширинный и на треть шире системного: подпись может
+  // уйти во вторую строку и чуть ужаться, но не обрезается многоточием.
+  cellText: { ...TYPE.caption, fontSize: 13, color: COLORS.text, textAlign: 'center', flexShrink: 1 },
+  cellTextActive: { color: COLORS.white, fontWeight: '700' },
+  schemeCell: { flexDirection: 'row', justifyContent: 'flex-start', gap: SPACING.xs },
+  fontCell: { height: 64 },
+  fontSample: { fontSize: 17, color: COLORS.white },
+  fontName: { ...TYPE.caption, color: COLORS.textMuted, marginTop: 2 },
   themeChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill, backgroundColor: COLORS.surface,
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'transparent' },
@@ -407,7 +445,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill, borderWidth: StyleSheet.hairlineWidth },
   schemeChipActive: { borderWidth: 2 },
-  schemeDot: { width: 10, height: 10, borderRadius: 5 },
+  schemeDot: { width: 8, height: 8, borderRadius: 4 },
 
   opacityRow: { flexDirection: 'row', gap: SPACING.sm },
   opacityDot: { width: 46, height: 46, borderRadius: 23, alignItems: 'center',

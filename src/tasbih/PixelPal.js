@@ -56,6 +56,8 @@ const FRAMES = {
   walkB: { top: -1, rows: [...IDLE.slice(0, 12), '....B..B....', '....B..B....'] },
   // Моргание: на месте каждого глаза — короткая чёрточка вместо двух пикселей.
   blink: { top: 0, rows: withRow(withRow(IDLE, 7, '.BBBBBBBBBB.'), 8, '.BEEBBBBEEB.') },
+  // Придавило: глаза зажмурены косыми чёрточками (> <), рот — удивлённое «о».
+  squish: { top: 0, rows: withRow(withRow(withRow(IDLE, 7, '.BEBBBBBBEB.'), 8, '.BBEBBBBEBB.'), 10, '.BBBBEEBBBB.') },
 };
 
 // Строки сливаются в отрезки, а одинаковые отрезки подряд — в прямоугольники:
@@ -127,6 +129,8 @@ function makeMotion(startX) {
     x: new Animated.Value(startX),
     y: new Animated.Value(HIDE_Y),
     sq: new Animated.Value(0),
+    // Придавленность раскрытым расписанием: 0 — обычный, 1 — сплющен.
+    press: new Animated.Value(0),
     fade: new Animated.Value(1),
   };
 }
@@ -193,7 +197,7 @@ const Ember = memo(function Ember({ reduceMotion }) {
 
 // Сам зверёк: выпрыгивание, прогулка по кромке, моргание, прыжки, нажатие.
 // active — приложение на экране, вкладка в фокусе, сад не открыт.
-const Pal = memo(function Pal({ place, colors, hasGift, active, reduceMotion, label, hint, onOpen }) {
+const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, reduceMotion, label, hint, onOpen }) {
   const [motion] = useState(() => makeMotion(rand(place.minX, place.maxX)));
   const [landed, setLanded] = useState(false);
   const [base, setBase] = useState('idle');
@@ -219,6 +223,20 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, reduceMotion, la
     return () => { clearTimeout(timer); animation?.stop(); };
   }, [motion, reduceMotion]);
 
+  // Придавило — пружина с небольшим «дрожанием», отпустило — с перехлёстом:
+  // он на миг вытягивается выше обычного и только потом успокаивается.
+  useEffect(() => {
+    // До приземления росток не придавлен: при новом входе форма обычная.
+    if (!landed) { motion.press.setValue(0); return undefined; }
+    if (reduceMotion) { motion.press.setValue(squashed ? 1 : 0); return undefined; }
+    if (squashed) hop.current?.stop();
+    const anim = Animated.spring(motion.press, squashed
+      ? { toValue: 1, friction: 5, tension: 200, useNativeDriver: true, isInteraction: false }
+      : { toValue: 0, friction: 3, tension: 110, useNativeDriver: true, isInteraction: false });
+    anim.start();
+    return () => anim.stop();
+  }, [squashed, landed, reduceMotion, motion]);
+
   const playHop = useCallback(height => {
     hop.current?.stop();
     hop.current = makeHop(motion, height);
@@ -228,7 +246,7 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, reduceMotion, la
   // Прогулка: идти, постоять, подпрыгнуть — и снова. Всё на таймерах и нативных
   // анимациях, при потере активности гасится целиком.
   useEffect(() => {
-    if (!landed || !active || reduceMotion) return undefined;
+    if (!landed || !active || reduceMotion || squashed) return undefined;
     let timer = null;
     let steps = null;
     let walk = null;
@@ -284,11 +302,11 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, reduceMotion, la
       motion.sq.setValue(0);
       setBase('idle');
     };
-  }, [landed, active, reduceMotion, motion, minX, maxX, playHop]);
+  }, [landed, active, reduceMotion, squashed, motion, minX, maxX, playHop]);
 
   // Моргание — на стоянке, раз в 3–6 секунд; на ходу пропускаем.
   useEffect(() => {
-    if (!landed || !active) return undefined;
+    if (!landed || !active || squashed) return undefined;
     let timer = null;
     const schedule = () => {
       timer = setTimeout(() => {
@@ -299,17 +317,23 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, reduceMotion, la
     };
     schedule();
     return () => { clearTimeout(timer); setBlink(false); };
-  }, [landed, active]);
+  }, [landed, active, squashed]);
 
-  const frame = blink && base === 'idle' ? 'blink' : base;
+  const frame = squashed && landed ? 'squish' : blink && base === 'idle' ? 'blink' : base;
 
   const palStyle = useMemo(() => ({ transform: [{ translateX: motion.x }] }), [motion]);
   const bodyStyle = useMemo(() => ({
     opacity: motion.fade,
     transform: [
       { translateY: motion.y },
-      { scaleX: motion.sq.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }) },
-      { scaleY: motion.sq.interpolate({ inputRange: [0, 1], outputRange: [1, 0.84] }) },
+      // Присед и придавленность перемножаются: повторять ключ scale в
+      // transform нельзя.
+      { scaleX: Animated.multiply(
+        motion.sq.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }),
+        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, 1.4] })) },
+      { scaleY: Animated.multiply(
+        motion.sq.interpolate({ inputRange: [0, 1], outputRange: [1, 0.84] }),
+        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] })) },
     ],
   }), [motion]);
   // Тень появляется, когда зверёк уже над кромкой, и сжимается в прыжке.
@@ -346,7 +370,7 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, reduceMotion, la
 
 // Мемоизирован и без пропсов: обновляется только вместе с состоянием тасбиха,
 // языком и схемой, а не с каждым тиком часов главного экрана.
-export default memo(function PixelPal() {
+export default memo(function PixelPal({ squashed = false }) {
   const { state, error } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
@@ -425,7 +449,7 @@ export default memo(function PixelPal() {
       {enabled && place ? (
         <View pointerEvents="box-none" style={[styles.clip, { height: place.barTop }]}>
           <Pal key={entryKey} place={place} colors={colors} hasGift={hasGift}
-            active={appActive && focused && !open} reduceMotion={reduceMotion}
+            active={appActive && focused && !open} squashed={squashed} reduceMotion={reduceMotion}
             label={label} hint={hint} onOpen={openGarden} />
         </View>
       ) : null}

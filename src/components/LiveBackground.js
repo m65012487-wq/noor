@@ -2,8 +2,7 @@ import React, { memo, useEffect, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinear, RadialGradient, Stop, Path, Circle } from 'react-native-svg';
 
-// Живые абстрактные фоны в духе меню игровых приставок: световые ленты,
-// плавающие пылинки, медленные пятна света. Всё рисуется в цветах схемы,
+// Живые абстрактные фоны: световые ленты, вращающиеся орбиты, рябь на воде. Всё рисуется в цветах схемы,
 // поэтому одна тема работает с любой палитрой, включая свой цвет.
 //
 // Движение — только transform и opacity на нативном драйвере: JS-поток
@@ -120,73 +119,122 @@ function Glow({ color, size, x, y, alpha, drift, duration, start, still, id }) {
   );
 }
 
-// ---- Пылинки ----
+// ---- Орбиты ----
+// Тонкие кольца вокруг одного центра, как у астролябии: пунктирные и
+// сплошные, каждое медленно вращается в свою сторону, по некоторым плывут
+// светящиеся точки. Вращается весь слой кольца — нативный rotate.
 
-function Mote({ tint, x, y, size, rise, sway, duration, start, peak, still }) {
+function Orbit({ cx, cy, r, dash, width, alpha, dots, duration, dir, start, tint, accent, still }) {
   const p = useCycle(duration, start, still);
-  const { translateX, translateY, opacity } = useMemo(() => ({
-    translateY: p.interpolate({ inputRange: [0, 1], outputRange: [0, -rise] }),
-    translateX: p.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, sway, 0, -sway, 0] }),
-    // Появляется, светит и гаснет за один подъём — без резких вспышек на петле.
-    opacity: still ? peak * 0.7 : p.interpolate({ inputRange: [0, 0.15, 0.5, 0.85, 1], outputRange: [0, peak, peak * 0.75, peak, 0] }),
-  }), [p, rise, sway, peak, still]);
+  const rotate = useMemo(() => p.interpolate({
+    inputRange: [0, 1], outputRange: dir > 0 ? ['0deg', '360deg'] : ['360deg', '0deg'],
+  }), [p, dir]);
+  // Кольцо — рамка View, а не Svg: система рисует её сама, без растра во весь
+  // круг. Svg на кольцо в 900 pt держал десятки мегабайт видеопамяти.
+  const size = r * 2;
   return (
     <Animated.View pointerEvents="none"
-      style={[styles.mote, {
-        left: x, top: y, width: size, height: size, borderRadius: size / 2,
-        backgroundColor: `rgb(${tint})`, shadowColor: `rgb(${tint})`, shadowRadius: size * 1.6,
-        opacity, transform: [{ translateX }, { translateY }],
-      }]} />
+      style={{ position: 'absolute', left: cx - r, top: cy - r, width: size, height: size, transform: [{ rotate }] }}>
+      <View style={{
+        ...StyleSheet.absoluteFillObject, borderRadius: r, borderWidth: width,
+        borderStyle: dash, borderColor: `rgba(${tint},${alpha})`,
+      }} />
+      {dots.map((a, i) => {
+        const d = i === 0 ? 6 : 4;
+        return (
+          <View key={i} style={{
+            position: 'absolute', width: d, height: d, borderRadius: d / 2,
+            left: r + r * Math.cos(a) - d / 2, top: r + r * Math.sin(a) - d / 2,
+            backgroundColor: i === 0 ? accent : `rgb(${tint})`, opacity: 0.9,
+          }} />
+        );
+      })}
+    </Animated.View>
   );
 }
 
-// Параметры пылинок считаются один раз на набор: те же места и пути при
-// каждой перерисовке.
-function Motes({ seed, count, tint, still, from = 0.25, to = 1 }) {
-  const specs = useMemo(() => {
-    const r = rng(seed);
-    return Array.from({ length: count }, () => ({
-      size: 1.5 + r() * 3.5, x: r() * SW, y: SH * (from + r() * (to - from)),
-      rise: SH * (0.25 + r() * 0.45), sway: 6 + r() * 18,
-      duration: 14000 + r() * 22000, start: r(), peak: 0.35 + r() * 0.5,
-    }));
-  }, [seed, count, from, to]);
-  return specs.map((m, i) => <Mote key={i} tint={tint} still={still} {...m} />);
+// dash — стиль рамки: пунктир и точки вращаются вместе с кольцом.
+const ORBITS = [
+  { r: 70,  dash: 'solid',  width: 1,   alpha: 0.22, dots: [0.8],       duration: 50000,  dir: 1 },
+  { r: 118, dash: 'dotted', width: 1.5, alpha: 0.30, dots: [],          duration: 90000,  dir: -1 },
+  { r: 168, dash: 'solid',  width: 1,   alpha: 0.16, dots: [2.4, 5.2],  duration: 120000, dir: 1 },
+  { r: 226, dash: 'dashed', width: 1,   alpha: 0.18, dots: [],          duration: 160000, dir: -1 },
+  { r: 290, dash: 'solid',  width: 1,   alpha: 0.12, dots: [4.1],       duration: 210000, dir: 1 },
+  // Пунктир на большом кольце рисуется растром во весь круг — дорого; здесь
+  // сплошная линия с точками.
+  { r: 362, dash: 'solid',  width: 1,   alpha: 0.14, dots: [0.4, 2.0, 3.6, 5.2], duration: 260000, dir: -1 },
+  { r: 440, dash: 'solid',  width: 1,   alpha: 0.09, dots: [1.3, 3.9],  duration: 320000, dir: 1 },
+];
+
+// ---- Рябь ----
+// Как капли на тихой воде: из точки расходятся три кольца подряд и тают.
+// Каждое кольцо — круг с тонкой рамкой, который растёт и гаснет.
+
+function RippleRing({ x, y, size, tint, duration, start, still }) {
+  const p = useCycle(duration, start, still);
+  const style = useMemo(() => ({
+    opacity: still ? 0.2 : p.interpolate({ inputRange: [0, 0.08, 0.55, 1], outputRange: [0, 0.6, 0.26, 0] }),
+    transform: [{ scale: p.interpolate({ inputRange: [0, 1], outputRange: [0.06, 1] }) }],
+  }), [p, still]);
+  return (
+    <Animated.View pointerEvents="none" style={[styles.ripple, {
+      left: x - size / 2, top: y - size / 2, width: size, height: size, borderRadius: size / 2,
+      borderColor: `rgb(${tint})`,
+    }, style]} />
+  );
 }
 
-export const LIVE_VARIANTS = ['waves', 'dust', 'glow'];
+function Ripples({ seed, count, tint, still }) {
+  const drops = useMemo(() => {
+    const r = rng(seed);
+    return Array.from({ length: count }, () => ({
+      x: SW * (0.08 + r() * 0.84), y: SH * (0.22 + r() * 0.72),
+      size: 150 + r() * 170, duration: 9000 + r() * 7000, start: r(),
+    }));
+  }, [seed, count]);
+  // Три кольца на каплю с отставанием по фазе — волна за волной.
+  return drops.flatMap((d, i) => [0, 0.16, 0.32].map((lag, k) => (
+    <RippleRing key={`${i}-${k}`} x={d.x} y={d.y} size={d.size * (1 - k * 0.12)} tint={tint}
+      duration={d.duration} start={(d.start + lag) % 1} still={still} />
+  )));
+}
+
+export const LIVE_VARIANTS = ['waves', 'orbits', 'ripples'];
 
 function LiveBackground({ variant, scheme, still = false }) {
   const tint = scheme.tint;
   const accent = scheme.accent;
-  if (variant === 'waves') {
+  if (variant === 'orbits') {
+    // Центр — ниже середины, под расписанием: кольцо отсчёта сверху не
+    // спорит с кольцами фона.
+    const cx = SW * 0.5;
+    const cy = SH * 0.78;
     return (
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Glow id="w0" color={accent} size={SW * 1.6} x={SW * 0.85} y={SH * 0.12} alpha={0.16} drift={20} duration={26000} start={0.1} still={still} />
-        <Ribbon id="0" tint={tint} accent={accent} y={SH * 0.60} amp={46} thick={70} phase={0} wobble={0.4} duration={34000} start={0.0} alpha={0.10} still={still} />
-        <Ribbon id="1" tint={tint} accent={accent} y={SH * 0.66} amp={60} thick={46} phase={1.3} wobble={2.1} duration={24000} start={0.4} alpha={0.12} still={still} />
-        <Ribbon id="2" tint={tint} accent={accent} y={SH * 0.72} amp={38} thick={90} phase={2.6} wobble={1.2} duration={44000} start={0.7} alpha={0.08} still={still} />
-        <Ribbon id="3" tint={tint} accent={accent} y={SH * 0.55} amp={30} thick={26} phase={4.0} wobble={3.0} duration={19000} start={0.2} alpha={0.10} still={still} />
-        <Motes seed={11} count={14} tint={tint} still={still} from={0.45} to={0.95} />
+        <Glow id="o0" color={accent} size={SW * 1.3} x={cx} y={cy} alpha={0.2} drift={10} duration={30000} start={0.2} still={still} />
+        {ORBITS.map((o, i) => (
+          <Orbit key={i} cx={cx} cy={cy} tint={tint} accent={accent} still={still}
+            start={(i * 0.137) % 1} {...o} />
+        ))}
       </View>
     );
   }
-  if (variant === 'glow') {
+  if (variant === 'ripples') {
     return (
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Glow id="g0" color={accent} size={SW * 1.5} x={SW * 0.15} y={SH * 0.28} alpha={0.32} drift={40} duration={30000} start={0.0} still={still} />
-        <Glow id="g1" color={`rgb(${tint})`} size={SW * 1.3} x={SW * 0.9} y={SH * 0.55} alpha={0.26} drift={50} duration={38000} start={0.45} still={still} />
-        <Glow id="g2" color={accent} size={SW * 1.1} x={SW * 0.4} y={SH * 0.9} alpha={0.28} drift={35} duration={26000} start={0.75} still={still} />
-        <Motes seed={23} count={18} tint={tint} still={still} />
+        <Glow id="r0" color={accent} size={SW * 1.5} x={SW * 0.3} y={SH * 0.85} alpha={0.14} drift={20} duration={34000} start={0.5} still={still} />
+        <Ripples seed={31} count={6} tint={tint} still={still} />
       </View>
     );
   }
-  // dust — пылинки в луче мягкого света.
+  // waves — только световые ленты и мягкое пятно света сверху.
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Glow id="d0" color={`rgb(${tint})`} size={SW * 1.7} x={SW * 0.7} y={SH * 0.05} alpha={0.22} drift={18} duration={32000} start={0.2} still={still} />
-      <Glow id="d1" color={accent} size={SW * 1.2} x={SW * 0.1} y={SH * 0.75} alpha={0.16} drift={24} duration={28000} start={0.6} still={still} />
-      <Motes seed={7} count={24} tint={tint} still={still} from={0.1} to={1} />
+      <Glow id="w0" color={accent} size={SW * 1.6} x={SW * 0.85} y={SH * 0.12} alpha={0.16} drift={20} duration={26000} start={0.1} still={still} />
+      <Ribbon id="0" tint={tint} accent={accent} y={SH * 0.60} amp={46} thick={70} phase={0} wobble={0.4} duration={34000} start={0.0} alpha={0.10} still={still} />
+      <Ribbon id="1" tint={tint} accent={accent} y={SH * 0.66} amp={60} thick={46} phase={1.3} wobble={2.1} duration={24000} start={0.4} alpha={0.12} still={still} />
+      <Ribbon id="2" tint={tint} accent={accent} y={SH * 0.72} amp={38} thick={90} phase={2.6} wobble={1.2} duration={44000} start={0.7} alpha={0.08} still={still} />
+      <Ribbon id="3" tint={tint} accent={accent} y={SH * 0.55} amp={30} thick={26} phase={4.0} wobble={3.0} duration={19000} start={0.2} alpha={0.10} still={still} />
     </View>
   );
 }
@@ -195,5 +243,5 @@ function LiveBackground({ variant, scheme, still = false }) {
 export default memo(LiveBackground);
 
 const styles = StyleSheet.create({
-  mote: { position: 'absolute', shadowOpacity: 0.9, shadowOffset: { width: 0, height: 0 } },
+  ripple: { position: 'absolute', borderWidth: 2 },
 });
