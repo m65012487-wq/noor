@@ -11,11 +11,16 @@ import {
 } from '../utils/alphabetEngine';
 import { useAppearance } from '../utils/AppearanceContext';
 import { playAsset, stopAudio } from '../utils/audioPlayer';
-import { speakArabic, stopSpeech } from '../utils/speech';
 import { hapticLight, hapticSuccess, hapticError } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
 import { ThemedBackground } from '../components/ScreenWrapper';
 import { Sprout, SproutPerch, SproutSays, talkTime } from '../components/SproutGuide';
+import ArabicFitText from '../components/ArabicFitText';
+
+// Обычные кегли крупной карточки и плитки ответа (с межстрочным): от них
+// ArabicFitText уменьшает длинное слово, чтобы оно встало в строку.
+const AR_CARD = { fontSize: 64, lineHeight: 120 };
+const AR_TILE = { fontSize: 34, lineHeight: 62 };
 
 // Больше стольких шагов сегменты в полосе сливаются в крошки, поэтому
 // вместо них рисуется сплошная полоса и счётчик.
@@ -37,7 +42,6 @@ function LessonBg({ children }) {
 
 // Запись элемента из бандла; если её нет, ничего не звучит.
 function playKey(key, onFinish) {
-  stopSpeech();
   const mod = audioFor(key);
   if (mod) playAsset(mod, onFinish);
 }
@@ -75,13 +79,14 @@ function TopBar({ title, step, total, onExit, accent }) {
   );
 }
 
-// Крупная арабская карточка. Слова бывают длинными (اِسْتَعْظَمَ), поэтому
-// текст ужимается в одну строку.
+// Крупная арабская карточка. Слова бывают длинными (اِسْتَعْظَمَ): такое слово
+// ужимается, чтобы встать в одну строку, но не мельче 40 pt (ArabicFitText).
+// Без onPress (нет записи) карточка не нажимается.
 function ArCard({ text, onPress, hint }) {
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress} disabled={!onPress}>
       <GlassView azure radius={RADIUS.lg} style={styles.arCard}>
-        <Text style={styles.arCardText} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.4}>{text}</Text>
+        <ArabicFitText style={styles.arCardText} base={AR_CARD} min={40}>{text}</ArabicFitText>
         {hint && <Hint text={hint} />}
       </GlassView>
     </TouchableOpacity>
@@ -112,12 +117,12 @@ function Points({ items, lang, accent }) {
 }
 
 // Таблица огласовок: образец на букве Ба, название, где ставится, звук.
-// Строка нажимается — звучит запись или, если её нет, синтезатор.
+// Строка нажимается — звучит запись диктора; синтезатор речи здесь не звучит.
 function MarksTable({ marks, lang, accent, onPlay }) {
   return (
     <GlassView radius={RADIUS.lg} style={styles.marksCard}>
       {marks.map((m, i) => (
-        <TouchableOpacity key={m.ar} activeOpacity={0.8} onPress={() => onPlay(m)}
+        <TouchableOpacity key={m.ar} activeOpacity={0.8} onPress={() => onPlay(m)} disabled={!m.audio}
           style={[styles.markRow, i > 0 && styles.markDivider]}>
           <Text style={styles.markAr}>{m.ar}</Text>
           <View style={styles.markMid}>
@@ -194,8 +199,8 @@ function DoneScreen({ badge, title, children, accent, onExit, t, action, mood = 
 }
 
 export default function LessonPlayerScreen({ step, onExit }) {
-  // Звук и речь обрываются при закрытии плеера.
-  useEffect(() => () => { stopAudio(); stopSpeech(); }, []);
+  // Звук обрывается при закрытии плеера.
+  useEffect(() => () => { stopAudio(); }, []);
 
   if (step.type === 'intro') return <IntroPlayer onExit={onExit} />;
   if (step.type === 'letter') return <LetterPlayer letterId={step.letterId} onExit={onExit} />;
@@ -212,20 +217,21 @@ function IntroPlayer({ onExit }) {
   const s = INTRO[idx];
 
   // Новый шаг — тишина.
-  useEffect(() => { stopAudio(); stopSpeech(); }, [idx]);
+  useEffect(() => { stopAudio(); }, [idx]);
 
-  // Записи для вступления почти нет: без неё читает синтезатор речи.
-  function play(ar, audio) {
+  // Всё во вступлении озвучено записями диктора (alphabetCourse.js); синтезатор
+  // речи больше не читает. Без записи нажатие ничего не делает.
+  function play(audio) {
+    if (!audioFor(audio)) return;
     hapticLight();
-    if (audioFor(audio)) playKey(audio);
-    else { stopAudio(); speakArabic(ar); }
+    playKey(audio);
   }
   const title = lang === 'ru' ? s.title_ru : s.title_en;
   const text = lang === 'ru' ? s.text_ru : s.text_en;
 
   function onNext() {
     if (idx + 1 < INTRO.length) { setIdx(idx + 1); return; }
-    stopAudio(); stopSpeech();
+    stopAudio();
     completeIntro();
     hapticSuccess();
     setDone(true);
@@ -252,8 +258,9 @@ function IntroPlayer({ onExit }) {
             {s.points && <Points items={s.points} lang={lang} accent={accent} />}
           </GlassView>
         </SproutPerch>
-        {s.marks && <MarksTable marks={s.marks} lang={lang} accent={accent} onPlay={(m) => play(m.ar, m.audio)} />}
-        {!!s.ar && <ArCard text={s.ar} onPress={() => play(s.ar, s.audio)} hint={t('tap_to_hear_q')} />}
+        {s.marks && <MarksTable marks={s.marks} lang={lang} accent={accent} onPlay={(m) => play(m.audio)} />}
+        {!!s.ar && <ArCard text={s.ar} onPress={s.audio ? () => play(s.audio) : undefined}
+          hint={s.audio ? t('tap_to_hear_q') : undefined} />}
       </ScrollView>
       <View style={styles.footer}>
         <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: accent }]} onPress={onNext}>
@@ -276,7 +283,7 @@ function LetterPlayer({ letterId, onExit }) {
   const item = letter.items[idx];
 
   // Запись по умолчанию не включается: методика требует прочитать самому.
-  useEffect(() => { stopAudio(); stopSpeech(); }, [idx]);
+  useEffect(() => { stopAudio(); }, [idx]);
 
   function onNext() {
     if (idx + 1 < total) { setIdx(idx + 1); return; }
@@ -581,10 +588,13 @@ function QuizRun({ lessonIndex, passedBefore, onExit, onRetry }) {
                   <AnswerTile state={state} accent={accent} tint={tint} disabled={checked}
                     height={arabic ? 104 : 68}
                     onPress={() => { hapticLight(); setSelected(opt); if (arabic) playKey(opt.key); }}>
-                    <Text style={[arabic ? styles.tileAr : styles.tileName]}
-                      numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
-                      {arabic ? opt.ar : letterName(opt, lang)}
-                    </Text>
+                    {arabic ? (
+                      <ArabicFitText style={styles.tileAr} base={AR_TILE} min={24}>{opt.ar}</ArabicFitText>
+                    ) : (
+                      <Text style={styles.tileName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                        {letterName(opt, lang)}
+                      </Text>
+                    )}
                   </AnswerTile>
                 </View>
               );
@@ -734,7 +744,8 @@ const styles = StyleSheet.create({
   bannerText: { flex: 1, marginLeft: SPACING.md },
   bannerTitle: { ...TYPE.heading, color: COLORS.white },
   bannerDetail: { ...TYPE.callout, color: 'rgba(255,255,255,0.92)', marginTop: SPACING.xxs },
-  bannerAr: { fontSize: 20, fontFamily: FONTS.arabic, color: COLORS.white },
+  // Арабский при равном кегле заметно мельче кириллицы — берём крупнее строки.
+  bannerAr: { fontSize: 24, fontFamily: FONTS.arabic, color: COLORS.white },
   bannerBtn: { backgroundColor: COLORS.white, borderRadius: RADIUS.pill, minHeight: 50,
     alignItems: 'center', justifyContent: 'center' },
   bannerBtnText: { ...TYPE.subhead, fontWeight: '800' },

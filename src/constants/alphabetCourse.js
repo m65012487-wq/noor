@@ -84,16 +84,27 @@ export const LESSONS = LESSON_STARTS.map((start, li) => {
   return { index: li, letters: ALPHABET.slice(start - 1, end - 1) };
 });
 
-// Записей для вступления в оригинале нет; совпадающие слоги буквы Ба озвучены
-// её же записями, остальные — синтезатором речи.
+// Записей для вступления в оригинале нет. Синтезатор речи здесь не звучит:
+// буква и слоги озвучены записями буквы Ба, сукун — записью «аб» (اَبْ) из её
+// же урока, а связки «ба-ба», «ба-би», «бу-би» собраны из записей слогов тем
+// же диктором (scripts/alphabet/build_intro_audio.py).
 const BA = ALPHABET[7];
-const BA_AUDIO = { 'ب': BA.items[0].key, 'بَ': BA.items[1].key, 'بِ': BA.items[2].key, 'بُ': BA.items[3].key };
+const INTRO_FILES = {
+  'intro-baba': require('../../assets/alphabet/intro-baba.m4a'),
+  'intro-babi': require('../../assets/alphabet/intro-babi.m4a'),
+  'intro-bubi': require('../../assets/alphabet/intro-bubi.m4a'),
+};
+const INTRO_AUDIO = {
+  'ب': BA.items[0].key, 'بَ': BA.items[1].key, 'بِ': BA.items[2].key, 'بُ': BA.items[3].key,
+  'اَبْ': BA.items[4].key,
+  'بَبَ': 'intro-baba', 'بَبِ': 'intro-babi', 'بُبِ': 'intro-bubi',
+};
 
 // Вступление: короткие шаги вместо абзацев. У шага может быть заголовок,
 // текст, пункты списком, таблица огласовок и арабская карточка для чтения.
 const step = (s) => ({
   title_ru: null, title_en: null, points: null, marks: null, ar: '', ...s,
-  audio: s.ar ? BA_AUDIO[s.ar] || null : null,
+  audio: s.ar ? INTRO_AUDIO[s.ar] || null : null,
 });
 
 export const INTRO = [
@@ -115,19 +126,21 @@ export const INTRO = [
       { ar: 'بَ', name_ru: 'Фатха', name_en: 'Fatha', where_ru: 'чёрточка сверху', where_en: 'stroke above', sound: 'а', sound_en: 'a' },
       { ar: 'بِ', name_ru: 'Кясра', name_en: 'Kasra', where_ru: 'чёрточка снизу', where_en: 'stroke below', sound: 'и', sound_en: 'i' },
       { ar: 'بُ', name_ru: 'Дамма', name_en: 'Damma', where_ru: 'запятая сверху', where_en: 'small hook above', sound: 'у', sound_en: 'u' },
-      { ar: 'بْ', name_ru: 'Сукун', name_en: 'Sukun', where_ru: 'кружок сверху', where_en: 'small circle above', sound: '—', sound_en: '—' },
-    ].map((m) => ({ ...m, audio: BA_AUDIO[m.ar] || null })),
+      // Согласный без гласной отдельно не произносится, поэтому образец
+      // сукуна — слог «аб»: Алиф с фатхой даёт «а», Ба с сукуном его закрывает.
+      { ar: 'اَبْ', name_ru: 'Сукун', name_en: 'Sukun', where_ru: 'кружок сверху — гласной нет', where_en: 'small circle above — no vowel', sound: 'аб', sound_en: 'ab' },
+    ].map((m) => ({ ...m, audio: INTRO_AUDIO[m.ar] || null })),
     button_ru: 'Дальше', button_en: 'Next',
   }),
   step({ text_ru: 'Это буква Ба — звук «б».', text_en: 'This is the letter Ba — the sound "b".', ar: 'ب', button_ru: 'Дальше', button_en: 'Next' }),
   step({ text_ru: 'Фатха сверху — читаем «ба».', text_en: 'Fatha above — it reads "ba".', ar: 'بَ', button_ru: 'Дальше', button_en: 'Next' }),
   step({ text_ru: 'Кясра снизу — читаем «би».', text_en: 'Kasra below — it reads "bi".', ar: 'بِ', button_ru: 'Дальше', button_en: 'Next' }),
   step({ text_ru: 'Дамма сверху — читаем «бу».', text_en: 'Damma above — it reads "bu".', ar: 'بُ', button_ru: 'Дальше', button_en: 'Next' }),
-  step({ text_ru: 'Две буквы: «баб». У второй сукун — гласной нет.', text_en: 'Two letters: "bab". The second has sukun — no vowel.', ar: 'بَبْ', button_ru: 'Дальше', button_en: 'Next' }),
-  step({ text_ru: 'А здесь у обеих фатха: «баба».', text_en: 'Here both have fatha: "baba".', ar: 'بَبَ', button_ru: 'Дальше', button_en: 'Next' }),
-  step({ text_ru: 'Теперь сами: прочитайте вслух, потом нажмите на карточку и сверьте.', text_en: 'Now you: read it aloud, then tap the card to check.', ar: 'بَبِ', button_ru: 'Я прочитал', button_en: 'I read it' }),
-  step({ text_ru: 'Это «баби». Ещё одно:', text_en: 'That was "babi". One more:', ar: 'بُبِ', button_ru: 'Я прочитал', button_en: 'I read it' }),
-  step({ text_ru: 'Верно — «буби». Принцип понятен: буква даёт согласный, огласовка — гласный.', text_en: 'Right — "bubi". That is the whole idea: the letter gives the consonant, the mark gives the vowel.', button_ru: 'Как устроен курс?', button_en: 'How does the course work?' }),
+  step({ text_ru: 'Кружок — сукун: после буквы гласной нет. Алиф с фатхой даёт «а», Ба с сукуном закрывает слог: «аб».', text_en: 'The small circle is sukun: no vowel after the letter. Alif with fatha gives "a", Ba with sukun closes the syllable: "ab".', ar: 'اَبْ', button_ru: 'Дальше', button_en: 'Next' }),
+  step({ text_ru: 'Две буквы, у обеих фатха: «ба-ба».', text_en: 'Two letters, both with fatha: "ba-ba".', ar: 'بَبَ', button_ru: 'Дальше', button_en: 'Next' }),
+  step({ text_ru: 'Теперь сами: прочитайте вслух по слогам, потом нажмите на карточку и сверьте.', text_en: 'Now you: read it aloud syllable by syllable, then tap the card to check.', ar: 'بَبِ', button_ru: 'Я прочитал', button_en: 'I read it' }),
+  step({ text_ru: 'Это «ба-би». Ещё одно:', text_en: 'That was "ba-bi". One more:', ar: 'بُبِ', button_ru: 'Я прочитал', button_en: 'I read it' }),
+  step({ text_ru: 'Верно — «бу-би». Принцип понятен: буква даёт согласный, огласовка — гласный.', text_en: 'Right — "bu-bi". That is the whole idea: the letter gives the consonant, the mark gives the vowel.', button_ru: 'Как устроен курс?', button_en: 'How does the course work?' }),
   step({
     title_ru: 'Как заниматься', title_en: 'How to practise',
     points: [
@@ -150,7 +163,7 @@ export const INTRO = [
 ];
 
 export function audioFor(key) {
-  return key ? AUDIO[key] || null : null;
+  return key ? AUDIO[key] || INTRO_FILES[key] || null : null;
 }
 
 export function letterName(letter, lang) {

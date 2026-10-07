@@ -861,9 +861,49 @@ test('alphabet course data: 28 letters, 7 lessons cover each letter once, every 
     assert.ok(step.button_ru && step.button_en);
     for (const p of step.points || []) assert.ok(p.ru && p.en);
     for (const m of step.marks || []) assert.ok(m.name_ru && m.name_en && m.where_ru && m.where_en && m.sound && m.sound_en);
-    if (step.audio) assert.ok(audioFor(step.audio));
-    for (const m of step.marks || []) if (m.audio) assert.ok(audioFor(m.audio));
+    // Синтезатор речи во вступлении не звучит: у каждой арабской карточки и
+    // строки таблицы огласовок есть запись диктора, и файл лежит в бандле.
+    if (step.ar) assert.ok(step.audio && audioFor(step.audio), `intro card without recording: ${step.ar}`);
+    for (const m of step.marks || []) assert.ok(m.audio && audioFor(m.audio), `mark without recording: ${m.ar}`);
   }
+  for (const key of ['intro-baba', 'intro-babi', 'intro-bubi']) {
+    assert.ok(audioFor(key), `no recording for ${key}`);
+    assert.ok(fs.existsSync(path.resolve(__dirname, '..', 'assets', 'alphabet', `${key}.m4a`)), `no file ${key}`);
+  }
+});
+
+test('arabic text: fitted size has a floor, wraps instead of shrinking, mixed runs are found', () => {
+  const { fitArabicSize, splitArabicRuns, isMixedArabic } = load('src/utils/arabicText.js');
+  const zikr = { base: { fontSize: 34, lineHeight: 64 }, min: 24, maxLines: 2, maxHeight: 96 };
+  // Помещается — обычный кегль; неизвестная рамка — тоже.
+  assert.deepEqual(fitArabicSize({ ...zikr, total: 300, boxW: 342 }), { fontSize: 34, lineHeight: 64, lines: 1 });
+  assert.deepEqual(fitArabicSize({ ...zikr, total: 342, boxW: 342 }), { fontSize: 34, lineHeight: 64, lines: 1 });
+  assert.deepEqual(fitArabicSize({ ...zikr, total: 900, boxW: 0 }), { fontSize: 34, lineHeight: 64, lines: 1 });
+  // Чуть длиннее рамки — ужимается в одну строку, межстрочный вместе с кеглем.
+  assert.deepEqual(fitArabicSize({ ...zikr, total: 400, boxW: 342 }), { fontSize: 27, lineHeight: 51, lines: 1 });
+  // Перенёсся, хотя сумма строк без пробела на переносе не больше рамки, —
+  // всё равно ужимается, а не идёт в две строки полным кеглем.
+  assert.deepEqual(fitArabicSize({ ...zikr, total: 320, boxW: 327, wrapped: true }), { fontSize: 32, lineHeight: 60, lines: 1 });
+  assert.deepEqual(fitArabicSize({ ...zikr, total: 320, boxW: 327 }), { fontSize: 34, lineHeight: 64, lines: 1 });
+  // В одну строку только мельче 24 — две строки, но не полным кеглем: высота.
+  assert.deepEqual(fitArabicSize({ ...zikr, total: 520, boxW: 342 }), { fontSize: 25, lineHeight: 47, lines: 2 });
+  assert.deepEqual(fitArabicSize({ ...zikr, maxHeight: undefined, total: 520, boxW: 342 }), { fontSize: 34, lineHeight: 64, lines: 2 });
+  // Очень длинный — нижний кегль и последняя разрешённая строка, не точки.
+  assert.deepEqual(fitArabicSize({ ...zikr, total: 2000, boxW: 342 }), { fontSize: 24, lineHeight: 45, lines: 2 });
+  // Карточка урока: одна строка, не мельче 40.
+  const card = { base: { fontSize: 64, lineHeight: 120 }, min: 40 };
+  assert.deepEqual(fitArabicSize({ ...card, total: 300, boxW: 279 }), { fontSize: 57, lineHeight: 107, lines: 1 });
+  assert.deepEqual(fitArabicSize({ ...card, total: 600, boxW: 279 }), { fontSize: 40, lineHeight: 75, lines: 1 });
+
+  assert.equal(isMixedArabic('Алиф · ا'), true);
+  assert.equal(isMixedArabic('Lesson 1 · Ba ب'), true);
+  assert.equal(isMixedArabic('بَبَ'), false);
+  assert.equal(isMixedArabic('Урок 1'), false);
+  assert.equal(isMixedArabic(5), false);
+  assert.deepEqual(splitArabicRuns('Алиф · ا'), [{ text: 'Алиф · ', arabic: false }, { text: 'ا', arabic: true }]);
+  assert.deepEqual(splitArabicRuns('С огласовкой (اَ اِ اُ) читается'), [
+    { text: 'С огласовкой (', arabic: false }, { text: 'اَ اِ اُ', arabic: true }, { text: ') читается', arabic: false },
+  ]);
 });
 
 test('alphabet course: opening rules follow intro, letter order and passed quizzes', () => {

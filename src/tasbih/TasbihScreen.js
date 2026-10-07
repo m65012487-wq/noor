@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
 import { ThemedBackground, useReduceMotion } from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
+import ArabicFitText from '../components/ArabicFitText';
 import Icon from '../components/Icon';
 import { ARABIC, COLORS, FONTS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useAppearance, patternKind } from '../utils/AppearanceContext';
@@ -22,6 +23,11 @@ import { activeTree, definition, DHIKR, growthRatio, sequenceSteps, SPECIES, STA
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
+
+// Высота арабского зикра в две строки. Полосе слов (166) нужно ещё около 70 pt
+// под транскрипцию в две строки и перевод в одну, поэтому две строки арабского
+// идут кеглем 25, а не полными 34.
+const ARABIC_BLOCK = 96;
 
 // Pill label for the current mode — 'sequence'/'free' aren't in DHIKR, and a
 // custom dhikr's label is its own text, so this can't just look the id up
@@ -89,6 +95,7 @@ export default function TasbihScreen({ onClose }) {
   }, [item.id, textFade, reduceMotion]);
   const phrase = ru ? item.ru : item.en;
   const translation = ru ? item.translation_ru : item.translation_en;
+  const [arabicLines, setArabicLines] = useState(1);
   const onTap = (e) => {
     const event = tap();
     hapticLight();
@@ -168,10 +175,14 @@ export default function TasbihScreen({ onClose }) {
         {!state || !tree ? <ActivityIndicator style={{ flex: 1 }} color={accent} /> : (
           <>
             <Animated.View style={[styles.words, { opacity: textFade }]}>
-              {!!item.arabic && <Text style={styles.arabic} accessibilityLanguage="ar"
-                numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{item.arabic}</Text>}
+              {/* Длинный зикр не ужимается в одну строку до точек: кегль не
+                  меньше 24, дальше — перенос на вторую строку (ArabicFitText). */}
+              {!!item.arabic && <ArabicFitText style={styles.arabic} accessibilityLanguage="ar"
+                base={ARABIC.lg} min={24} maxLines={2} maxHeight={ARABIC_BLOCK}
+                onLines={setArabicLines}>{item.arabic}</ArabicFitText>}
               <Text style={styles.phrase} numberOfLines={2}>{phrase}</Text>
-              {!!translation && <Text style={styles.translation} numberOfLines={2}>{translation}</Text>}
+              {/* Арабский в две строки — перевод в одну: полоса слов не растёт. */}
+              {!!translation && <Text style={styles.translation} numberOfLines={item.arabic && arabicLines > 1 ? 1 : 2}>{translation}</Text>}
             </Animated.View>
 
             <Animated.View style={[styles.counter, { transform: [{ scale: reduceMotion ? 1 : flashScale }] }]}>
@@ -251,7 +262,9 @@ const styles = StyleSheet.create({
   badge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   badgeText: { ...TYPE.caption, fontSize: 10, lineHeight: 12, color: COLORS.navy, fontWeight: '700' },
 
-  words: { alignItems: 'center', justifyContent: 'center', height: 146, overflow: 'hidden' },
+  // Высота с запасом на арабский в две строки (ARABIC_BLOCK) над транскрипцией в
+  // две строки и переводом в одну.
+  words: { alignItems: 'center', justifyContent: 'center', height: 166, overflow: 'hidden' },
   arabic: { ...LEGIBLE, ...ARABIC.lg, fontFamily: FONTS.arabic, color: COLORS.text, textAlign: 'center' },
   phrase: { ...LEGIBLE, ...TYPE.subhead, color: COLORS.text, textAlign: 'center', marginTop: SPACING.xs },
   translation: { ...LEGIBLE, ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center', marginTop: 2 },

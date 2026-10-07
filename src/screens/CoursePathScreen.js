@@ -248,7 +248,9 @@ const styles = StyleSheet.create({
   badge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   badgeLocked: { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: COLORS.hairline, borderWidth: 1 },
   badgeNum: { ...TYPE.callout, fontWeight: '800' },
-  lettersLine: { fontSize: 20, lineHeight: 34, color: COLORS.text, fontFamily: FONTS.arabic, marginLeft: SPACING.sm },
+  // Арабский при равном кегле заметно мельче кириллицы: 20 pt здесь читались
+  // точками.
+  lettersLine: { fontSize: 24, lineHeight: 40, color: COLORS.text, fontFamily: FONTS.arabic, marginLeft: SPACING.sm },
   dim: { opacity: 0.45 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: SPACING.sm, marginHorizontal: -SPACING.xs },
