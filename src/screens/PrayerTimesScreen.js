@@ -14,6 +14,8 @@ import { useAppearance } from '../utils/AppearanceContext';
 
 import ProgressRing from '../components/ProgressRing';
 import { getPrayerDay, getPrayerWindow, prayerEvents } from '../utils/prayerSchedule';
+import { useTablesVersion } from '../utils/useOfficialTables';
+import { syncOfficialTables } from '../utils/timesServer';
 import { localDateKey } from '../utils/calendarDate';
 import { updateSchedule } from '../utils/scheduleQueue';
 import { schedulePrayerReminders } from '../utils/prayerNotifications';
@@ -44,6 +46,8 @@ export default function PrayerTimesScreen() {
   const { accent } = useAppearance();
   const { coords } = useLocation();
   const { reminders, timeSourceId, asrSchool, notifSound, adhanNotifSound, hijriOffset, tune } = useAppSettings();
+  // Пришла таблица с сервера — времена пересчитываются сразу.
+  const tablesVersion = useTablesVersion();
   const [clock, setClock] = useState(new Date());
   const today = clock;
   const [days, setDays] = useState([]);
@@ -126,6 +130,25 @@ export default function PrayerTimesScreen() {
     return () => { clearInterval(tick); sub.remove(); };
   }, []);
 
+  // Графики управлений лежат на нашем сервере: сверяемся при смене места или
+  // источника и каждый раз, когда приложение возвращается на передний план.
+  // Частоту ограничивает сам syncOfficialTables, а пришедшую таблицу экран
+  // подхватывает через useTablesVersion.
+  const lat = coords?.lat;
+  const lng = coords?.lng;
+  const region = coords?.region;
+  const country = coords?.country;
+  const usesTables = timeSourceId === 'auto' || timeSourceId === 'russia';
+  useEffect(() => {
+    if (!usesTables || !Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+    const where = { lat, lng, region, country };
+    syncOfficialTables(where);
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') syncOfficialTables(where);
+    });
+    return () => sub.remove();
+  }, [usesTables, lat, lng, region, country]);
+
   useEffect(() => {
     if (!coords) { setLoading(false); return undefined; }
     let cancelled = false;
@@ -133,7 +156,7 @@ export default function PrayerTimesScreen() {
     setError(null);
     setTimings(null);
     setDays([]);
-    const options = { lat: coords.lat, lng: coords.lng, region: coords.region, sourceId: timeSourceId, school: asrSchool, tune };
+    const options = { lat: coords.lat, lng: coords.lng, region: coords.region, country: coords.country, sourceId: timeSourceId, school: asrSchool, tune };
     getPrayerDay(options)
       .then(day => {
         if (cancelled) return [];
@@ -154,7 +177,7 @@ export default function PrayerTimesScreen() {
       .catch(() => { if (!cancelled) setError(t('load_error')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [coords, timeSourceId, asrSchool, tune, dayKey, refresh, lang, t]);
+  }, [coords, timeSourceId, asrSchool, tune, dayKey, refresh, lang, t, tablesVersion]);
 
   useEffect(() => {
     if (!days.length) return undefined;

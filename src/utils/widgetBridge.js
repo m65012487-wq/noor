@@ -1,5 +1,6 @@
 import { ExtensionStorage } from '@bacons/apple-targets';
 import { loadJSON, todayKey, daysAgoKey } from './helpers';
+import { prayerDayShift } from './calendarDate';
 
 const APP_GROUP = 'group.95233b59e7e45aab.1';
 let storage = null;
@@ -8,11 +9,17 @@ function shared() {
   return storage;
 }
 
+// У каждого времени своё `shift` — в какие сутки относительно строки дня оно
+// наступает: −1 (Фаджр 23:54 в строке 5 мая — это вечер 4 мая), 0 или +1 (Иша
+// после полуночи). Правило то же, что в приложении (prayerDayShift): виджет
+// строит дату сам и без сдвига поставил бы такой намаз не в те сутки. Старый
+// снимок без поля виджет читает как 0.
 export function publishPrayerDay({ days, order, label, city }) {
   try {
     const snapshot = days.map(day => ({
       date: day.date, city, timezone: day.timezone,
-      times: order.map(key => ({ key, name: label(key), time: day.timings[key] })),
+      times: order.map(key => ({ key, name: label(key), time: day.timings[key],
+        shift: prayerDayShift(day.timings, key) })),
       nextKey: null,
     }));
     shared().set('prayerWindow:v2', JSON.stringify(snapshot));

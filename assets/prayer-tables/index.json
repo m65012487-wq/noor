@@ -1,0 +1,26 @@
+{
+  "v": 1,
+  "generated": "2026-10-09T00:00:00Z",
+  "authorities": [
+    {
+      "id": "ru-kbr",
+      "name": "ДУМ КБР",
+      "name_en": "Muftiate of Kabardino-Balkaria",
+      "country": "RU",
+      "regions": ["kabard", "кабард"],
+      "utcOffset": 180,
+      "fallback": { "kind": "dumKbr" },
+      "source": "https://www.kbrdum.ru/8-grafik-namazov",
+      "places": [
+        {
+          "id": "kbr",
+          "name": "Кабардино-Балкария",
+          "lat": 43.4981,
+          "lng": 43.6189,
+          "radiusKm": 100,
+          "tables": []
+        }
+      ]
+    }
+  ]
+}

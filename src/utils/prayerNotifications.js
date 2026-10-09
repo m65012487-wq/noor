@@ -9,6 +9,7 @@
 // открытии приложения и смене настроек.
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
+import { prayerDayShift } from './calendarDate';
 
 const TAG = 'prayer-reminder';
 // Восход тоже присылает уведомление: он завершает время утренней молитвы.
@@ -48,12 +49,15 @@ export async function cancelPrayerReminders() {
 
 // "05:14" + дата -> Date. Возвращает null, если время не разобралось:
 // источник времён может отдать прочерк, когда солнце не заходит.
-function timeToDate(hhmm, day) {
+// shift — сдвиг суток (−1, 0, +1): Фаджр строки D, записанный как 23:54, идёт
+// вечером D−1, а Иша после полуночи — в D+1 (prayerDayShift).
+function timeToDate(hhmm, day, shift = 0) {
   if (typeof hhmm !== 'string') return null;
   const match = hhmm.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   const date = new Date(day);
   date.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  if (shift) date.setDate(date.getDate() + shift);
   return date;
 }
 
@@ -80,7 +84,10 @@ export async function schedulePrayerReminders({
   const now = Date.now();
   const planned = [];
 
-  for (let offset = 0; offset < days; offset += 1) {
+  // Со вчерашней строки: Иша после полуночи записана в строке вчерашнего дня,
+  // а наступает сегодня, и перестроенное после полуночи расписание иначе
+  // потеряло бы её. Всё прошедшее отсекает проверка fireAt ниже.
+  for (let offset = -1; offset < days; offset += 1) {
     const day = new Date();
     day.setDate(day.getDate() + offset);
     day.setHours(0, 0, 0, 0);
@@ -94,7 +101,7 @@ export async function schedulePrayerReminders({
     if (!times) continue;
 
     for (const prayer of [...enabled, ...EXTRA]) {
-      const at = timeToDate(times[prayer], day);
+      const at = timeToDate(times[prayer], day, prayerDayShift(times, prayer));
       if (!at) continue;
 
       // Само наступление времени: приходит всегда, для всех намазов

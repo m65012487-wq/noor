@@ -16,6 +16,7 @@ import { QuranPrefsProvider } from './src/utils/QuranPrefsContext';
 import { AppSettingsProvider } from './src/utils/AppSettingsContext';
 import { AppearanceProvider } from './src/utils/AppearanceContext';
 import { TasbihProvider } from './src/tasbih/useTasbih';
+import { loadStoredTables } from './src/utils/timesServer';
 
 const Tab = createBottomTabNavigator();
 
@@ -51,6 +52,10 @@ export default function App() {
       // Шрифты не загружаются: Amiri в репозитории нет, а статический require
       // несуществующего файла Metro не собирает вовсе. Арабский текст рисуется
       // системным шрифтом — на iOS это SF Arabic, он для этого и предназначен.
+      // Графики, скачанные с сервера раньше, ставятся до первого расчёта
+      // времён: иначе первый экран показал бы время по запасному способу и
+      // сразу пересчитался. Ошибок функция не бросает.
+      await loadStoredTables();
       await requestNotifPermission();
       setReady(true);
     })();

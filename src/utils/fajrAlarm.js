@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { ensurePermission } from './prayerNotifications';
 import { loadJSON, saveJSON } from './helpers';
-import { atTime, localDateKey } from './calendarDate';
+import { localDateKey, prayerMoment } from './calendarDate';
 
 const TAG = 'fajr-alarm';
 export async function getFajrAlarmSettings() {
@@ -23,9 +23,12 @@ export async function scheduleFajrDays(days, labels) {
   if (!settings.enabled || !(await ensurePermission())) return 0;
   const now = Date.now();
   const awakeDate = await loadJSON('fajrAwakeDate', null);
+  // Окно начинается с момента Фаджра, а не с его часов на дате строки: в графике
+  // высоких широт Фаджр строки D бывает записан как 23:54, то есть вечером D−1.
+  // date при этом остаётся датой строки — по ней отмечается «я проснулся».
   const windows = days.map(day => ({ date: day.date,
-    from: atTime(day.date, day.timings.Fajr)?.getTime(),
-    to: atTime(day.date, day.timings.Sunrise)?.getTime(),
+    from: prayerMoment(day, 'Fajr')?.getTime(),
+    to: prayerMoment(day, 'Sunrise')?.getTime(),
   })).filter(w => w.from && w.to > now && w.date !== awakeDate).slice(0, 3);
   let scheduled = 0;
   for (const window of windows) {
@@ -43,13 +46,18 @@ export async function scheduleFajrDays(days, labels) {
   await saveJSON('fajrAlarmWindows', windows);
   return scheduled;
 }
+// «Проснулся» помнится по дате строки окна, а не по календарной дате «сейчас»:
+// окно строки D может начаться в 23:54 вечера D−1, и отметка, поставленная до
+// полуночи, должна гасить именно его, а не вернуться баннером после неё.
 export async function isInAlarmWindow() {
-  if (await loadJSON('fajrAwakeDate', null) === localDateKey()) return false;
+  const awakeDate = await loadJSON('fajrAwakeDate', null);
   const windows = await loadJSON('fajrAlarmWindows', []);
-  return windows.some(w => Date.now() >= w.from && Date.now() < w.to);
+  return windows.some(w => w.date !== awakeDate && Date.now() >= w.from && Date.now() < w.to);
 }
 export async function markAwake() {
-  const day = localDateKey();
+  const windows = await loadJSON('fajrAlarmWindows', []);
+  const now = Date.now();
+  const day = windows.find(w => now >= w.from && now < w.to)?.date || localDateKey();
   await saveJSON('fajrAwakeDate', day);
   const all = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(all.filter(n => n.content?.data?.tag === TAG && n.content?.data?.day === day)

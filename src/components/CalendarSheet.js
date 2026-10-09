@@ -10,6 +10,7 @@ import { useAppSettings } from '../utils/AppSettingsContext';
 import { useLocation } from '../utils/LocationContext';
 import { toHijri, formatHijri, monthName, HIJRI_MONTHS_RU, HIJRI_MONTHS_EN } from '../utils/hijri';
 import { getPrayerDay } from '../utils/prayerSchedule';
+import { useTablesVersion } from '../utils/useOfficialTables';
 import { prayerName } from '../constants/prayerNames';
 import { moonPhase } from '../utils/moon';
 
@@ -28,6 +29,7 @@ export default function CalendarSheet({ visible, onClose }) {
   const { accent } = useAppearance();
   const { hijriOffset, timeSourceId, asrSchool, tune } = useAppSettings();
   const { coords } = useLocation();
+  const tablesVersion = useTablesVersion();
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [picked, setPicked] = useState(today);
@@ -50,11 +52,11 @@ export default function CalendarSheet({ visible, onClose }) {
     if (!visible || !coords) return undefined;
     let cancelled = false;
     setTimes(null);
-    getPrayerDay({ lat: coords.lat, lng: coords.lng, region: coords.region, sourceId: timeSourceId, school: asrSchool, tune }, picked)
+    getPrayerDay({ lat: coords.lat, lng: coords.lng, region: coords.region, country: coords.country, sourceId: timeSourceId, school: asrSchool, tune }, picked)
       .then(day => { if (!cancelled) setTimes(day.timings); })
       .catch(() => { if (!cancelled) setTimes(null); });
     return () => { cancelled = true; };
-  }, [visible, coords, timeSourceId, asrSchool, tune, picked]);
+  }, [visible, coords, timeSourceId, asrSchool, tune, picked, tablesVersion]);
 
   const step = (delta) => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1));
 

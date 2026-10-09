@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import Text from './AppText';
 import Icon from './Icon';
@@ -11,7 +11,10 @@ import { useAppearance, makeScheme } from '../utils/AppearanceContext';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
 import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm } from '../utils/fajrAlarm';
-import { TIME_SOURCES } from '../utils/prayerSource';
+import { describeAutoSource } from '../utils/prayerSource';
+import { useTablesVersion } from '../utils/useOfficialTables';
+import { useLocation } from '../utils/LocationContext';
+import { PRAYER_NAMES } from '../constants/prayerNames';
 import { playUrl, playAsset, stopAudio } from '../utils/audioPlayer';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -88,6 +91,28 @@ function Grid({ children }) {
   return <View style={styles.grid}>{children}</View>;
 }
 
+// Поправка к времени одного намаза, в минутах: не дальше получаса в любую
+// сторону — больше уже не «под мечеть», а другой график.
+const TUNE_MAX = 30;
+const TUNE_PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+// «+2 мин», «−1 мин», «0»: настоящий минус (U+2212) одной ширины с плюсом.
+function tuneLabel(minutes, unit) {
+  if (!minutes) return '0';
+  return `${minutes > 0 ? '+' : '\u2212'}${Math.abs(minutes)} ${unit}`;
+}
+
+// Круглая кнопка поправки. Размер задан жёстко, чтобы «−» и «+» не отличались
+// ни высотой, ни шириной; на краю диапазона кнопка гаснет.
+function TuneBtn({ icon, onPress, disabled }) {
+  return (
+    <TouchableOpacity style={[styles.tuneBtn, disabled && styles.tuneBtnOff]} onPress={onPress}
+      disabled={disabled} activeOpacity={0.7} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+      <Icon name={icon} size={18} color={COLORS.white} />
+    </TouchableOpacity>
+  );
+}
+
 // Подпись в ячейке всегда в одну строку: длинная («Свой цвет», «Без рисунка»)
 // чуть ужимается, а не переносится — перенос делал кнопку выше соседних.
 const FIT = { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.7 };
@@ -107,7 +132,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
     adhanNotifSound, chooseAdhanNotifSound, hijriOffset, chooseHijriOffset,
-    timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool } = useAppSettings();
+    asrSchool, chooseAsrSchool, tune, setTuneFor, resetTune } = useAppSettings();
+  const { coords } = useLocation();
+  const tablesVersion = useTablesVersion();
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
     customColor, chooseCustomColor,
     uiFont, chooseUiFont, UI_FONTS, parallax, toggleParallax,
@@ -123,6 +150,31 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const [openSection, setOpenSection] = useState(null);
   const [alarmOn, setAlarmOn] = useState(false);
   const [alarmInt, setAlarmInt] = useState(5);
+
+  // Источник времени не выбирается: график духовного управления региона и
+  // ближайшего к месту пункта, а где его нет — метод. Здесь только сказать,
+  // откуда сейчас время; пересчитываем при смене места и новых графиках.
+  const autoInfo = useMemo(() => (coords
+    ? describeAutoSource({ lat: coords.lat, lng: coords.lng, region: coords.region, country: coords.country }, new Date())
+    : null),
+  // tablesVersion — не значение, а сигнал: пришли новые графики, описание устарело.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [coords, tablesVersion]);
+  const sourceNote = useMemo(() => {
+    if (!autoInfo) return null;
+    const info = autoInfo;
+    const name = (lang === 'ru' ? info.authorityName : info.authorityNameEn) || info.authorityName || '';
+    const fill = (key) => t(key).replace('{name}', name).replace('{place}', info.placeName || '').replace('{year}', String(info.year));
+    if (info.mode === 'table') return fill(info.placeName ? 'src_now_table' : 'src_now_table_bare');
+    if (info.mode === 'previousYear') return fill('src_now_prev_year');
+    if (info.mode === 'fallback') return fill('src_now_fallback');
+    return fill('src_now_country');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoInfo, lang]);
+  // Мазхаб Асра важен только для расчёта методом: в официальном графике Аср
+  // уже посчитан так, как принято у управления.
+  const byMethod = !autoInfo || autoInfo.mode === 'fallback' || autoInfo.mode === 'country';
+  const tuned = TUNE_PRAYERS.some((key) => tune?.[key]);
   React.useEffect(() => { (async () => {
     const st = await getFajrAlarmSettings(); setAlarmOn(st.enabled); setAlarmInt(st.interval);
   })(); }, [visible]);
@@ -176,16 +228,36 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
       {/* ===== PRAYER ===== */}
         <Section id="prayer" icon="prayer" title={t("sec_prayer")} open={openSection === 'prayer'} onToggle={toggle}>
           <Text style={styles.label}>{t('time_source')}</Text>
-          {TIME_SOURCES.map((s) => (
-            <Opt key={s.id} label={lang === 'ru' ? s.label_ru : s.label_en}
-              active={timeSourceId === s.id} onPress={() => chooseTimeSource(s.id)} activeBg={activeBg} accent={accentColor} />
-          ))}
+          <Text style={styles.hintText}>{sourceNote || t('src_need_place')}</Text>
 
-          <Text style={styles.label}>{t('asr_method')}</Text>
-          {ASR_SCHOOLS.map((m) => (
+          {byMethod && <Text style={styles.label}>{t('asr_method')}</Text>}
+          {byMethod && ASR_SCHOOLS.map((m) => (
             <Opt key={m.id} label={lang === 'ru' ? m.label_ru : m.label_en}
               active={asrSchool === m.id} onPress={() => chooseAsrSchool(m.id)} activeBg={activeBg} accent={accentColor} />
           ))}
+
+          {/* Поправка под мечеть: минуты к времени каждого намаза поверх любого
+              источника. Мечети читают азан не всегда минута в минуту с графиком. */}
+          <Text style={styles.label}>{t('tune_title')}</Text>
+          {TUNE_PRAYERS.map((key) => {
+            const value = tune?.[key] || 0;
+            return (
+              <View key={key} style={styles.tuneRow}>
+                <Text style={styles.tuneName}>{lang === 'ru' ? PRAYER_NAMES[key].ru : PRAYER_NAMES[key].en}</Text>
+                <View style={styles.tuneCtrl}>
+                  <TuneBtn icon="remove" disabled={value <= -TUNE_MAX} onPress={() => setTuneFor(key, Math.max(-TUNE_MAX, value - 1))} />
+                  <Text style={styles.tuneVal} numberOfLines={1} adjustsFontSizeToFit>{tuneLabel(value, t('min_short'))}</Text>
+                  <TuneBtn icon="add" disabled={value >= TUNE_MAX} onPress={() => setTuneFor(key, Math.min(TUNE_MAX, value + 1))} />
+                </View>
+              </View>
+            );
+          })}
+          <Text style={[styles.hintText, { marginTop: SPACING.xs }]}>{t('tune_hint')}</Text>
+          {tuned && (
+            <TouchableOpacity style={[styles.intChip, styles.tuneReset]} onPress={resetTune} activeOpacity={0.8}>
+              <Text style={styles.intText}>{t('tune_reset')}</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Два набора звуков вместо одного: напоминание «за N минут» и само
               наступление времени — разные события, и звучать они должны
@@ -422,7 +494,11 @@ const styles = StyleSheet.create({
   tuneBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.surfaceStrong,
     alignItems: 'center', justifyContent: 'center' },
   tuneBtnText: { ...TYPE.heading, color: COLORS.white, fontWeight: '700' },
-  tuneVal: { ...TYPE.body, ...TYPE.mono, color: COLORS.white, width: 44, textAlign: 'center' },
+  tuneBtnOff: { opacity: 0.35 },
+  // Ширина под самое длинное значение («+30 мин»): число между кнопками не
+  // двигает «+» и «−», цифры одной ширины (mono).
+  tuneVal: { ...TYPE.body, ...TYPE.mono, color: COLORS.white, width: 76, textAlign: 'center' },
+  tuneReset: { alignSelf: 'flex-start', marginTop: SPACING.sm },
 
   themeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -SPACING.xs / 2 - 1, marginBottom: SPACING.md },

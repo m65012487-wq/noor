@@ -22,7 +22,9 @@ export function AppSettingsProvider({ children }) {
   const [dailyGoal, setDailyGoal] = useState(5);
   const [calcMethod, setCalcMethod] = useState('mwl');
   const [apiSource, setApiSource] = useState('auto');
-  const [timeSourceId, setTimeSourceId] = useState('mwl_intl');
+  // По умолчанию «Авто»: управление региона, а где его нет — метод страны.
+  // Прежний выбор пользователя лежит в хранилище и это не затрагивает.
+  const [timeSourceId, setTimeSourceId] = useState('auto');
   const [asrSchool, setAsrSchool] = useState('shafi');
   const [tune, setTune] = useState({ Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 });
   const [ready, setReady] = useState(false);
@@ -39,7 +41,8 @@ export function AppSettingsProvider({ children }) {
       setDailyGoal(await loadJSON('dailyGoal', 5));
       setCalcMethod(await loadJSON('calcMethod', 'mwl'));
       setApiSource(await loadJSON('apiSource', 'auto'));
-      setTimeSourceId(await loadJSON('timeSourceId', 'mwl_intl'));
+      // Источник больше не выбирается: всегда график управления по месту.
+      // Сохранённый когда-то выбор (например, «Кавказ (ДУМ КБР)») не читаем.
       setAsrSchool(await loadJSON('asrSchool', 'shafi'));
       setTune(await loadJSON('prayerTune', { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 }));
       setReady(true);
@@ -63,6 +66,12 @@ export function AppSettingsProvider({ children }) {
     const next = { ...tune, [prayer]: minutes };
     setTune(next); await saveJSON('prayerTune', next);
   };
+  // Сброс одним действием: пять вызовов setTuneFor подряд писали бы каждый
+  // в копию состояния до сброса, и обнулился бы только последний.
+  const resetTune = async () => {
+    const next = { Fajr: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 };
+    setTune(next); await saveJSON('prayerTune', next);
+  };
   const setReminder = async (prayer, cfg) => {
     const next = { ...reminders, [prayer]: { ...reminders[prayer], ...cfg } };
     setReminders(next);
@@ -81,7 +90,7 @@ export function AppSettingsProvider({ children }) {
         reminders, setReminder, dailyGoal, chooseGoal,
         calcMethod, chooseCalcMethod, apiSource, chooseApiSource,
         timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool,
-        tune, setTuneFor, PRAYERS }}>
+        tune, setTuneFor, resetTune, PRAYERS }}>
       {children}
     </AppSettingsContext.Provider>
   );

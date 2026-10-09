@@ -8,6 +8,11 @@ struct PrayerEntryData: Codable {
     let key: String
     let name: String
     let time: String
+    // Сутки относительно строки дня: −1, 0 или +1 (Фаджр 23:54 в строке 5 мая
+    // — вечер 4 мая). В старых данных поля нет — это 0.
+    var shift: Int? = nil
+
+    var dayShift: Int { shift ?? 0 }
 }
 
 struct PrayerDay: Codable {
@@ -17,6 +22,9 @@ struct PrayerDay: Codable {
     let nextKey: String?
     var timezone: String? = nil
     var tomorrowTimes: [PrayerEntryData]? = nil
+    // Вчерашняя строка нужна ради Иши после полуночи (shift +1): она в строке
+    // вчерашнего дня, а наступает уже сегодня.
+    var yesterdayTimes: [PrayerEntryData]? = nil
 
     static let appGroup = "group.95233b59e7e45aab.1"
     static let storageKey = "prayerDay"
@@ -37,6 +45,9 @@ struct PrayerDay: Codable {
               day.timezone == nil || day.timezone == TimeZone.current.identifier else { return nil }
         if let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: date) {
             day.tomorrowTimes = days.first(where: { $0.date == formatter.string(from: tomorrow) })?.times
+        }
+        if let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: date) {
+            day.yesterdayTimes = days.first(where: { $0.date == formatter.string(from: yesterday) })?.times
         }
         return day
     }

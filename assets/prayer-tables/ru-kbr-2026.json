@@ -3,6 +3,7 @@
   "title": "ДУМ КБР — график намазов по КБР",
   "source": "Помесячные графики ДУМ КБР за октябрь–декабрь 2026: https://dinri-duneiri.ru/azan/2026010.jpg … 2026012.jpg. 8 октября сверено с kbrdum.ru/8-grafik-namazov.",
   "place": {
+    "id": "kbr",
     "name": "Кабардино-Балкария",
     "regions": ["kabard", "кабард"],
     "lat": 43.4981,

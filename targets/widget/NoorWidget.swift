@@ -35,12 +35,14 @@ struct Provider: TimelineProvider {
         let streak = StreakData.load()
         let theme = ThemeData.load()
         var dates = [now]
-        for offset in 0..<8 {
+        // С вчерашнего дня: Иша после полуночи записана в его строке, а
+        // наступает сегодня. Прошедшее отсекает проверка at > now ниже.
+        for offset in -1..<8 {
             guard let date = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now)) else { continue }
             if date > now { dates.append(date) }
             guard let day = PrayerDay.load(at: date) else { continue }
             for item in day.times {
-                guard let at = clock(item.time, on: date), at > now else { continue }
+                guard let at = clock(item.time, on: date, shift: item.dayShift), at > now else { continue }
                 dates.append(at)
             }
         }
@@ -52,11 +54,13 @@ struct Provider: TimelineProvider {
     }
 }
 
-// «HH:mm» в дату заданного дня.
-func clock(_ time: String, on day: Date) -> Date? {
+// «HH:mm» в дату заданного дня; shift сдвигает сутки (−1, 0, +1) для времён,
+// которые график записал за полуночью своей строки.
+func clock(_ time: String, on day: Date, shift: Int = 0) -> Date? {
     let parts = time.split(separator: ":").compactMap { Int($0) }
     guard parts.count == 2 else { return nil }
-    return Calendar.current.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: day)
+    let base = shift == 0 ? day : (Calendar.current.date(byAdding: .day, value: shift, to: day) ?? day)
+    return Calendar.current.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: base)
 }
 
 struct UpcomingPrayer {
@@ -69,15 +73,22 @@ struct UpcomingPrayer {
 func upcomingPrayers(in day: PrayerDay, count: Int, now: Date) -> [UpcomingPrayer] {
     let calendar = Calendar.current
     let today = day.times.compactMap { item -> UpcomingPrayer? in
-        guard item.key != "Sunrise", let at = clock(item.time, on: now), at > now else { return nil }
+        guard item.key != "Sunrise", let at = clock(item.time, on: now, shift: item.dayShift), at > now else { return nil }
         return UpcomingPrayer(item: item, at: at)
     }
     let tomorrowDate = calendar.date(byAdding: .day, value: 1, to: now) ?? now
     let tomorrow = (day.tomorrowTimes ?? []).compactMap { item -> UpcomingPrayer? in
-        guard item.key != "Sunrise", let at = clock(item.time, on: tomorrowDate) else { return nil }
+        guard item.key != "Sunrise", let at = clock(item.time, on: tomorrowDate, shift: item.dayShift) else { return nil }
         return UpcomingPrayer(item: item, at: at)
     }
-    return Array((today + tomorrow).prefix(count))
+    let yesterdayDate = calendar.date(byAdding: .day, value: -1, to: now) ?? now
+    let yesterday = (day.yesterdayTimes ?? []).compactMap { item -> UpcomingPrayer? in
+        guard item.key != "Sunrise", item.dayShift > 0,
+              let at = clock(item.time, on: yesterdayDate, shift: item.dayShift), at > now else { return nil }
+        return UpcomingPrayer(item: item, at: at)
+    }
+    // Со сдвигом суток порядок строк уже не совпадает с порядком времени.
+    return Array((yesterday + today + tomorrow).sorted { $0.at < $1.at }.prefix(count))
 }
 
 // MARK: - Строки

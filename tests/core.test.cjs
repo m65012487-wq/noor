@@ -1110,18 +1110,18 @@ test('a day cached before the timetable is recomputed from it', () => inZone('Eu
     JSON.stringify([NALCHIK.lat, NALCHIK.lng, 'mwl_intl', 'shafi', {}, zone]));
 }));
 test('the cache key of the DUM KBR source carries the region and the timetable version', () => inZone('Europe/Moscow', () => {
-  const { TABLES_VERSION } = load('src/utils/officialTables.js');
+  const { tablesVersion } = load('src/utils/officialTables.js');
   const schedule = withoutAdhan()('src/utils/prayerSchedule.js');
   const base = { ...NALCHIK, sourceId: 'russia', school: 'shafi' };
   const key = schedule.scheduleIdentity({ ...base, region: 'Кабардино-Балкарская Республика' });
-  assert.ok(key.includes(TABLES_VERSION));
+  assert.ok(key.includes(tablesVersion()));
   assert.notEqual(key, schedule.scheduleIdentity({ ...base, region: 'Ingushetia' }));
   assert.notEqual(key, schedule.scheduleIdentity(base));
   // Исправленная в таблице цифра меняет версию, а с ней и ключи дней.
   const table = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../assets/prayer-tables/ru-kbr-2026.json'), 'utf8'));
   table.days[10] = table.days[10].replace('15:04', '15:05');
   const edited = loader({ '../../assets/prayer-tables/ru-kbr-2026.json': table })('src/utils/officialTables.js');
-  assert.notEqual(edited.TABLES_VERSION, TABLES_VERSION);
+  assert.notEqual(edited.tablesVersion(), tablesVersion());
 }));
 test('the time zone is taken at noon of the calendar day, so the answer does not depend on the hour', () => inZone('Europe/Helsinki', () => {
   const pick = (d) => load('src/utils/officialTables.js').officialTimes('ru-kbr', NALCHIK, d);
@@ -1159,5 +1159,941 @@ test('every row of the KBR timetable is plausible, so a transcription slip is ca
     const calc = computeDumKbr(table.place.lat, table.place.lng, date);
     names.forEach((n, k) => assert.ok(Math.abs(times[k] - minutes(calc[n])) <= 3, `day ${i}: ${n} ${row} vs ${calc[n]}`));
     prev = times;
+  });
+}));
+
+// Графики высоких широт переносят намаз через полночь: ДУМ РТ в мае пишет
+// Фаджр в строке даты D как 23:54 (по смыслу это вечер D−1), а Иша у формулы
+// dumCalc и у северных графиков бывает уже после полуночи. Событие, уведомление
+// и окно будильника должны стоять на настоящем моменте, а не на дате строки.
+const nightRow = (date, timings) => ({ date, timings: { Fajr: '02:14', Sunrise: '03:52', Dhuhr: '11:41',
+  Asr: '16:03', Maghrib: '19:20', Isha: '23:21', ...timings } });
+const KAZAN_MAY = [
+  nightRow('2026-05-04', { Fajr: '01:12', Sunrise: '03:52', Isha: '23:21' }),
+  nightRow('2026-05-05', { Fajr: '23:54', Sunrise: '03:49', Dhuhr: '11:41', Asr: '16:04', Maghrib: '19:22', Isha: '23:57' }),
+  nightRow('2026-05-06', { Fajr: '01:49', Sunrise: '03:47', Asr: '16:05', Maghrib: '19:24', Isha: '23:12' }),
+];
+const scheduleOnly = () => loader({ '@react-native-async-storage/async-storage': {}, './prayerSource': {} })('src/utils/prayerSchedule.js');
+const stamp = (d) => `${dates.localDateKey(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+test('prayerMoment moves a pre-midnight Fajr to the evening before and a post-midnight Isha to the next day', () => inZone('Europe/Moscow', () => {
+  const { prayerMoment, prayerDayShift } = load('src/utils/calendarDate.js');
+  const [, may5] = KAZAN_MAY;
+  assert.equal(stamp(prayerMoment(may5, 'Fajr')), '2026-05-04 23:54');
+  // Остальные времена строки остаются на её дате.
+  assert.equal(stamp(prayerMoment(may5, 'Sunrise')), '2026-05-05 03:49');
+  assert.equal(stamp(prayerMoment(may5, 'Isha')), '2026-05-05 23:57');
+  // Иша 00:20 при магрибе 22:40 уходит на следующие сутки, через границу месяца и года тоже.
+  const north = (date) => ({ date, timings: { Fajr: '01:10', Sunrise: '03:32', Dhuhr: '12:02', Asr: '16:41', Maghrib: '22:40', Isha: '00:20' } });
+  assert.equal(stamp(prayerMoment(north('2026-06-20'), 'Isha')), '2026-06-21 00:20');
+  assert.equal(stamp(prayerMoment(north('2026-06-30'), 'Isha')), '2026-07-01 00:20');
+  assert.equal(stamp(prayerMoment(north('2026-12-31'), 'Isha')), '2027-01-01 00:20');
+  assert.equal(stamp(prayerMoment({ ...may5, date: '2026-06-01' }, 'Fajr')), '2026-05-31 23:54');
+  // Обычный день не трогаем, и равенство — не признак переноса.
+  const plain = { date: '2026-10-08', timings: { Fajr: '04:41', Sunrise: '06:11', Dhuhr: '12:03', Asr: '15:08', Maghrib: '17:37', Isha: '19:17' } };
+  for (const name of Object.keys(plain.timings)) assert.equal(prayerDayShift(plain.timings, name), 0, name);
+  assert.equal(prayerDayShift({ Fajr: '03:48', Sunrise: '03:48' }, 'Fajr'), 0);
+  assert.equal(prayerDayShift({ Maghrib: '22:40', Isha: '22:40' }, 'Isha'), 0);
+  // Без соседнего времени судить нечем, а кривое время — не момент.
+  assert.equal(prayerDayShift({ Fajr: '23:54' }, 'Fajr'), 0);
+  assert.equal(prayerMoment({ date: '2026-05-05', timings: { Fajr: '--:--', Sunrise: '03:49' } }, 'Fajr'), null);
+  assert.equal(prayerMoment({ date: '2026-05-05', timings: { Fajr: '23:54', Sunrise: '--:--' } }, 'Fajr').getDate(), 5);
+}));
+test('prayerMoment counts calendar days, so a daylight-saving change does not move the hour', () => inZone('Europe/Berlin', () => {
+  const { prayerMoment } = load('src/utils/calendarDate.js');
+  // 29 марта 2026 в Берлине часы переведены вперёд: от 28-го 23:54 до 29-го 23:54 всего 23 часа.
+  const moment = prayerMoment({ date: '2026-03-29', timings: { Fajr: '23:54', Sunrise: '06:40' } }, 'Fajr');
+  assert.equal(stamp(moment), '2026-03-28 23:54');
+  const isha = prayerMoment({ date: '2026-03-28', timings: { Maghrib: '22:40', Isha: '00:20' } }, 'Isha');
+  assert.equal(stamp(isha), '2026-03-29 00:20');
+}));
+test('events follow the real order across midnight: the Fajr of May 5 comes on the evening of May 4', () => inZone('Europe/Moscow', () => {
+  const { prayerEvents, prayerMoment } = scheduleOnly();
+  assert.equal(typeof prayerMoment, 'function');
+  // Обходим расписание событие за событием через публичный prayerEvents.
+  const walked = [];
+  for (let now = new Date(2026, 4, 3, 12); walked.length < 14;) {
+    const { next } = prayerEvents(KAZAN_MAY, now);
+    if (!next) break;
+    walked.push(`${next.name} ${stamp(next.date)}`);
+    now = new Date(next.date.getTime() + 1000);
+  }
+  assert.deepEqual(walked, [
+    'Fajr 2026-05-04 01:12', 'Dhuhr 2026-05-04 11:41', 'Asr 2026-05-04 16:03', 'Maghrib 2026-05-04 19:20', 'Isha 2026-05-04 23:21',
+    // Фаджр строки 5 мая — вечером 4-го, между Ишой и зухром.
+    'Fajr 2026-05-04 23:54', 'Dhuhr 2026-05-05 11:41', 'Asr 2026-05-05 16:04', 'Maghrib 2026-05-05 19:22', 'Isha 2026-05-05 23:57',
+    'Fajr 2026-05-06 01:49', 'Dhuhr 2026-05-06 11:41', 'Asr 2026-05-06 16:05', 'Maghrib 2026-05-06 19:24',
+  ]);
+  // Вечером 4 мая ближайший — Иша, за ней Фаджр, а не зухр следующего дня.
+  const evening = prayerEvents(KAZAN_MAY, new Date(2026, 4, 4, 22, 0));
+  assert.equal(evening.next.name, 'Isha');
+  assert.equal(evening.afterNext.name, 'Fajr');
+  assert.equal(stamp(evening.afterNext.date), '2026-05-04 23:54');
+  // Кольцо считает от Иши (23:21) к Фаджру (23:54): 9 минут из 33.
+  const night = prayerEvents(KAZAN_MAY, new Date(2026, 4, 4, 23, 30));
+  assert.equal(night.next.name, 'Fajr');
+  assert.equal(night.afterNext.name, 'Dhuhr');
+  assert.ok(Math.abs(night.progress - 9 / 33) < 1e-9);
+}));
+test('an Isha after midnight stays ahead of the evening instead of dropping into the past', () => inZone('Europe/Moscow', () => {
+  const { prayerEvents } = scheduleOnly();
+  const north = (date, extra) => nightRow(date, { Fajr: '01:10', Sunrise: '03:32', Dhuhr: '12:02', Asr: '16:41', Maghrib: '22:40', Isha: '00:20', ...extra });
+  // Иша второго дня отличается на минуты: иначе перенос и «такая же строка завтра» неразличимы.
+  const days = [north('2026-06-20'), north('2026-06-21', { Fajr: '01:12', Maghrib: '22:39', Isha: '00:26' })];
+  const events = prayerEvents(days, new Date(2026, 5, 20, 23, 0));
+  assert.equal(events.next.name, 'Isha');
+  assert.equal(stamp(events.next.date), '2026-06-21 00:20');
+  assert.equal(events.afterNext.name, 'Fajr');
+  assert.equal(stamp(events.afterNext.date), '2026-06-21 01:12');
+}));
+test('the Fajr alarm window starts on the evening before, and waking before midnight silences it after midnight', () => inZone('Europe/Moscow', async () => {
+  const stored = { fajrAlarmEnabled: true, fajrAlarmInterval: 5 };
+  const scheduled = []; let id = 0;
+  const notifications = { getAllScheduledNotificationsAsync: async () => scheduled,
+    cancelScheduledNotificationAsync: async (ident) => { const i = scheduled.findIndex(n => n.identifier === ident); if (i >= 0) scheduled.splice(i, 1); },
+    scheduleNotificationAsync: async (n) => { scheduled.push({ ...n, identifier: String(id++) }); } };
+  const alarm = loader({ 'expo-notifications': { ...notifications, SchedulableTriggerInputTypes: { DATE: 'date' } },
+    './prayerNotifications': { ensurePermission: async () => true },
+    './helpers': { loadJSON: async (k, f) => stored[k] ?? f, saveJSON: async (k, v) => { stored[k] = v; } },
+  })('src/utils/fajrAlarm.js');
+  // Часы приложения подменяем: окно и отметка зависят только от Date.now().
+  const realNow = Date.now;
+  const clock = (y, m, d, h, min) => { Date.now = () => new Date(y, m - 1, d, h, min).getTime(); };
+  try {
+    const days = [
+      { date: '2030-05-05', timings: { Fajr: '23:54', Sunrise: '03:48' } },
+      { date: '2030-05-06', timings: { Fajr: '01:49', Sunrise: '03:47' } },
+      { date: '2030-05-07', timings: { Fajr: '01:45', Sunrise: '03:45' } },
+    ];
+    clock(2030, 5, 4, 22, 0);
+    assert.equal(await alarm.scheduleFajrDays(days, { title: 'Fajr', body: 'Wake' }), 12);
+    // Окно строки 5 мая открывается вечером 4-го, и цепочка звонков идёт от 23:54.
+    const first = scheduled.filter(n => n.content.data.day === '2030-05-05').map(n => stamp(n.trigger.date));
+    assert.deepEqual(first, ['2030-05-04 23:54', '2030-05-04 23:59', '2030-05-05 00:04', '2030-05-05 00:09']);
+    assert.deepEqual(stored.fajrAlarmWindows.map(w => w.date), ['2030-05-05', '2030-05-06', '2030-05-07']);
+    // До 23:54 баннера нет, с 23:55 он есть.
+    assert.equal(await alarm.isInAlarmWindow(), false);
+    clock(2030, 5, 4, 23, 55);
+    assert.equal(await alarm.isInAlarmWindow(), true);
+    // «Проснулся» до полуночи гасит звонки именно этого окна и не возвращается после неё.
+    await alarm.markAwake();
+    assert.equal(stored.fajrAwakeDate, '2030-05-05');
+    assert.equal(scheduled.length, 8);
+    assert.ok(scheduled.every(n => n.content.data.day !== '2030-05-05'));
+    clock(2030, 5, 5, 0, 30);
+    assert.equal(await alarm.isInAlarmWindow(), false);
+    // Пересчёт расписания не ставит отмеченное окно заново.
+    clock(2030, 5, 4, 23, 56);
+    assert.equal(await alarm.scheduleFajrDays(days, { title: 'Fajr', body: 'Wake' }), 8);
+    // Обычное утреннее окно по-прежнему гасится отметкой в своё время.
+    clock(2030, 5, 6, 2, 0);
+    assert.equal(await alarm.isInAlarmWindow(), true);
+    await alarm.markAwake();
+    assert.equal(stored.fajrAwakeDate, '2030-05-06');
+    assert.equal(await alarm.isInAlarmWindow(), false);
+  } finally { Date.now = realNow; }
+}));
+test('prayer reminders for a pre-midnight Fajr and a post-midnight Isha land on the neighbouring days', async () => {
+  const planned = [];
+  const reminders = loader({ 'expo-notifications': {
+    getPermissionsAsync: async () => ({ granted: true }),
+    getAllScheduledNotificationsAsync: async () => [],
+    cancelScheduledNotificationAsync: async () => {},
+    scheduleNotificationAsync: async (n) => { planned.push(n); },
+    SchedulableTriggerInputTypes: { DATE: 'date' } } })('src/utils/prayerNotifications.js');
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+  const plus = (n) => { const d = new Date(midnight); d.setDate(d.getDate() + n); return dates.localDateKey(d); };
+  const normal = { Fajr: '04:30', Sunrise: '06:00', Dhuhr: '12:00', Asr: '15:00', Maghrib: '19:00', Isha: '20:30' };
+  // Дни выбраны так, что оба переноса попадают в будущее при любом часе запуска:
+  // Фаджр строки «послезавтра» стоит завтра в 23:54, Иша строки «завтра» — послезавтра в 00:20.
+  const timesForDate = (date) => {
+    const key = dates.localDateKey(date);
+    if (key === plus(2)) return { ...normal, Fajr: '23:54', Sunrise: '03:48' };
+    if (key === plus(1)) return { ...normal, Maghrib: '22:40', Isha: '00:20' };
+    return normal;
+  };
+  const on = Object.fromEntries(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(p => [p, { enabled: true, minutesBefore: 0 }]));
+  await reminders.schedulePrayerReminders({ timesForDate, reminders: on, label: p => p, body: () => '', days: 5 });
+  const fires = (prayer) => planned.filter(n => n.content.data.prayer === prayer).map(n => stamp(n.trigger.date));
+  assert.ok(fires('Fajr').includes(`${plus(1)} 23:54`), 'Fajr of the day after tomorrow rings tomorrow evening');
+  assert.ok(!fires('Fajr').includes(`${plus(2)} 23:54`));
+  assert.ok(fires('Isha').includes(`${plus(2)} 00:20`), 'Isha of tomorrow rings after midnight');
+  assert.ok(!fires('Isha').includes(`${plus(1)} 00:20`));
+});
+
+// ---------- Источник «Авто», реестр графиков и сервер noor-times ----------
+// Данные подставные, сети нет: fetch и AsyncStorage подменяются. Каждый тест
+// берёт свой loader, потому что реестр графиков — состояние модуля.
+const pad2 = (n) => String(n).padStart(2, '0');
+const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+// Строка i таблицы: Фаджр и Зухр кодируют номер строки, Аср и Иша — метку
+// таблицы, так что по одному ответу видно, из какой таблицы и какой строки он.
+const rowOf = (i, tag) => `04:${pad2(i % 60)} 06:30 12:${pad2(Math.floor(i / 60))} 15:${pad2(Math.floor(tag / 60))} 17:30 19:${pad2(tag % 60)}`;
+const timesOf = (i, tag) => Object.fromEntries(['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map((n, k) => [n, rowOf(i, tag).split(' ')[k]]));
+const dayOfYear = (y, m, d) => Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 86400000);
+const fakePlace = (id, lat, lng, extra = {}) => ({ id, name: 'Place ' + id, lat, lng, radiusKm: 50, tables: [], ...extra });
+const fakeAuthority = (id, extra = {}) => ({ id, name: 'Auth ' + id, name_en: 'Auth en ' + id, country: 'XX', regions: [],
+  utcOffset: 180, fallback: { kind: 'dumKbr' }, source: 'https://example.test/' + id, places: [], ...extra });
+const fakeIndex = (authorities) => ({ v: 1, generated: '2030-01-01T00:00:00Z', authorities });
+const fakeTable = (authority, place, year, tag, { start = `${year}-01-01`, count = isLeap(year) ? 366 : 365, utcOffset = 180 } = {}) => ({
+  authority, title: 'test', source: 'test', utcOffset, start,
+  place: { id: place.id, name: place.name, regions: [], lat: place.lat, lng: place.lng, radiusKm: place.radiusKm },
+  days: Array.from({ length: count }, (_, i) => rowOf(i, tag)),
+});
+const noon = (y, m, d) => new Date(y, m - 1, d, 12);
+
+test('resolveAuthority: region first, then the circle, then the country; a country-wide muftiate yields to a regional one', () => {
+  const L = loader();
+  const tables = L('src/utils/officialTables.js');
+  tables.installIndex(fakeIndex([
+    fakeAuthority('ru-tat', { country: 'RU', regions: ['tatar', 'татар'], places: [fakePlace('kazan', 55.79, 49.12, { radiusKm: 80 }), fakePlace('chelny', 55.74, 52.4, { radiusKm: 60 })] }),
+    fakeAuthority('ru-dag', { country: 'RU', regions: ['dagest', 'дагест'], places: [fakePlace('mkala', 42.98, 47.5, { radiusKm: 70 })] }),
+    fakeAuthority('sg-muis', { country: 'SG', places: [fakePlace('sg', 1.35, 103.82, { radiusKm: 30 })] }),
+    fakeAuthority('ru-all', { country: 'RU', places: [fakePlace('moscow', 55.75, 37.62, { radiusKm: 40 })] }),
+  ]));
+  const id = (where) => tables.resolveAuthority(where)?.id ?? null;
+  // Регион решает, в каком бы регистре и на каком языке он ни был.
+  assert.equal(id({ region: 'Республика Татарстан' }), 'ru-tat');
+  assert.equal(id({ region: 'DAGESTAN' }), 'ru-dag');
+  // Известный регион сильнее круга: точка в круге Дагестана, но регион чужой.
+  assert.equal(id({ lat: 42.98, lng: 47.5, region: 'Ingushetia' }), null);
+  // Без региона — круг любого пункта; пустые координаты ничего не покрывают.
+  assert.equal(id({ lat: 55.8, lng: 49.1 }), 'ru-tat');
+  assert.equal(id({ lat: 55.75, lng: 52.35 }), 'ru-tat');
+  assert.equal(id({ lat: 10, lng: 10 }), null);
+  assert.equal(id({ lat: NaN, lng: NaN }), null);
+  assert.equal(id({}), null);
+  assert.equal(id(undefined), null);
+  // Управление на всю страну (regions пуст) подходит стране места, регион ему не нужен.
+  assert.equal(id({ country: 'SG' }), 'sg-muis');
+  assert.equal(id({ country: 'sg', region: 'Central Singapore' }), 'sg-muis');
+  // Страна известна и чужая: круг не спрашивается, Джохор-Бару — не Сингапур.
+  assert.equal(id({ country: 'MY', lat: 1.36, lng: 103.8 }), null);
+  // Региональное управление выигрывает у страновое, а где региона нет — страновое.
+  assert.equal(id({ region: 'Tatarstan', country: 'RU' }), 'ru-tat');
+  assert.equal(id({ region: 'Ingushetia', country: 'RU' }), 'ru-all');
+  // Встроенный снимок работает без установок.
+  const fresh = loader()('src/utils/officialTables.js');
+  assert.equal(fresh.resolveAuthority({ ...NALCHIK }).id, 'ru-kbr');
+  assert.equal(fresh.resolveAuthority({ region: 'Kabardino-Balkariya' }).id, 'ru-kbr');
+  assert.equal(fresh.resolveAuthority({ lat: 55.7558, lng: 37.6173 }), null);
+  assert.equal(fresh.resolveAuthority({ country: 'RU' }), null);
+});
+test('a muftiate with two places gives the table of the nearest one, and never borrows a far one', () => inZone('Europe/Moscow', () => {
+  const tables = loader()('src/utils/officialTables.js');
+  const kazan = fakePlace('kazan', 55.79, 49.12, { radiusKm: 80 });
+  const chelny = fakePlace('chelny', 55.74, 52.4, { radiusKm: 60 });
+  tables.installIndex(fakeIndex([fakeAuthority('ru-tat', { country: 'RU', regions: ['tatar', 'татар'], places: [kazan, chelny] })]));
+  tables.installTables([fakeTable('ru-tat', kazan, 2026, 1), fakeTable('ru-tat', chelny, 2026, 2)]);
+  const date = noon(2026, 6, 10);
+  const isha = (where) => tables.officialTimes('ru-tat', where, date)?.Isha;
+  assert.equal(isha({ lat: 55.79, lng: 49.12, region: 'Республика Татарстан' }), '19:01');
+  assert.equal(isha({ lat: 55.74, lng: 52.4, region: 'Республика Татарстан' }), '19:02');
+  // Посередине, но ближе к Челнам (≈55 км против ≈150).
+  assert.equal(isha({ lat: 55.77, lng: 51.5, region: 'Tatarstan' }), '19:02');
+  // Регион известен — радиус не нужен, пункт берётся ближайший, пусть и далеко.
+  assert.equal(isha({ lat: 55.0, lng: 50.5, region: 'Tatarstan' }), '19:01');
+  // Региона нет — работает круг: в круге Казани, и вне обоих кругов.
+  assert.equal(isha({ lat: 55.9, lng: 49.9 }), '19:01');
+  assert.equal(isha({ lat: 55.77, lng: 51.0 }), undefined);
+  // Таблицы ближайшего пункта нет — чужую не берём, считает запасной способ.
+  const lonely = loader()('src/utils/officialTables.js');
+  lonely.installIndex(fakeIndex([fakeAuthority('ru-tat', { country: 'RU', regions: ['tatar', 'татар'], places: [kazan, chelny] })]));
+  lonely.installTables([fakeTable('ru-tat', kazan, 2026, 1)]);
+  assert.equal(lonely.officialTimes('ru-tat', { lat: 55.74, lng: 52.4, region: 'Tatarstan' }, date), null);
+}));
+test('a country-wide muftiate gives a place table only within its radius; a regional one has no radius limit', () => inZone('Europe/Moscow', () => {
+  const tables = loader()('src/utils/officialTables.js');
+  const almaty = fakePlace('almaty', 43.24, 76.89, { radiusKm: 60 });
+  const astana = fakePlace('astana', 51.17, 71.43, { radiusKm: 60 });
+  const kbr = fakePlace('kbr2', 43.5, 43.6, { radiusKm: 20 });
+  tables.installIndex(fakeIndex([
+    fakeAuthority('kz-dumk', { country: 'KZ', utcOffset: 300, places: [almaty, astana] }),
+    fakeAuthority('ru-far', { country: 'RU', regions: ['kabard'], places: [kbr] }),
+  ]));
+  tables.installTables([
+    fakeTable('kz-dumk', almaty, 2026, 11, { utcOffset: 180 }), fakeTable('kz-dumk', astana, 2026, 12, { utcOffset: 180 }),
+    fakeTable('ru-far', kbr, 2026, 13),
+  ]);
+  const date = noon(2026, 6, 10);
+  const kz = (where) => tables.officialTimes('kz-dumk', { country: 'KZ', ...where }, date)?.Isha;
+  // Пункт 2: управление выбрано по стране — ближайший пункт, если место в его радиусе.
+  assert.equal(kz({ lat: 43.3, lng: 76.9 }), '19:11');
+  assert.equal(kz({ lat: 51.0, lng: 71.5, region: 'Akmola' }), '19:12');
+  // 300+ км от любого города: управление определено, а таблицы нет — работает его метод.
+  assert.equal(tables.resolveAuthority({ country: 'KZ', lat: 47, lng: 60 })?.id, 'kz-dumk');
+  assert.equal(tables.resolvePlace(tables.resolveAuthority({ country: 'KZ', lat: 47, lng: 60 }), { country: 'KZ', lat: 47, lng: 60 }), null);
+  assert.equal(kz({ lat: 47, lng: 60 }), undefined);
+  // Радиус проверяется у ближайшего пункта, а без координат проверить нечем.
+  assert.equal(kz({ lat: 43.24, lng: 78.0 }), undefined);
+  assert.equal(kz({}), undefined);
+  // Пункт 1: выбрано по региону — ближайший пункт без радиуса, Терскол в 94 км от Нальчика.
+  const far = (where) => tables.officialTimes('ru-far', where, date)?.Isha;
+  assert.equal(far({ lat: 43.255, lng: 42.51, region: 'Kabardino-Balkariya' }), '19:13');
+  // Пункт 3: ни региона, ни страны — круг, и тот же Терскол вне круга в 20 км.
+  assert.equal(far({ lat: 43.255, lng: 42.51 }), undefined);
+  assert.equal(far({ lat: 43.5, lng: 43.62 }), '19:13');
+  // Пояс не зашит: таблица Казахстана на +03:00 в поясе +05:00 не применяется.
+  return inZone('Asia/Almaty', () => assert.equal(kz({ lat: 43.3, lng: 76.9 }), undefined));
+}));
+test('a timetable of the previous year stands in for a missing one: same date, 29 February takes the 28th, approximate is flagged', () => inZone('Europe/Moscow', () => {
+  const tables = loader()('src/utils/officialTables.js');
+  const place = fakePlace('a1', 55, 49);
+  tables.installIndex(fakeIndex([fakeAuthority('xx-a', { regions: ['xx'], places: [place] })]));
+  const where = { lat: 55, lng: 49, region: 'xx' };
+  tables.installTables([fakeTable('xx-a', place, 2026, 5)]);
+  const info = (y, m, d) => tables.officialTimesInfo('xx-a', where, noon(y, m, d));
+  // Свой год — точно.
+  assert.deepEqual(info(2026, 3, 5), { times: timesOf(dayOfYear(2026, 3, 5), 5), year: 2026, approximate: false });
+  // Таблицы 2027 нет — та же дата 2026-го, с пометкой.
+  assert.deepEqual(info(2027, 3, 5), { times: timesOf(dayOfYear(2026, 3, 5), 5), year: 2026, approximate: true });
+  assert.deepEqual(tables.officialTimes('xx-a', where, noon(2027, 3, 5)), timesOf(dayOfYear(2026, 3, 5), 5));
+  // Два года назад уже нет.
+  assert.equal(info(2028, 3, 5), null);
+  // 29 февраля 2028: таблицы 2028 нет, берётся 28 февраля 2027.
+  tables.installTables([fakeTable('xx-a', place, 2027, 6)]);
+  assert.deepEqual(info(2028, 2, 29), { times: timesOf(dayOfYear(2027, 2, 28), 6), year: 2027, approximate: true });
+  assert.deepEqual(info(2028, 3, 1), { times: timesOf(dayOfYear(2027, 3, 1), 6), year: 2027, approximate: true });
+  // Появилась своя таблица високосного года — 29 февраля точное.
+  tables.installTables([fakeTable('xx-a', place, 2028, 7)]);
+  assert.deepEqual(info(2028, 2, 29), { times: timesOf(59, 7), year: 2028, approximate: false });
+  // Таблица года есть, но дату не накрывает (как встроенная КБР: октябрь–декабрь) — выручает прошлогодняя.
+  const partial = fakeTable('xx-a', place, 2029, 8, { start: '2029-10-01', count: 92 });
+  tables.installTables([partial]);
+  assert.deepEqual(info(2029, 10, 8), { times: timesOf(7, 8), year: 2029, approximate: false });
+  assert.deepEqual(info(2029, 9, 30), { times: timesOf(dayOfYear(2028, 9, 30), 7), year: 2028, approximate: true });
+  // Пояс устройства другой — таблица, в том числе прошлогодняя, не применяется.
+  return inZone('Asia/Baku', () => assert.equal(info(2027, 3, 5), null));
+}));
+test('a damaged row or table from the server never reaches the screen', () => inZone('Europe/Moscow', () => {
+  const tables = loader()('src/utils/officialTables.js');
+  const place = fakePlace('a1', 55, 49);
+  tables.installIndex(fakeIndex([fakeAuthority('xx-a', { regions: ['xx'], places: [place] })]));
+  const table = fakeTable('xx-a', place, 2026, 5);
+  table.days[10] = '04:10 06:30 12:00';
+  table.days[11] = '04:11 06:30 12:00 15:00 17:30 --:--';
+  assert.equal(tables.installTables([table, null, {}, { authority: 'xx-a' }, { ...table, days: 'x' }, { ...table, start: 'soon' }]), 1);
+  const at = (d) => tables.officialTimes('xx-a', { region: 'xx', lat: 55, lng: 49 }, noon(2026, 1, d));
+  assert.equal(at(1)?.Fajr, '04:00');
+  assert.equal(at(11), null);
+  assert.equal(at(12), null);
+  // Кривой индекс и чужая версия формата не принимаются.
+  assert.equal(tables.installIndex({ v: 2, authorities: [] }), false);
+  assert.equal(tables.installIndex({ v: 1 }), false);
+  assert.equal(tables.installIndex(null), false);
+  assert.equal(tables.installIndex(fakeIndex([null, { name: 'no id' }, fakeAuthority('xx-b')])), true);
+  assert.equal(tables.resolveAuthority({ region: 'xx' }), null);
+  assert.ok(tables.resolveAuthority({ country: 'XX' }));
+}));
+test('installTables replaces the built-in table, changes the version and wakes subscribers once', () => inZone('Europe/Moscow', () => {
+  const tables = loader()('src/utils/officialTables.js');
+  const kbr = { id: 'kbr', name: 'КБР', lat: 43.4981, lng: 43.6189, radiusKm: 100 };
+  const before = tables.tablesVersion();
+  assert.equal(tables.tablesVersion(), before);
+  let woke = 0;
+  const unsubscribe = tables.subscribeTables(() => { woke += 1; });
+  assert.deepEqual(tables.officialTimes('ru-kbr', NALCHIK, noon(2026, 10, 8)), KBR_OCT8);
+  assert.equal(tables.officialTimes('ru-kbr', NALCHIK, noon(2026, 5, 8)), null);
+  // Серверная таблица на весь 2026 год заменяет встроенную с октября.
+  const full = fakeTable('ru-kbr', kbr, 2026, 9);
+  assert.equal(tables.installTables([full]), 1);
+  assert.notEqual(tables.tablesVersion(), before);
+  assert.equal(woke, 1);
+  assert.deepEqual(tables.officialTimes('ru-kbr', NALCHIK, noon(2026, 10, 8)), timesOf(dayOfYear(2026, 10, 8), 9));
+  assert.deepEqual(tables.officialTimes('ru-kbr', NALCHIK, noon(2026, 5, 8)), timesOf(dayOfYear(2026, 5, 8), 9));
+  // То же самое второй раз версии не меняет и никого не будит.
+  const after = tables.tablesVersion();
+  tables.installTables([full]);
+  assert.equal(tables.tablesVersion(), after);
+  assert.equal(woke, 1);
+  // Исправленная цифра — новая версия.
+  const fixed = fakeTable('ru-kbr', kbr, 2026, 9);
+  fixed.days[0] = fixed.days[0].replace('04:00', '04:01');
+  tables.installTables([fixed]);
+  assert.notEqual(tables.tablesVersion(), after);
+  assert.equal(woke, 2);
+  // Свойства управления, меняющие результат, тоже входят в версию; названия — нет.
+  const index = fakeIndex([fakeAuthority('xx-a', { regions: ['xx'], places: [fakePlace('p', 1, 1)] })]);
+  tables.installIndex(index);
+  const withIndex = tables.tablesVersion();
+  assert.equal(woke, 3);
+  tables.installIndex(fakeIndex([fakeAuthority('xx-a', { name: 'Другое имя', regions: ['xx'], places: [fakePlace('p', 1, 1)] })]));
+  assert.equal(tables.tablesVersion(), withIndex);
+  tables.installIndex(fakeIndex([fakeAuthority('xx-a', { regions: ['xx'], fallback: { kind: 'aladhan', method: 14 }, places: [fakePlace('p', 1, 1)] })]));
+  assert.notEqual(tables.tablesVersion(), withIndex);
+  unsubscribe();
+  tables.installTables([fakeTable('ru-kbr', kbr, 2027, 3)]);
+  assert.equal(woke, 4);
+  // Версия не зависит от порядка установки.
+  const a = loader()('src/utils/officialTables.js');
+  const b = loader()('src/utils/officialTables.js');
+  a.installTables([fakeTable('ru-kbr', kbr, 2027, 3), full]);
+  b.installTables([full, fakeTable('ru-kbr', kbr, 2027, 3)]);
+  assert.equal(a.tablesVersion(), b.tablesVersion());
+}));
+test('every built-in timetable is described in the built-in index and reachable', async () => {
+  const dir = path.resolve(__dirname, '../assets/prayer-tables');
+  const index = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8'));
+  assert.equal(index.v, 1);
+  const zones = { 180: 'Europe/Moscow' };
+  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'index.json')) {
+    const table = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+    const authority = index.authorities.find((a) => a.id === table.authority);
+    assert.ok(authority, `${file}: authority ${table.authority} is missing in index.json`);
+    const place = authority.places.find((p) => p.id === table.place.id);
+    assert.ok(place, `${file}: place ${table.place.id} is missing in index.json`);
+    for (const key of ['lat', 'lng', 'radiusKm']) assert.equal(place[key], table.place[key], `${file}: ${key}`);
+    assert.deepEqual(authority.regions, table.place.regions, `${file}: regions`);
+    assert.equal(authority.utcOffset, table.utcOffset, `${file}: utcOffset`);
+    // Строка require на месте: таблица действительно достаётся по первой дате.
+    assert.ok(zones[table.utcOffset], `${file}: no test zone for offset ${table.utcOffset}`);
+    const [y, m, d] = table.start.split('-').map(Number);
+    const times = await inZone(zones[table.utcOffset], () => loader()('src/utils/officialTables.js')
+      .officialTimes(authority.id, { lat: place.lat, lng: place.lng }, new Date(y, m - 1, d, 12)));
+    assert.deepEqual(times, Object.fromEntries(['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
+      .map((n, k) => [n, table.days[0].split(' ')[k]])), `${file}: not reachable through officialTimes`);
+  }
+});
+
+// Мир для «Авто»: вместо расчёта adhan — заглушка, которая запоминает вызовы.
+const LOCAL_TIMES = { Fajr: '01:01', Sunrise: '02:02', Dhuhr: '03:03', Asr: '04:04', Maghrib: '05:05', Isha: '06:06' };
+function autoWorld() {
+  const calls = [];
+  const L = loader({ './prayerCalc': { computePrayerTimes: (...args) => { calls.push(args); return LOCAL_TIMES; } } });
+  return { L, calls, source: L('src/utils/prayerSource.js'), tables: L('src/utils/officialTables.js') };
+}
+const ALADHAN_TIMES = { Fajr: '10:00', Sunrise: '11:00', Dhuhr: '12:00', Asr: '13:00', Maghrib: '14:00', Isha: '15:00' };
+async function withFetch(fake, fn) {
+  const before = globalThis.fetch;
+  globalThis.fetch = fake;
+  try { return await fn(); } finally { globalThis.fetch = before; }
+}
+const aladhanOnline = (urls) => async (url) => {
+  urls.push(url);
+  return { ok: true, status: 200, json: async () => ({ data: { timings: ALADHAN_TIMES } }) };
+};
+const offline = (urls) => async (url) => { urls.push(url); throw new TypeError('Network request failed'); };
+const A1 = fakePlace('a1', 55, 49);
+const HERE = { lat: 55, lng: 49, region: 'xx-region', country: 'XX' };
+
+test('the Auto source reads the timetable of the region muftiate, tune on top, without touching the network', () => inZone('Europe/Moscow', async () => {
+  const { source, tables } = autoWorld();
+  tables.installIndex(fakeIndex([fakeAuthority('xx-a', { regions: ['xx-region'], fallback: { kind: 'aladhan', method: 14, school: 'hanafi' }, places: [A1] })]));
+  tables.installTables([fakeTable('xx-a', A1, 2026, 7)]);
+  const urls = [];
+  await withFetch(offline(urls), async () => {
+    const date = noon(2026, 6, 10);
+    const expected = timesOf(dayOfYear(2026, 6, 10), 7);
+    assert.deepEqual(await source.getPrayerTimes2({ ...HERE, sourceId: 'auto', date }), expected);
+    assert.equal((await source.getPrayerTimes2({ ...HERE, sourceId: 'auto', date, tune: { Asr: 2 } })).Asr, '15:02');
+    assert.deepEqual(source.localTimesForDate({ ...HERE, sourceId: 'auto', date }), expected);
+    // Прошлогодняя таблица в следующем году — тоже без сети.
+    assert.deepEqual(await source.getPrayerTimes2({ ...HERE, sourceId: 'auto', date: noon(2027, 6, 10) }), timesOf(dayOfYear(2026, 6, 10), 7));
+  });
+  assert.deepEqual(urls, []);
+}));
+test('the Auto source falls back to the DUM KBR formula when the muftiate says so and there is no table for the date', () => inZone('Europe/Moscow', async () => {
+  const { source, tables, L } = autoWorld();
+  const { computeDumKbr } = L('src/utils/dumCalc.js');
+  tables.installIndex(fakeIndex([fakeAuthority('xx-b', { regions: ['xx-region'], fallback: { kind: 'dumKbr' }, places: [A1] })]));
+  tables.installTables([fakeTable('xx-b', A1, 2026, 7)]);
+  const urls = [];
+  await withFetch(offline(urls), async () => {
+    const date = noon(2029, 6, 10);
+    assert.deepEqual(await source.getPrayerTimes2({ ...HERE, sourceId: 'auto', date }), computeDumKbr(55, 49, date));
+    assert.deepEqual(source.localTimesForDate({ ...HERE, sourceId: 'auto', date }), computeDumKbr(55, 49, date));
+    // Пока таблица на дату есть, формула не нужна.
+    assert.equal((await source.getPrayerTimes2({ ...HERE, sourceId: 'auto', date: noon(2026, 6, 10) })).Isha, '19:07');
+  });
+  assert.deepEqual(urls, []);
+}));
+test('the Auto source falls back to the Aladhan method of the muftiate, with its Asr school, and to a local method offline', () => inZone('Europe/Moscow', async () => {
+  const { source, tables, calls } = autoWorld();
+  tables.installIndex(fakeIndex([
+    fakeAuthority('xx-c', { regions: ['xx-region'], fallback: { kind: 'aladhan', method: 14, school: 'hanafi' }, places: [A1] }),
+    fakeAuthority('xx-d', { country: 'XX', regions: ['yy-region'], fallback: { kind: 'aladhan', method: 13 }, places: [A1] }),
+  ]));
+  const date = noon(2026, 6, 10);
+  const urls = [];
+  // Сеть есть: метод и мазхаб из записи управления, а не из настройки.
+  await withFetch(aladhanOnline(urls), async () => {
+    assert.deepEqual(await source.getPrayerTimes2({ ...HERE, sourceId: 'auto', school: 'shafi', date }), ALADHAN_TIMES);
+    assert.match(urls[0], /method=14&school=1/);
+    // Управление мазхаб не назвало — решает настройка пользователя.
+    const there = { ...HERE, region: 'yy-region' };
+    await source.getPrayerTimes2({ ...there, sourceId: 'auto', school: 'hanafi', date });
+    await source.getPrayerTimes2({ ...there, sourceId: 'auto', school: 'shafi', date });
+    assert.match(urls[1], /method=13&school=1/);
+    assert.match(urls[2], /method=13&school=0/);
+    assert.equal((await source.getPrayerTimes2({ ...HERE, sourceId: 'auto', date, tune: { Fajr: 5 } })).Fajr, '10:05');
+  });
+  // Сети нет: локальный двойник метода 14 (ISNA), мазхаб управления, onFallback и tune внутри расчёта.
+  let told = 0;
+  await withFetch(offline([]), async () => {
+    const tune = { Isha: 3 };
+    const got = await source.getPrayerTimes2({ ...HERE, sourceId: 'auto', school: 'shafi', date, tune, onFallback: () => { told += 1; } });
+    assert.deepEqual(got, LOCAL_TIMES);
+    assert.equal(told, 1);
+    assert.deepEqual(calls.at(-1), [55, 49, 'isna', 'hanafi', date, tune]);
+  });
+  // Синхронный путь без сети использует тот же двойник.
+  calls.length = 0;
+  assert.deepEqual(source.localTimesForDate({ ...HERE, sourceId: 'auto', school: 'shafi', date }), LOCAL_TIMES);
+  assert.deepEqual(calls[0].slice(0, 4), [55, 49, 'isna', 'hanafi']);
+}));
+test('the Auto source uses the method of the country when the place has no muftiate; unknown countries get the League', () => inZone('Europe/Moscow', async () => {
+  const { source, calls } = autoWorld();
+  const date = noon(2026, 6, 10);
+  const run = async (country, school = 'shafi') => {
+    const urls = [];
+    await withFetch(aladhanOnline(urls), () => source.getPrayerTimes2({ lat: 41, lng: 29, country, sourceId: 'auto', school, date }));
+    return urls[0];
+  };
+  assert.match(await run('TR'), /method=13&school=0/);
+  assert.match(await run('tr', 'hanafi'), /method=13&school=1/);
+  assert.match(await run('MY'), /method=17&/);
+  assert.match(await run('GB'), /method=15&/);
+  assert.match(await run('ZZ'), /method=3&/);
+  assert.match(await run(undefined), /method=3&/);
+  // Без сети — ближайший локальный метод и onFallback.
+  let told = 0;
+  await withFetch(offline([]), async () => {
+    for (const [country, local] of [['TR', 'turkey'], ['SA', 'makkah'], ['RU', 'isna'], ['ZZ', 'mwl'], [undefined, 'mwl']]) {
+      const got = await source.getPrayerTimes2({ lat: 41, lng: 29, country, sourceId: 'auto', school: 'hanafi', date, onFallback: () => { told += 1; } });
+      assert.deepEqual(got, LOCAL_TIMES);
+      assert.deepEqual(calls.at(-1).slice(0, 4), [41, 29, local, 'hanafi'], String(country));
+    }
+  });
+  assert.equal(told, 5);
+  // Управление с неизвестным запасным способом (сервер новее приложения) — метод страны.
+  const world = autoWorld();
+  world.tables.installIndex(fakeIndex([fakeAuthority('xx-e', { country: 'TR', regions: ['xx-region'], fallback: { kind: 'astrolabe' }, places: [A1] })]));
+  const urls = [];
+  await withFetch(aladhanOnline(urls), () => world.source.getPrayerTimes2({ ...HERE, country: 'TR', sourceId: 'auto', date }));
+  assert.match(urls[0], /method=13&/);
+}));
+test('the country method table is complete: every number has a local twin from the calc methods', () => {
+  const { COUNTRY_METHODS, LOCAL_FOR_ALADHAN, methodForCountry, DEFAULT_ALADHAN_METHOD } = load('src/constants/countryMethods.js');
+  const { CALC_METHODS } = load('src/constants/calcMethods.js');
+  const wanted = { RU: 14, TR: 13, MY: 17, ID: 20, SG: 11, FR: 12, US: 2, CA: 2, SA: 4, EG: 5, AE: 16, KW: 9, QA: 10, JO: 23, TN: 18,
+    DZ: 19, MA: 21, PT: 22, PK: 1, IN: 1, BD: 1, IR: 7, KZ: 14, UZ: 3, AZ: 13, DE: 13, NL: 3, BE: 3, GB: 15 };
+  assert.deepEqual(COUNTRY_METHODS, wanted);
+  const ids = new Set(CALC_METHODS.map((m) => m.id));
+  for (const number of new Set(Object.values(wanted))) assert.ok(ids.has(LOCAL_FOR_ALADHAN[number]), `method ${number}`);
+  for (const local of Object.values(LOCAL_FOR_ALADHAN)) assert.ok(ids.has(local), local);
+  assert.equal(DEFAULT_ALADHAN_METHOD, 3);
+  assert.deepEqual(methodForCountry('kz'), { aladhan: 14, local: 'isna' });
+  assert.deepEqual(methodForCountry('XX'), { aladhan: 3, local: 'mwl' });
+  assert.deepEqual(methodForCountry(), { aladhan: 3, local: 'mwl' });
+});
+test('the Auto source is the first and the only one in use; an unknown id still means the League, not Auto', async () => {
+  const { source, calls } = autoWorld();
+  const first = source.TIME_SOURCES[0];
+  assert.deepEqual(first, { id: 'auto', label_en: 'Auto: your region’s muftiate', label_ru: 'Авто: ДУМ вашего региона', method: null });
+  assert.equal(source.TIME_SOURCES.filter((s) => s.id === 'auto').length, 1);
+  const urls = [];
+  await withFetch(aladhanOnline(urls), () => source.getPrayerTimes2({ lat: 41, lng: 29, country: 'TR', sourceId: 'retired-source' }));
+  assert.match(urls[0], /method=3&/);
+  assert.equal(calls.length, 0);
+  const settings = fs.readFileSync(path.resolve(__dirname, '../src/utils/AppSettingsContext.js'), 'utf8');
+  assert.match(settings, /\[timeSourceId, setTimeSourceId\] = useState\('auto'\)/);
+  // Источник не выбирается: сохранённый timeSourceId больше не читается, всегда «Авто».
+  assert.equal(settings.includes("loadJSON('timeSourceId'"), false);
+});
+test('the DUM KBR source reads the KBR timetables installed from the server, including next year', () => inZone('Europe/Moscow', async () => {
+  const { source, tables } = autoWorld();
+  const kbr = { id: 'kbr', name: 'КБР', lat: 43.4981, lng: 43.6189, radiusKm: 100 };
+  tables.installTables([fakeTable('ru-kbr', kbr, 2027, 4)]);
+  const feb1 = noon(2027, 2, 1);
+  const expected = timesOf(dayOfYear(2027, 2, 1), 4);
+  const opts = { ...NALCHIK, region: 'Кабардино-Балкарская Республика', sourceId: 'russia', date: feb1 };
+  assert.deepEqual(await source.getPrayerTimes2(opts), expected);
+  assert.deepEqual(await source.getPrayerTimes2({ ...opts, region: undefined }), expected);
+  assert.deepEqual(source.localTimesForDate(opts), expected);
+  // Встроенная таблица 2026 по-прежнему на месте.
+  assert.deepEqual(await source.getPrayerTimes2({ ...opts, date: noon(2026, 10, 8) }), KBR_OCT8);
+}));
+test('describeAutoSource tells the settings screen which muftiate is used and where the times come from', () => inZone('Europe/Moscow', () => {
+  const { source, tables } = autoWorld();
+  tables.installIndex(fakeIndex([
+    fakeAuthority('xx-a', { regions: ['xx-region'], fallback: { kind: 'aladhan', method: 14, school: 'hanafi' }, places: [A1] }),
+    fakeAuthority('xx-b', { regions: ['yy-region'], fallback: { kind: 'dumKbr' }, places: [A1] }),
+  ]));
+  tables.installTables([fakeTable('xx-a', A1, 2026, 7)]);
+  const base = { authorityId: 'xx-a', authorityName: 'Auth xx-a', authorityNameEn: 'Auth en xx-a', placeName: 'Place a1', source: 'https://example.test/xx-a' };
+  assert.deepEqual(source.describeAutoSource(HERE, noon(2026, 6, 10)), { ...base, mode: 'table', year: 2026, method: null });
+  assert.deepEqual(source.describeAutoSource(HERE, noon(2027, 6, 10)), { ...base, mode: 'previousYear', year: 2026, method: null });
+  assert.deepEqual(source.describeAutoSource(HERE, noon(2029, 6, 10)),
+    { ...base, mode: 'fallback', year: null, method: { kind: 'aladhan', method: 14, school: 'hanafi' } });
+  assert.deepEqual(source.describeAutoSource({ ...HERE, region: 'yy-region' }, noon(2026, 6, 10)),
+    { mode: 'fallback', year: null, authorityId: 'xx-b', authorityName: 'Auth xx-b', authorityNameEn: 'Auth en xx-b', placeName: 'Place a1',
+      source: 'https://example.test/xx-b', method: { kind: 'dumKbr' } });
+  assert.deepEqual(source.describeAutoSource({ lat: 41, lng: 29, country: 'TR' }, noon(2026, 6, 10)),
+    { mode: 'country', year: null, authorityId: null, authorityName: null, authorityNameEn: null, placeName: null, source: null,
+      method: { kind: 'aladhan', method: 13, school: null } });
+  assert.equal(source.describeAutoSource(undefined).mode, 'country');
+}));
+test('the cache key of the Auto source carries region, country and the timetable version; other sources keep their key', () => inZone('Europe/Moscow', () => {
+  const L = withoutAdhan({ '@react-native-async-storage/async-storage': {} });
+  const schedule = L('src/utils/prayerSchedule.js');
+  const tables = L('src/utils/officialTables.js');
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const base = { lat: 55, lng: 49, school: 'shafi', tune: {}, region: 'Tatarstan', country: 'RU' };
+  const key = schedule.scheduleIdentity({ ...base, sourceId: 'auto' });
+  assert.deepEqual(JSON.parse(key), [55, 49, 'auto', 'shafi', {}, zone, 'Tatarstan', 'RU', tables.tablesVersion()]);
+  assert.notEqual(key, schedule.scheduleIdentity({ ...base, sourceId: 'auto', region: 'Dagestan' }));
+  assert.notEqual(key, schedule.scheduleIdentity({ ...base, sourceId: 'auto', country: 'KZ' }));
+  assert.notEqual(key, schedule.scheduleIdentity({ ...base, sourceId: 'auto', country: undefined }));
+  // «ДУМ КБР» ключится так же, с регионом, страной и версией.
+  assert.deepEqual(JSON.parse(schedule.scheduleIdentity({ ...base, sourceId: 'russia' })).slice(6), ['Tatarstan', 'RU', tables.tablesVersion()]);
+  // Новая таблица — новый ключ у «Авто», а у остальных источников ключ прежний, байт в байт.
+  const plain = JSON.stringify([55, 49, 'mwl_intl', 'shafi', {}, zone]);
+  assert.equal(schedule.scheduleIdentity({ ...base, sourceId: 'mwl_intl' }), plain);
+  tables.installTables([fakeTable('xx-a', fakePlace('p', 55, 49), 2026, 1)]);
+  assert.notEqual(schedule.scheduleIdentity({ ...base, sourceId: 'auto' }), key);
+  assert.equal(schedule.scheduleIdentity({ ...base, sourceId: 'mwl_intl' }), plain);
+  assert.equal(schedule.scheduleIdentity({ ...base, sourceId: 'local' }), JSON.stringify([55, 49, 'local', 'shafi', {}, zone]));
+}));
+
+// ---------- Синхронизация с сервером ----------
+const SERVER_URL = 'https://m65012487-wq.github.io/noor-times/v1/';
+const memoryStorage = () => {
+  const map = new Map();
+  return { map, getItem: async (k) => (map.has(k) ? map.get(k) : null), setItem: async (k, v) => { map.set(k, v); },
+    removeItem: async (k) => { map.delete(k); } };
+};
+// Сервер noor-times в памяти: файлы по путям, ETag и 304 на условный запрос.
+function fakeServer() {
+  const place = { id: 'a1', name: 'Place a1', lat: 55, lng: 49, radiusKm: 50 };
+  const far = { id: 'a2', name: 'Place a2', lat: 56.5, lng: 52, radiusKm: 50 };
+  const files = {};
+  const log = [];
+  const entry = (p, year) => ({ year, path: `xx-a/${p.id}/${year}.json`, start: `${year}-01-01`, days: 365, hash: `${p.id}-${year}-v1` });
+  const server = {
+    place, far, files, log,
+    publish(path, body, etag) { files[path] = { body, etag }; },
+    // Индекс собирается из того, что опубликовано: пункт a1 — на 2025–2028, a2 — на 2026.
+    index(over = {}) {
+      const a1 = { ...fakePlace('a1', 55, 49), tables: [2025, 2026, 2027, 2028].map((y) => entry(place, y)) };
+      const a2 = { ...fakePlace('a2', 56.5, 52), tables: [entry(far, 2026)] };
+      return fakeIndex([fakeAuthority('xx-a', { regions: ['xx-region'], places: [a1, a2], ...over })]);
+    },
+    fetch: async (url, init = {}) => {
+      const p = url.slice(SERVER_URL.length);
+      log.push({ path: p, headers: init.headers || {} });
+      const res = (status, text = '', etag = null) => ({ status, ok: status < 400, headers: { get: (k) => (k.toLowerCase() === 'etag' ? etag : null) }, text: async () => text });
+      const file = files[p];
+      if (!file) return res(404);
+      if (file.etag && init.headers?.['If-None-Match'] === file.etag) return res(304, '', file.etag);
+      return res(200, JSON.stringify(file.body), file.etag);
+    },
+  };
+  server.publish('index.json', server.index(), '"e1"');
+  for (const year of [2025, 2026, 2027, 2028]) server.publish(`xx-a/a1/${year}.json`, fakeTable('xx-a', place, year, year - 2000));
+  server.publish('xx-a/a2/2026.json', fakeTable('xx-a', far, 2026, 40));
+  return server;
+}
+const syncWorld = (storage) => {
+  const L = loader({ '@react-native-async-storage/async-storage': storage });
+  return { L, server: L('src/utils/timesServer.js'), tables: L('src/utils/officialTables.js') };
+};
+const NOW = new Date(2026, 5, 1, 12).getTime();
+const HOUR = 3600 * 1000;
+
+test('sync downloads the index and the tables of the nearest place for the previous, this and next year, stores and installs them', () => inZone('Europe/Moscow', async () => {
+  const storage = memoryStorage();
+  const { server, tables } = syncWorld(storage);
+  const world = fakeServer();
+  let woke = 0;
+  tables.subscribeTables(() => { woke += 1; });
+  const ok = await withFetch(world.fetch, () => server.syncOfficialTables(HERE, { now: NOW }));
+  assert.equal(ok, true);
+  // Пункт a1, годы 2025–2027: без 2028 (дальше Y+1) и без чужого пункта a2.
+  assert.deepEqual(world.log.map((r) => r.path), ['index.json', 'xx-a/a1/2025.json', 'xx-a/a1/2026.json', 'xx-a/a1/2027.json']);
+  assert.equal(world.log[0].headers['If-None-Match'], undefined);
+  assert.deepEqual(tables.officialTimes('xx-a', HERE, noon(2026, 6, 10)), timesOf(dayOfYear(2026, 6, 10), 26));
+  assert.deepEqual(tables.officialTimes('xx-a', HERE, noon(2027, 6, 10)), timesOf(dayOfYear(2027, 6, 10), 27));
+  // Индекс и таблицы встали одним коммитом: экран пересчитается один раз.
+  assert.equal(woke, 1);
+  // В хранилище — только свои ключи с общим префиксом.
+  const keys = [...storage.map.keys()];
+  assert.ok(keys.length > 0 && keys.every((k) => k.startsWith('officialTables:v1:')), keys.join());
+  for (const k of ['index', 'etag', 'syncedAt', 'manifest', 'table:xx-a/a1/2026']) assert.ok(keys.includes('officialTables:v1:' + k), k);
+  assert.equal(JSON.parse(storage.map.get('officialTables:v1:etag')), '"e1"');
+}));
+test('sync asks the server at most every 12 hours unless forced; an unchanged index (304) downloads nothing', () => inZone('Europe/Moscow', async () => {
+  const { server } = syncWorld(memoryStorage());
+  const world = fakeServer();
+  await withFetch(world.fetch, async () => {
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW }), true);
+    const calls = world.log.length;
+    // Час спустя спрашивать нечего.
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW + HOUR }), true);
+    assert.equal(world.log.length, calls);
+    // force сверяется сразу: условный запрос с сохранённым ETag, 304, таблиц не качает.
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW + HOUR, force: true }), true);
+    assert.equal(world.log.length, calls + 1);
+    assert.deepEqual(world.log.at(-1), { path: 'index.json', headers: { 'If-None-Match': '"e1"' } });
+    // Через 13 часов предел снят и без force.
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW + 13 * HOUR }), true);
+    assert.equal(world.log.length, calls + 2);
+    assert.equal(world.log.at(-1).headers['If-None-Match'], '"e1"');
+    // Предел отсчитывается от последней удачной сверки, а 304 — тоже удача.
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW + 14 * HOUR }), true);
+    assert.equal(world.log.length, calls + 2);
+  });
+}));
+test('sync downloads only the tables whose hash changed', () => inZone('Europe/Moscow', async () => {
+  const storage = memoryStorage();
+  const { server, tables } = syncWorld(storage);
+  const world = fakeServer();
+  await withFetch(world.fetch, async () => {
+    await server.syncOfficialTables(HERE, { now: NOW });
+    const before = tables.tablesVersion();
+    const calls = world.log.length;
+    // Сервер поправил таблицу 2026: другой файл, другой hash в индексе, другой ETag.
+    world.publish('xx-a/a1/2026.json', fakeTable('xx-a', world.place, 2026, 99));
+    const index = world.index();
+    index.authorities[0].places[0].tables[1].hash = 'a1-2026-v2';
+    world.publish('index.json', index, '"e2"');
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW + 13 * HOUR }), true);
+    assert.deepEqual(world.log.slice(calls).map((r) => r.path), ['index.json', 'xx-a/a1/2026.json']);
+    assert.equal(world.log[calls].headers['If-None-Match'], '"e1"');
+    assert.deepEqual(tables.officialTimes('xx-a', HERE, noon(2026, 6, 10)), timesOf(dayOfYear(2026, 6, 10), 99));
+    assert.notEqual(tables.tablesVersion(), before);
+    assert.equal(JSON.parse(storage.map.get('officialTables:v1:etag')), '"e2"');
+  });
+}));
+test('moving to another place downloads its tables at once, even inside the 12 hours', () => inZone('Europe/Moscow', async () => {
+  const storage = memoryStorage();
+  const { server, tables } = syncWorld(storage);
+  const world = fakeServer();
+  const there = { lat: 56.5, lng: 52, region: 'xx-region', country: 'XX' };
+  await withFetch(world.fetch, async () => {
+    await server.syncOfficialTables(HERE, { now: NOW });
+    assert.equal(tables.officialTimes('xx-a', there, noon(2026, 6, 10)), null);
+    const calls = world.log.length;
+    assert.equal(await server.syncOfficialTables(there, { now: NOW + HOUR }), true);
+    assert.deepEqual(world.log.slice(calls).map((r) => r.path), ['index.json', 'xx-a/a2/2026.json']);
+    assert.deepEqual(tables.officialTimes('xx-a', there, noon(2026, 6, 10)), timesOf(dayOfYear(2026, 6, 10), 40));
+    // Таблицы прежнего пункта убраны из хранилища и манифеста: вне текущего пункта они не нужны.
+    const keys = [...storage.map.keys()];
+    assert.ok(!keys.some((k) => k.includes('xx-a/a1/')), keys.join());
+    assert.deepEqual(Object.keys(JSON.parse(storage.map.get('officialTables:v1:manifest'))), ['xx-a/a2/2026']);
+    // Вернулись — прежний пункт качается заново, а a2 уходит.
+    const after = world.log.length;
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW + 2 * HOUR }), true);
+    assert.deepEqual(world.log.slice(after).map((r) => r.path),
+      ['index.json', 'xx-a/a1/2025.json', 'xx-a/a1/2026.json', 'xx-a/a1/2027.json']);
+    assert.deepEqual(Object.keys(JSON.parse(storage.map.get('officialTables:v1:manifest'))).sort(),
+      ['xx-a/a1/2025', 'xx-a/a1/2026', 'xx-a/a1/2027']);
+  });
+}));
+test('sync swallows network trouble and answers false; the built-in timetable keeps working and the next try is not blocked', () => inZone('Europe/Moscow', async () => {
+  const { server, tables } = syncWorld(memoryStorage());
+  const world = fakeServer();
+  const down = [];
+  // Сети нет.
+  assert.equal(await withFetch(offline(down), () => server.syncOfficialTables(HERE, { now: NOW })), false);
+  assert.equal(down.length, 1);
+  // Сервер отвечает ошибкой, мусором, чужой версией формата или молчит.
+  const broken = (res) => async () => res;
+  assert.equal(await withFetch(broken({ status: 500, ok: false, headers: { get: () => null }, text: async () => '' }), () => server.syncOfficialTables(HERE, { now: NOW })), false);
+  assert.equal(await withFetch(broken({ status: 200, ok: true, headers: { get: () => null }, text: async () => '<html>' }), () => server.syncOfficialTables(HERE, { now: NOW })), false);
+  assert.equal(await withFetch(broken({ status: 200, ok: true, headers: { get: () => null }, text: async () => '{"v":2,"authorities":[]}' }), () => server.syncOfficialTables(HERE, { now: NOW })), false);
+  assert.equal(await withFetch(() => new Promise(() => {}), () => server.syncOfficialTables(HERE, { now: NOW, timeoutMs: 20 })), false);
+  // Встроенный график цел.
+  assert.deepEqual(tables.officialTimes('ru-kbr', NALCHIK, noon(2026, 10, 8)), KBR_OCT8);
+  // Неудача не взвела предел в 12 часов: как только сеть вернулась, сверка проходит.
+  assert.equal(await withFetch(world.fetch, () => server.syncOfficialTables(HERE, { now: NOW + 1000 })), true);
+  assert.ok(tables.officialTimes('xx-a', HERE, noon(2026, 6, 10)));
+  // Таблица упала посреди сверки: что скачалось — осталось, но ETag не сохранён и сверка повторится.
+  const storage = memoryStorage();
+  const half = syncWorld(storage);
+  const world2 = fakeServer();
+  let served = 0;
+  const flaky = async (url, init) => { if (url.endsWith('2026.json') && served++ === 0) throw new TypeError('lost'); return world2.fetch(url, init); };
+  assert.equal(await withFetch(flaky, () => half.server.syncOfficialTables(HERE, { now: NOW })), false);
+  assert.ok(half.tables.officialTimes('xx-a', HERE, noon(2025, 6, 10)));
+  assert.equal(storage.map.has('officialTables:v1:etag'), false);
+  // Сбой на таблице: час сервер не трогаем (при выходе на передний план index.json не гоняем зря)…
+  const calls = world2.log.length;
+  assert.equal(await withFetch(world2.fetch, () => half.server.syncOfficialTables(HERE, { now: NOW + 1000 })), false);
+  assert.equal(world2.log.length, calls);
+  // …если не потребовать force, а через час пробуем снова и догружаем.
+  assert.equal(await withFetch(world2.fetch, () => half.server.syncOfficialTables(HERE, { now: NOW + 2 * HOUR })), true);
+  assert.ok(half.tables.officialTimes('xx-a', HERE, noon(2026, 6, 10)));
+  const again = syncWorld(memoryStorage());
+  const flaky2 = async (url, init) => { if (url.endsWith('2026.json')) throw new TypeError('lost'); return world2.fetch(url, init); };
+  await withFetch(flaky2, () => again.server.syncOfficialTables(HERE, { now: NOW }));
+  assert.equal(await withFetch(world2.fetch, () => again.server.syncOfficialTables(HERE, { now: NOW + 1000, force: true })), true);
+}));
+test('sync refuses a table that is not the one the index promised, and a place with no muftiate costs only the index', () => inZone('Europe/Moscow', async () => {
+  const { server, tables } = syncWorld(memoryStorage());
+  const world = fakeServer();
+  // По пути a1/2026 лежит таблица другого пункта: не ставится, сверка не удалась.
+  world.publish('xx-a/a1/2026.json', fakeTable('xx-a', world.far, 2026, 50));
+  assert.equal(await withFetch(world.fetch, () => server.syncOfficialTables(HERE, { now: NOW })), false);
+  // Чужая таблица не заняла место 2026-го: июньский день берётся из честной 2025-го, с пометкой.
+  const info = tables.officialTimesInfo('xx-a', HERE, noon(2026, 6, 10));
+  assert.deepEqual([info.year, info.approximate], [2025, true]);
+  // Место вне всех управлений: индекс скачан, таблиц нет, сверка удалась.
+  const quiet = syncWorld(memoryStorage());
+  const world2 = fakeServer();
+  assert.equal(await withFetch(world2.fetch, () => quiet.server.syncOfficialTables({ lat: 0, lng: 0, country: 'ZZ' }, { now: NOW })), true);
+  assert.deepEqual(world2.log.map((r) => r.path), ['index.json']);
+  assert.equal(quiet.tables.resolveAuthority({ region: 'xx-region' })?.id, 'xx-a');
+}));
+test('after a restart the stored index and tables come back without the network, and the limit survives too', () => inZone('Europe/Moscow', async () => {
+  const storage = memoryStorage();
+  const world = fakeServer();
+  const first = syncWorld(storage);
+  await withFetch(world.fetch, () => first.server.syncOfficialTables(HERE, { now: NOW }));
+  // «Перезапуск»: свежие модули, то же хранилище, сети нет.
+  const second = syncWorld(storage);
+  assert.equal(second.tables.officialTimes('xx-a', HERE, noon(2026, 6, 10)), null);
+  const version = second.tables.tablesVersion();
+  await second.server.loadStoredTables();
+  assert.deepEqual(second.tables.officialTimes('xx-a', HERE, noon(2026, 6, 10)), timesOf(dayOfYear(2026, 6, 10), 26));
+  assert.notEqual(second.tables.tablesVersion(), version);
+  assert.equal(second.tables.tablesVersion(), first.tables.tablesVersion());
+  const urls = [];
+  assert.equal(await withFetch(offline(urls), () => second.server.syncOfficialTables(HERE, { now: NOW + HOUR })), true);
+  assert.deepEqual(urls, []);
+  // Повторная загрузка ничего не делает, а испорченное хранилище не страшно.
+  assert.equal(second.server.loadStoredTables(), second.server.loadStoredTables());
+  storage.map.set('officialTables:v1:index', '{broken');
+  storage.map.set('officialTables:v1:table:xx-a/a1/2026', 'nope');
+  const third = syncWorld(storage);
+  await third.server.loadStoredTables();
+  assert.equal(third.tables.officialTimes('xx-a', HERE, noon(2026, 6, 10)), null);
+  assert.deepEqual(third.tables.officialTimes('ru-kbr', NALCHIK, noon(2026, 10, 8)), KBR_OCT8);
+}));
+
+test('the widget snapshot carries the day shift of every time, so a night Fajr and Isha land on the right day', () => {
+  const written = new Map();
+  class ExtensionStorage {
+    set(key, value) { written.set(key, value); }
+    static reloadWidget() {}
+  }
+  const bridge = loader({ '@bacons/apple-targets': { ExtensionStorage }, './helpers': {} })('src/utils/widgetBridge.js');
+  const order = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+  const [, may5] = KAZAN_MAY;
+  const plain = { date: '2026-10-08', timings: { Fajr: '04:41', Sunrise: '06:11', Dhuhr: '12:03', Asr: '15:08', Maghrib: '17:37', Isha: '19:17' } };
+  const north = { date: '2026-06-20', timings: { Fajr: '01:10', Sunrise: '03:32', Dhuhr: '12:02', Asr: '16:41', Maghrib: '22:40', Isha: '00:20' } };
+  assert.equal(bridge.publishPrayerDay({ days: [may5, plain, north], order, label: key => key, city: 'Kazan' }), true);
+  const [fajrDay, plainDay, northDay] = JSON.parse(written.get('prayerWindow:v2'));
+  const shifts = day => Object.fromEntries(day.times.map(item => [item.key, item.shift]));
+  assert.deepEqual(shifts(fajrDay), { Fajr: -1, Sunrise: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 });
+  assert.deepEqual(shifts(plainDay), { Fajr: 0, Sunrise: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0 });
+  assert.deepEqual(shifts(northDay), { Fajr: 0, Sunrise: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 1 });
+  // Время остаётся записью строки: сдвиг лежит рядом, а не вшит в часы.
+  assert.equal(fajrDay.times[0].time, '23:54');
+});
+
+// ---------- Правки после проверки ----------
+// Часы приложения целиком: и Date.now(), и new Date() без аргументов.
+async function atFakeNow(ms, fn) {
+  const Real = Date;
+  class Fake extends Real {
+    constructor(...args) { if (args.length) super(...args); else super(ms); }
+    static now() { return ms; }
+  }
+  globalThis.Date = Fake;
+  try { return await fn(); } finally { globalThis.Date = Real; }
+}
+
+test('reminders rebuilt after midnight still keep the Isha written in yesterday row', () => inZone('Europe/Moscow', async () => {
+  const planned = [];
+  const reminders = loader({ 'expo-notifications': {
+    getPermissionsAsync: async () => ({ granted: true }),
+    getAllScheduledNotificationsAsync: async () => [],
+    cancelScheduledNotificationAsync: async () => {},
+    scheduleNotificationAsync: async (n) => { planned.push(n); },
+    SchedulableTriggerInputTypes: { DATE: 'date' } } })('src/utils/prayerNotifications.js');
+  const normal = { Fajr: '04:30', Sunrise: '06:00', Dhuhr: '12:00', Asr: '15:00', Maghrib: '19:00', Isha: '20:30' };
+  // 10 июня 00:10, а Иша строки 9 июня — 00:20 этой же ночью.
+  const timesForDate = (date) => (dates.localDateKey(date) === '2026-06-09'
+    ? { ...normal, Maghrib: '22:40', Isha: '00:20' } : normal);
+  const on = Object.fromEntries(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(p => [p, { enabled: true, minutesBefore: 0 }]));
+  const now = new Date(2026, 5, 10, 0, 10).getTime();
+  await atFakeNow(now, () => reminders.schedulePrayerReminders({ timesForDate, reminders: on, label: p => p, body: () => '', days: 3 }));
+  const isha = planned.filter(n => n.content.data.prayer === 'Isha').map(n => stamp(n.trigger.date));
+  assert.ok(isha.includes('2026-06-10 00:20'), isha.join());
+  // Прошедшее по вчерашней строке (Фаджр, зухр…) не ставится.
+  assert.ok(planned.every(n => n.trigger.date.getTime() > now));
+}));
+test('a crooked index from the server is cleaned or refused and never breaks the Auto source', () => inZone('Europe/Moscow', async () => {
+  const good = () => fakeAuthority('xx-good', { country: 'TR', regions: ['xx-region'], places: [A1] });
+  const variants = {
+    'regions as a string': fakeAuthority('xx-bad', { regions: 'xx-bad', places: [A1] }),
+    'regions with a number': fakeAuthority('xx-bad', { regions: ['xx-bad', 5], places: [A1] }),
+    'null place': fakeAuthority('xx-bad', { regions: ['xx-bad'], places: [null, A1] }),
+    'only a null place': fakeAuthority('xx-bad', { regions: ['xx-bad'], places: [null] }),
+    'places as a string': fakeAuthority('xx-bad', { regions: ['xx-bad'], places: 'abc' }),
+    'place without radius': fakeAuthority('xx-bad', { regions: ['xx-bad'], places: [{ ...A1, radiusKm: undefined }] }),
+    'tables not an array': fakeAuthority('xx-bad', { regions: ['xx-bad'], places: [{ ...A1, tables: 'x' }] }),
+    'fallback as a string': fakeAuthority('xx-bad', { regions: ['xx-bad'], fallback: 'dumKbr', places: [A1] }),
+  };
+  const byCountry = new Set(['regions as a string', 'regions with a number', 'places as a string', 'fallback as a string']);
+  for (const [name, bad] of Object.entries(variants)) {
+    const { source, tables, calls } = autoWorld();
+    tables.installIndex(fakeIndex([good()]));
+    const before = tables.tablesVersion();
+    // Принимается весь индекс, негодная запись отбрасывается или чистится.
+    assert.equal(tables.installIndex(fakeIndex([good(), bad])), true, name);
+    assert.doesNotThrow(() => tables.tablesVersion(), name);
+    assert.equal(tables.resolveAuthority({ region: 'xx-region' })?.id, 'xx-good', name);
+    assert.doesNotThrow(() => tables.resolveAuthority({ region: 'xx-bad', lat: 55, lng: 49 }), name);
+    assert.doesNotThrow(() => tables.officialTimes('xx-bad', { region: 'xx-bad', lat: 55, lng: 49 }, noon(2026, 6, 10)), name);
+    // «Авто» в месте кривой записи считает дальше, а не падает. Запись, которой
+    // верить нельзя, не управляет местом: считает метод страны.
+    await withFetch(offline([]), async () => {
+      const got = await source.getPrayerTimes2({ lat: 55, lng: 49, region: 'xx-bad', country: 'TR', sourceId: 'auto', date: noon(2026, 6, 10) });
+      assert.equal(Object.keys(got).length, 6, name);
+      if (byCountry.has(name)) {
+        assert.deepEqual(got, LOCAL_TIMES, name);
+        assert.equal(calls.at(-1)[2], 'turkey', name);
+      }
+    });
+    assert.doesNotThrow(() => source.describeAutoSource({ lat: 55, lng: 49, region: 'xx-bad', country: 'TR' }), name);
+    assert.equal(typeof before, 'string');
+  }
+  // Индекс, негодный целиком, состояния не меняет.
+  const tables = loader()('src/utils/officialTables.js');
+  tables.installIndex(fakeIndex([good()]));
+  const version = tables.tablesVersion();
+  assert.equal(tables.installIndex({ v: 1, authorities: 'x' }), false);
+  assert.equal(tables.installIndex({ v: 1, authorities: { 0: good() } }), false);
+  assert.equal(tables.tablesVersion(), version);
+  assert.equal(tables.resolveAuthority({ region: 'xx-region' })?.id, 'xx-good');
+  // Кривое место правится на месте: у чистого пункта остаётся нормальный список таблиц.
+  tables.installIndex(fakeIndex([fakeAuthority('xx-bad', { regions: ['xx-bad'], places: [null, { ...A1, tables: undefined }] })]));
+  assert.deepEqual(tables.resolvePlace(tables.resolveAuthority({ region: 'xx-bad' }), { region: 'xx-bad' }).tables, []);
+}));
+test('sync is not locked by a clock set back, and checks a downloaded table against the index entry', () => inZone('Europe/Moscow', async () => {
+  const { server, tables } = syncWorld(memoryStorage());
+  const world = fakeServer();
+  await withFetch(world.fetch, async () => {
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW }), true);
+    const calls = world.log.length;
+    // Часы ушли на пять часов назад: сверка не заперта до «будущей» отметки.
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW - 5 * HOUR }), true);
+    assert.equal(world.log.length, calls + 1);
+    // Индекс обещает 2026 из 300 строк, а в файле 365: не та таблица.
+    const index = world.index();
+    index.authorities[0].places[0].tables[1].days = 300;
+    index.authorities[0].places[0].tables[1].hash = 'a1-2026-v3';
+    world.publish('index.json', index, '"e3"');
+    assert.equal(await server.syncOfficialTables(HERE, { now: NOW + 13 * HOUR }), false);
+    assert.equal(tables.officialTimesInfo('xx-a', HERE, noon(2026, 6, 10)).year, 2026);
+    assert.equal(tables.officialTimesInfo('xx-a', HERE, noon(2026, 6, 10)).times.Isha, '19:26');
+    // Начало тоже должно совпасть с записью.
+    const other = syncWorld(memoryStorage());
+    const bad = world.index();
+    bad.authorities[0].places[0].tables[1].start = '2026-02-01';
+    world.publish('index.json', bad, '"e4"');
+    assert.equal(await other.server.syncOfficialTables(HERE, { now: NOW }), false);
+    assert.equal(other.tables.officialTimesInfo('xx-a', HERE, noon(2026, 6, 10)).approximate, true);
   });
 }));

@@ -5,7 +5,7 @@ import { loadJSON, saveJSON } from '../utils/helpers';
 const LocationContext = createContext(null);
 
 export function LocationProvider({ children }) {
-  const [coords, setCoords] = useState(null); // { lat, lng, label, region }
+  const [coords, setCoords] = useState(null); // { lat, lng, label, region, country }
   const [status, setStatus] = useState('init'); // init | ok | denied | error
   const [ready, setReady] = useState(false);
 
@@ -19,6 +19,8 @@ export function LocationProvider({ children }) {
       }
       // Location permission/GPS can remain pending. Reading and Tasbih must still open.
       setReady(true);
+      // Место, сохранённое до появления страны, дополняем один раз.
+      if (saved && !saved.country && !saved.geoChecked) await fillPlace(saved);
       // Then try to refresh from GPS unless user manually picked a city.
       if (!saved || saved.fromGps) {
         await requestGps();
@@ -34,10 +36,12 @@ export function LocationProvider({ children }) {
         return false;
       }
       const loc = await Location.getCurrentPositionAsync({});
-      // Reverse geocode to show a friendly label. Регион нужен ещё и времени
-      // намаза: официальный график ДУМ действует в границах своего региона.
+      // Reverse geocode to show a friendly label. Регион и страна нужны ещё и
+      // времени намаза: официальный график ДУМ действует в границах своего
+      // региона, а управление на всю страну (и метод по умолчанию) — своей страны.
       let label = 'Current location';
       let region;
+      let country;
       try {
         const geo = await Location.reverseGeocodeAsync({
           latitude: loc.coords.latitude,
@@ -46,6 +50,7 @@ export function LocationProvider({ children }) {
         if (geo?.[0]) {
           label = geo[0].city || geo[0].region || label;
           region = geo[0].region || undefined;
+          country = geo[0].isoCountryCode ? String(geo[0].isoCountryCode).toUpperCase() : undefined;
         }
       } catch {}
       const c = {
@@ -53,6 +58,7 @@ export function LocationProvider({ children }) {
         lng: loc.coords.longitude,
         label,
         region,
+        country,
         fromGps: true,
       };
       setCoords(c);
@@ -63,6 +69,31 @@ export function LocationProvider({ children }) {
       setStatus((s) => (coords ? s : 'error'));
       return false;
     }
+  }
+
+  // Сохранённому месту без страны (выбрано до того, как её стали хранить)
+  // допишем страну и недостающий регион обратным геокодированием. Ответ
+  // геокодера запоминается флагом geoChecked, чтобы не спрашивать при каждом
+  // запуске; если спросить не удалось (нет сети), флага нет и спросим позже.
+  async function fillPlace(saved) {
+    let answer = null;
+    try {
+      answer = await Location.reverseGeocodeAsync({ latitude: saved.lat, longitude: saved.lng });
+    } catch {}
+    if (!Array.isArray(answer)) return;
+    // Пока шёл запрос, место могли выбрать заново: тогда дописывать некуда.
+    const current = await loadJSON('chosenLocation', null);
+    if (!current || current.lat !== saved.lat || current.lng !== saved.lng) return;
+    const geo = answer[0];
+    const code = geo?.isoCountryCode ? String(geo.isoCountryCode).toUpperCase() : undefined;
+    const filled = {
+      ...current,
+      country: current.country || code,
+      region: current.region || geo?.region || undefined,
+      geoChecked: true,
+    };
+    setCoords(filled);
+    await saveJSON('chosenLocation', filled);
   }
 
   async function setManual(c) {
@@ -100,5 +131,6 @@ export async function searchCity(name) {
     label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
     short: r.name,
     region: r.admin1,
+    country: r.country_code ? String(r.country_code).toUpperCase() : undefined,
   }));
 }

@@ -1,16 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPrayerTimes2 } from './prayerSource';
-import { TABLES_VERSION } from './officialTables';
-import { localDateKey, atTime } from './calendarDate';
+import { tablesVersion } from './officialTables';
+import { localDateKey, atTime, prayerMoment } from './calendarDate';
 
 export const PRAYER_ORDER = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+// Момент намаза в строке дня (с учётом Фаджра до полуночи и Иши после неё):
+// живёт в calendarDate.js, чтобы его брал и будильник, не таща за собой расчёт.
+export { prayerMoment };
 const pending = new Map();
-export function scheduleIdentity({ lat, lng, region, sourceId, school, tune }) {
+export function scheduleIdentity({ lat, lng, region, country, sourceId, school, tune }) {
   const identity = [lat, lng, sourceId, school, tune || {}, Intl.DateTimeFormat().resolvedOptions().timeZone];
-  // Официальный график есть только у источника «ДУМ КБР»: регион места решает,
-  // применим ли он, а версия графиков нужна, чтобы день, сохранённый до новой
-  // или исправленной таблицы, не остался посчитанным по-старому.
-  if (sourceId === 'russia') identity.push(region || '', TABLES_VERSION);
+  // Официальный график есть у источников «ДУМ КБР» и «Авто»: регион и страна
+  // места решают, какое управление и какая таблица применимы, а версия
+  // графиков нужна, чтобы день, сохранённый до новой или исправленной таблицы,
+  // не остался посчитанным по-старому. У остальных источников ключ прежний.
+  if (sourceId === 'russia' || sourceId === 'auto') identity.push(region || '', country || '', tablesVersion());
   return JSON.stringify(identity);
 }
 
@@ -49,7 +53,7 @@ export async function getPrayerWindow(options) {
 }
 export function prayerEvents(days, now = new Date()) {
   const events = days.flatMap(day => PRAYER_ORDER.filter(name => name !== 'Sunrise').map(name => ({
-    name, time: day.timings[name], date: atTime(day.date, day.timings[name]),
+    name, time: day.timings[name], date: prayerMoment(day, name),
   }))).filter(e => e.date).sort((a, b) => a.date - b.date);
   const upcoming = events.filter(e => e.date > now);
   const previous = events.filter(e => e.date <= now).pop();
