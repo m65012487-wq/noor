@@ -5,7 +5,7 @@ import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import { SectionTitle } from '../components/ui';
-import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, FONTS, TYPE, READER } from '../constants/theme';
 import { getSurahList, getSurah, getSurahAudio } from '../utils/quranApi';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
 import { useLang } from '../i18n/LanguageContext';
@@ -252,12 +252,14 @@ const styles = StyleSheet.create({
   statLabel: { ...TYPE.caption, color: COLORS.textMuted },
 
   ayahScroll: { padding: SPACING.lg, flexGrow: 1, justifyContent: 'center' },
-  ar: { ...ARABIC.lg, color: COLORS.white, textAlign: 'center',
+  // Размеры те же, что в читалке суры (READER), — иначе одна и та же сура
+  // выглядит в двух разделах по-разному.
+  ar: { ...READER.ayah, color: COLORS.white, textAlign: 'center',
     fontFamily: FONTS.arabic, writingDirection: 'rtl' },
-  tr: { ...TYPE.body, color: COLORS.accentSoft, fontStyle: 'italic',
+  tr: { ...READER.translit, color: COLORS.accentSoft, fontStyle: 'italic',
     textAlign: 'center', marginTop: SPACING.md },
-  en: { ...TYPE.body, color: COLORS.text, textAlign: 'center',
-    marginTop: SPACING.sm, lineHeight: 24 },
+  en: { ...READER.trans, color: COLORS.text, textAlign: 'center',
+    marginTop: SPACING.sm },
 
   listenBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: SPACING.lg,
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,

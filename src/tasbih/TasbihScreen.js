@@ -66,14 +66,16 @@ export default function TasbihScreen({ onClose }) {
   // Свайп вправо и вниз закрывает экран — привычный для iOS выход, которым
   // пользуются чаще кнопки. Жест ловится на захвате, иначе его перехватывает
   // нажатие по дереву.
-  const swipes = useMemo(() => {
-    const make = direction => PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_event, gesture) => capturesDismiss(gesture, direction),
-      onPanResponderRelease: (_event, gesture) => { if (finishesDismiss(gesture, direction)) closeRef.current(); },
-      onPanResponderTerminationRequest: () => true,
-    });
-    return { right: make('right'), down: make('down') };
-  }, []);
+  // Один обработчик на весь экран, а не по частям: прежние висели на
+  // SafeAreaView и шапке, и жест по дереву или саду до них не доходил.
+  const swipe = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+      capturesDismiss(gesture, 'right') || capturesDismiss(gesture, 'down'),
+    onPanResponderRelease: (_event, gesture) => {
+      if (finishesDismiss(gesture, 'right') || finishesDismiss(gesture, 'down')) closeRef.current();
+    },
+    onPanResponderTerminationRequest: () => true,
+  }), []);
   const textFade = useRef(new Animated.Value(1)).current;
   // Native-driver-only value (opacity + transform): a brief accent flash
   // behind the counter and a small scale pop mark the end of a circle or a
@@ -136,10 +138,11 @@ export default function TasbihScreen({ onClose }) {
     // Свой сад у тасбиха — для обычных тем: их рисунок спорил с деревом.
     // Живая абстрактная тема не спорит, поэтому тасбих берёт её.
     <ThemedBackground scene={patternKind(appearance?.pattern) === 'live' ? null : GARDEN_SCENE}>
-      <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose} {...swipes.right.panHandlers}>
+      <View style={{ flex: 1 }} {...swipe.panHandlers}>
+      <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose}>
         {/* Шапка: закрыть — режим — сад. Названия экрана нет: о том, где
             человек находится, говорит дерево, а строка режима нужнее. */}
-        <View style={styles.header} {...swipes.down.panHandlers}>
+        <View style={styles.header}>
           <Pressable accessibilityRole="button" accessibilityLabel={ru ? 'Закрыть Тасбих' : 'Close Tasbih'}
             onPress={onClose} style={styles.iconButton} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
             <Icon name="close" size={22} color={COLORS.text} />
@@ -239,6 +242,7 @@ export default function TasbihScreen({ onClose }) {
           </>
         )}
       </SafeAreaView>
+      </View>
 
       <DhikrSheet visible={selector} onClose={() => setSelector(false)} state={state}
         select={select} addCustom={addCustom} removeCustom={removeCustom} setCircleLimit={setCircleLimit} setSequence={setSequence} />
