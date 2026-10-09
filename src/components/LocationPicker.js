@@ -22,7 +22,7 @@ export default function LocationPicker({ visible, onClose }) {
     catch { setResults([]); }
     setLoading(false);
   }
-  async function pick(item) { await setManual({ lat: item.lat, lng: item.lng, label: item.short }); onClose(); }
+  async function pick(item) { await setManual({ lat: item.lat, lng: item.lng, label: item.short, region: item.region }); onClose(); }
   async function gps() { await requestGps(); onClose(); }
 
   return (

@@ -5,7 +5,7 @@ import { loadJSON, saveJSON } from '../utils/helpers';
 const LocationContext = createContext(null);
 
 export function LocationProvider({ children }) {
-  const [coords, setCoords] = useState(null); // { lat, lng, label }
+  const [coords, setCoords] = useState(null); // { lat, lng, label, region }
   const [status, setStatus] = useState('init'); // init | ok | denied | error
   const [ready, setReady] = useState(false);
 
@@ -34,19 +34,25 @@ export function LocationProvider({ children }) {
         return false;
       }
       const loc = await Location.getCurrentPositionAsync({});
-      // Reverse geocode to show a friendly label.
+      // Reverse geocode to show a friendly label. Регион нужен ещё и времени
+      // намаза: официальный график ДУМ действует в границах своего региона.
       let label = 'Current location';
+      let region;
       try {
         const geo = await Location.reverseGeocodeAsync({
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
         });
-        if (geo?.[0]) label = geo[0].city || geo[0].region || label;
+        if (geo?.[0]) {
+          label = geo[0].city || geo[0].region || label;
+          region = geo[0].region || undefined;
+        }
       } catch {}
       const c = {
         lat: loc.coords.latitude,
         lng: loc.coords.longitude,
         label,
+        region,
         fromGps: true,
       };
       setCoords(c);
@@ -78,10 +84,13 @@ export function LocationProvider({ children }) {
 export const useLocation = () => useContext(LocationContext);
 
 // Free worldwide city search via Open-Meteo geocoding (no API key).
+// Язык поиска — по алфавиту запроса: с language=en кириллический «Нальчик»
+// не находится вовсе, а с ru находится вместе с регионом «Кабардино-Балкария».
 export async function searchCity(name) {
+  const language = /[а-яё]/i.test(name) ? 'ru' : 'en';
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
     name
-  )}&count=8&language=en&format=json`;
+  )}&count=8&language=${language}&format=json`;
   const res = await fetch(url);
   const json = await res.json();
   if (!json.results) return [];
@@ -90,5 +99,6 @@ export async function searchCity(name) {
     lng: r.longitude,
     label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
     short: r.name,
+    region: r.admin1,
   }));
 }

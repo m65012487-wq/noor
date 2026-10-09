@@ -4,6 +4,7 @@
 // Always falls back to local offline calc if the network fails.
 import { computePrayerTimes } from './prayerCalc';
 import { computeDumKbr } from './dumCalc';
+import { officialTimes } from './officialTables';
 
 const ALADHAN = 'https://api.aladhan.com/v1/timings';
 
@@ -16,6 +17,14 @@ function applyTune(times, tune) {
     out[k] = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
   return out;
+}
+
+// ДУМ КБР: официальный график, пока дата и место им покрыты, иначе формула.
+// Формула восстановлена по графикам за три сезона и расходится с ними до трёх
+// минут; до минуты с мечетями совпадает только сам график (officialTables.js).
+// region — название региона места, если оно известно (LocationContext).
+function dumKbrTimes(lat, lng, region, date) {
+  return officialTimes('ru-kbr', { lat, lng, region }, date) || computeDumKbr(lat, lng, date);
 }
 
 // Map our internal method ids -> Aladhan numeric method.
@@ -72,14 +81,12 @@ export const TIME_SOURCES = [
   { id: 'local', label_en: 'Offline (device calc)', label_ru: 'Офлайн (на устройстве)', method: null },
 ];
 
-export function getPrayerTimes2({ lat, lng, sourceId = 'mwl_intl', school = 'shafi', tune = null, date = new Date(), onFallback }) {
+export function getPrayerTimes2({ lat, lng, region, sourceId = 'mwl_intl', school = 'shafi', tune = null, date = new Date(), onFallback }) {
   const src = TIME_SOURCES.find((s) => s.id === sourceId) || TIME_SOURCES[0];
-  // ДУМ КБР: считаем на устройстве. Метод восстановлен по официальным
-  // графикам за три сезона; расхождение с ними — до трёх минут, чаще ноль.
-  // Aladhan с его методом 14 «ДУМ РФ» здесь не помощник: на 7 сентября 2026
-  // он даёт Ишу 19:52 против официальных 20:16.
+  // ДУМ КБР: считаем на устройстве. Aladhan с его методом 14 «ДУМ РФ» здесь
+  // не помощник: на 7 сентября 2026 он даёт Ишу 19:52 против официальных 20:16.
   if (sourceId === 'russia') {
-    return Promise.resolve(applyTune(computeDumKbr(lat, lng, date), tune));
+    return Promise.resolve(applyTune(dumKbrTimes(lat, lng, region, date), tune));
   }
   if (src.method == null) {
     // local offline
@@ -98,16 +105,17 @@ export function getPrayerTimes2({ lat, lng, sourceId = 'mwl_intl', school = 'sha
 // getPrayerTimes2 считает только на сегодня и для части источников ходит
 // в Aladhan. Планировщику уведомлений это не подходит: расписание ставится
 // на несколько дней вперёд и должно работать в самолётном режиме.
-// Поэтому здесь всегда используется локальный расчёт adhan — тот же, что
-// служит запасным вариантом при отказе сети.
+// Поэтому здесь считается без сети: для «ДУМ КБР» — официальный график или
+// формула dumCalc, для остальных источников — локальный расчёт adhan, тот же,
+// что служит запасным вариантом при отказе сети.
 const LOCAL_METHOD = {
   mwl_intl: 'mwl', turkey: 'turkey', egypt: 'egypt', makkah: 'makkah',
   karachi: 'karachi', isna: 'isna', local: 'mwl',
 };
 
-export function localTimesForDate({ lat, lng, sourceId = 'mwl_intl', school = 'shafi', tune = null, date = new Date() }) {
+export function localTimesForDate({ lat, lng, region, sourceId = 'mwl_intl', school = 'shafi', tune = null, date = new Date() }) {
   if (sourceId === 'russia') {
-    return applyTune(computeDumKbr(lat, lng, date), tune);
+    return applyTune(dumKbrTimes(lat, lng, region, date), tune);
   }
   const methodId = LOCAL_METHOD[sourceId] || 'mwl';
   return computePrayerTimes(lat, lng, methodId, school, date, tune);

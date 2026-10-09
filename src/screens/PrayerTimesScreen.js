@@ -133,7 +133,7 @@ export default function PrayerTimesScreen() {
     setError(null);
     setTimings(null);
     setDays([]);
-    const options = { lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool, tune };
+    const options = { lat: coords.lat, lng: coords.lng, region: coords.region, sourceId: timeSourceId, school: asrSchool, tune };
     getPrayerDay(options)
       .then(day => {
         if (cancelled) return [];

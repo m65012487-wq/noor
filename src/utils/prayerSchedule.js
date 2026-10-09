@@ -1,11 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPrayerTimes2 } from './prayerSource';
+import { TABLES_VERSION } from './officialTables';
 import { localDateKey, atTime } from './calendarDate';
 
 export const PRAYER_ORDER = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 const pending = new Map();
-export function scheduleIdentity({ lat, lng, sourceId, school, tune }) {
-  return JSON.stringify([lat, lng, sourceId, school, tune || {}, Intl.DateTimeFormat().resolvedOptions().timeZone]);
+export function scheduleIdentity({ lat, lng, region, sourceId, school, tune }) {
+  const identity = [lat, lng, sourceId, school, tune || {}, Intl.DateTimeFormat().resolvedOptions().timeZone];
+  // Официальный график есть только у источника «ДУМ КБР»: регион места решает,
+  // применим ли он, а версия графиков нужна, чтобы день, сохранённый до новой
+  // или исправленной таблицы, не остался посчитанным по-старому.
+  if (sourceId === 'russia') identity.push(region || '', TABLES_VERSION);
+  return JSON.stringify(identity);
 }
 
 // All consumers share the same dated snapshot, including any offline fallback.

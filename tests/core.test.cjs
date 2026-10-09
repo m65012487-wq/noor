@@ -21,6 +21,8 @@ function loader(overrides = {}) {
         // them so files that require() artwork can still be loaded for their
         // pure exports.
         if (/\.(png|jpg|jpeg|gif|webp|ttf|otf|m4a)$/i.test(id)) return { uri: id };
+        // Data tables are plain JSON, as Metro bundles them.
+        if (/\.json$/i.test(id)) return JSON.parse(fs.readFileSync(path.resolve(path.dirname(full), id), 'utf8'));
         return load(path.resolve(path.dirname(full), id + (path.extname(id) ? '' : '.js')));
       }
       return require(id);
@@ -1028,3 +1030,134 @@ test('alphabet quiz: 8 exercises with the correct answer among 4 unique options,
   assert.equal(last.items.length, 4);
   assert.equal(last.items.filter(l => l.id >= 27).length, 2);
 });
+
+// Официальный график ДУМ КБР (assets/prayer-tables/ru-kbr-2026.json) привязан
+// к поясу +03:00, поэтому эти тесты задают пояс сами. Прежний пояс
+// возвращается присвоением его имени: на Windows delete process.env.TZ
+// действующий пояс процесса не восстанавливает.
+async function inZone(zone, fn) {
+  const before = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  process.env.TZ = zone;
+  try { return await fn(); } finally { process.env.TZ = before; }
+}
+// adhan в node не загружается (его cjs-сборка помечена как ES-модуль), а для
+// источника «ДУМ КБР» он и не нужен.
+const withoutAdhan = (extra = {}) => loader({ './prayerCalc': { computePrayerTimes: () => null }, ...extra });
+const NALCHIK = { lat: 43.4981, lng: 43.6189 };
+const KBR_OCT8 = { Fajr: '04:41', Sunrise: '06:11', Dhuhr: '12:03', Asr: '15:08', Maghrib: '17:37', Isha: '19:17' };
+
+test('the official KBR timetable covers the republic and its dates only', () => inZone('Europe/Moscow', () => {
+  const { officialTimes } = load('src/utils/officialTables.js');
+  const oct8 = new Date(2026, 9, 8, 12);
+  // Сверено с kbrdum.ru/8-grafik-namazov на 8 октября 2026.
+  assert.deepEqual(officialTimes('ru-kbr', NALCHIK, oct8), KBR_OCT8);
+  // График один на всю республику: Баксан и Терскол получают ту же строку.
+  assert.equal(officialTimes('ru-kbr', { lat: 43.68, lng: 43.53 }, oct8).Asr, '15:08');
+  assert.equal(officialTimes('ru-kbr', { lat: 43.255, lng: 42.51 }, oct8).Asr, '15:08');
+  // Известный регион решает сам, как бы его ни назвал геокодер.
+  assert.equal(officialTimes('ru-kbr', { ...NALCHIK, region: 'Кабардино-Балкарская Республика' }, oct8).Asr, '15:08');
+  assert.equal(officialTimes('ru-kbr', { lat: 43.255, lng: 42.51, region: 'Kabardino-Balkariya' }, oct8).Asr, '15:08');
+  // Пятигорск ближе к Нальчику, чем Терскол, а Назрань ещё внутри круга в
+  // 100 км, но у обоих свои управления.
+  assert.equal(officialTimes('ru-kbr', { lat: 43.2257, lng: 44.7645, region: 'Ingushetia' }, oct8), null);
+  assert.equal(officialTimes('ru-kbr', { lat: 44.0486, lng: 43.0594, region: 'Ставропольский край' }, oct8), null);
+  // Без региона — круг 100 км: Москва вне его.
+  assert.equal(officialTimes('ru-kbr', { lat: 55.7558, lng: 37.6173 }, oct8), null);
+  // Пустые координаты не превращаются во время Нальчика.
+  assert.equal(officialTimes('ru-kbr', { lat: NaN, lng: NaN }, oct8), null);
+  assert.equal(officialTimes('ru-kbr', {}, oct8), null);
+  // Вне дат таблицы и для чужого графика таблицы нет.
+  assert.equal(officialTimes('ru-kbr', NALCHIK, new Date(2026, 8, 30, 12)), null);
+  assert.equal(officialTimes('ru-kbr', NALCHIK, new Date(2027, 0, 1, 12)), null);
+  assert.equal(officialTimes('ru-tatarstan', { lat: 55.79, lng: 49.12 }, oct8), null);
+}));
+test('the KBR timetable is used only where the device clock is at +03:00', async () => {
+  const pick = () => load('src/utils/officialTables.js').officialTimes('ru-kbr', NALCHIK, new Date(2026, 9, 8, 12));
+  // В другом поясе строка таблицы стала бы чужим временем: Аср на час раньше.
+  assert.equal(await inZone('Asia/Baku', pick), null);
+  assert.equal(await inZone('UTC', pick), null);
+  // Тот же пояс под другим именем подходит.
+  assert.equal((await inZone('Europe/Istanbul', pick)).Asr, '15:08');
+});
+test('the DUM KBR source reads the timetable, and tune applies on top', () => inZone('Europe/Moscow', async () => {
+  const { getPrayerTimes2, localTimesForDate } = withoutAdhan()('src/utils/prayerSource.js');
+  const { computeDumKbr } = load('src/utils/dumCalc.js');
+  const oct8 = new Date(2026, 9, 8, 12);
+  const opts = { ...NALCHIK, region: 'Кабардино-Балкарская Республика', sourceId: 'russia', date: oct8 };
+  assert.deepEqual(await getPrayerTimes2(opts), KBR_OCT8);
+  assert.equal((await getPrayerTimes2({ ...opts, tune: { Asr: 2 } })).Asr, '15:10');
+  assert.equal(localTimesForDate(opts).Asr, '15:08');
+  // За пределами таблицы — по датам или по региону — считает формула.
+  const jan1 = new Date(2027, 0, 1, 12);
+  assert.deepEqual(await getPrayerTimes2({ ...opts, date: jan1 }), computeDumKbr(NALCHIK.lat, NALCHIK.lng, jan1));
+  assert.deepEqual(await getPrayerTimes2({ ...opts, region: 'Ingushetia' }), computeDumKbr(NALCHIK.lat, NALCHIK.lng, oct8));
+}));
+test('a day cached before the timetable is recomputed from it', () => inZone('Europe/Moscow', async () => {
+  const store = new Map();
+  const storage = { getItem: async (k) => store.get(k), setItem: async (k, v) => store.set(k, v) };
+  const schedule = withoutAdhan({ '@react-native-async-storage/async-storage': storage })('src/utils/prayerSchedule.js');
+  const options = { ...NALCHIK, region: 'Кабардино-Балкарская Республика', sourceId: 'russia', school: 'shafi' };
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Так выглядел ключ дня до таблицы: без региона и версии графиков. Под ним
+  // время по формуле — Аср 15:11, Иша 19:18.
+  const before = JSON.stringify([NALCHIK.lat, NALCHIK.lng, 'russia', 'shafi', {}, zone]);
+  store.set('prayerDay:v2:' + before + ':2026-10-08',
+    JSON.stringify({ date: '2026-10-08', timings: { ...KBR_OCT8, Asr: '15:11', Isha: '19:18' } }));
+  const day = await schedule.getPrayerDay(options, new Date(2026, 9, 8, 12));
+  assert.deepEqual(day.timings, KBR_OCT8);
+  // Ключи других источников график не трогает: их сохранённые дни живут дальше.
+  assert.equal(schedule.scheduleIdentity({ ...options, sourceId: 'mwl_intl' }),
+    JSON.stringify([NALCHIK.lat, NALCHIK.lng, 'mwl_intl', 'shafi', {}, zone]));
+}));
+test('the cache key of the DUM KBR source carries the region and the timetable version', () => inZone('Europe/Moscow', () => {
+  const { TABLES_VERSION } = load('src/utils/officialTables.js');
+  const schedule = withoutAdhan()('src/utils/prayerSchedule.js');
+  const base = { ...NALCHIK, sourceId: 'russia', school: 'shafi' };
+  const key = schedule.scheduleIdentity({ ...base, region: 'Кабардино-Балкарская Республика' });
+  assert.ok(key.includes(TABLES_VERSION));
+  assert.notEqual(key, schedule.scheduleIdentity({ ...base, region: 'Ingushetia' }));
+  assert.notEqual(key, schedule.scheduleIdentity(base));
+  // Исправленная в таблице цифра меняет версию, а с ней и ключи дней.
+  const table = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../assets/prayer-tables/ru-kbr-2026.json'), 'utf8'));
+  table.days[10] = table.days[10].replace('15:04', '15:05');
+  const edited = loader({ '../../assets/prayer-tables/ru-kbr-2026.json': table })('src/utils/officialTables.js');
+  assert.notEqual(edited.TABLES_VERSION, TABLES_VERSION);
+}));
+test('the time zone is taken at noon of the calendar day, so the answer does not depend on the hour', () => inZone('Europe/Helsinki', () => {
+  const pick = (d) => load('src/utils/officialTables.js').officialTimes('ru-kbr', NALCHIK, d);
+  // Хельсинки летом +03:00, с 25 октября 2026 — +02:00.
+  assert.ok(pick(new Date(2026, 9, 24, 12)));
+  // В день перевода часов решает полдень, а не час, на который пришёлся запрос.
+  assert.equal(pick(new Date(2026, 9, 25, 0, 30)), null);
+  assert.equal(pick(new Date(2026, 9, 25, 12)), null);
+}));
+test('every row of the KBR timetable is plausible, so a transcription slip is caught', () => inZone('Europe/Moscow', () => {
+  const table = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../assets/prayer-tables/ru-kbr-2026.json'), 'utf8'));
+  const { computeDumKbr } = load('src/utils/dumCalc.js');
+  const minutes = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+  const names = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+  const [y, mo, d] = table.start.split('-').map(Number);
+  // 1 октября – 31 декабря: пропущенная строка сдвинула бы все следующие даты.
+  assert.equal(table.days.length, 92);
+  let prev = null;
+  table.days.forEach((row, i) => {
+    const date = new Date(y, mo - 1, d + i, 12);
+    const times = row.split(' ').map(minutes);
+    assert.equal(times.length, 6, row);
+    // Порядок внутри дня.
+    times.slice(1).forEach((t, k) => assert.ok(t > times[k], `${row}: ${names[k + 1]}`));
+    // Свойства самого графика в октябре–декабре: Фаджр ровно за 90 минут до
+    // восхода, Иша через 100 минут после Магриба (3 декабря — 101, так в
+    // графике). Ловят описки в четырёх колонках из шести.
+    assert.equal(times[1] - times[0], 90, `day ${i}: sunrise - fajr`);
+    const dec3 = date.getMonth() === 11 && date.getDate() === 3;
+    assert.equal(times[5] - times[4], dec3 ? 101 : 100, `day ${i}: isha - maghrib`);
+    // Соседние дни отличаются не больше чем на три минуты.
+    if (prev) times.forEach((t, k) => assert.ok(Math.abs(t - prev[k]) <= 3, `day ${i}: ${names[k]}`));
+    // И не дальше трёх минут от формулы ДУМ КБР: опечатка в часах или
+    // десятках минут уводит дальше.
+    const calc = computeDumKbr(table.place.lat, table.place.lng, date);
+    names.forEach((n, k) => assert.ok(Math.abs(times[k] - minutes(calc[n])) <= 3, `day ${i}: ${n} ${row} vs ${calc[n]}`));
+    prev = times;
+  });
+}));

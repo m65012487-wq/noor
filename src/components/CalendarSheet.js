@@ -50,7 +50,7 @@ export default function CalendarSheet({ visible, onClose }) {
     if (!visible || !coords) return undefined;
     let cancelled = false;
     setTimes(null);
-    getPrayerDay({ lat: coords.lat, lng: coords.lng, sourceId: timeSourceId, school: asrSchool, tune }, picked)
+    getPrayerDay({ lat: coords.lat, lng: coords.lng, region: coords.region, sourceId: timeSourceId, school: asrSchool, tune }, picked)
       .then(day => { if (!cancelled) setTimes(day.timings); })
       .catch(() => { if (!cancelled) setTimes(null); });
     return () => { cancelled = true; };
