@@ -19,7 +19,8 @@ import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
 import useTasbih from './useTasbih';
 import { GARDEN_SCENE } from './gardenScene';
-import { activeTree, definition, DHIKR, growthRatio, sequenceSteps, SPECIES, STAGE_NAMES, STAGES } from './model';
+import { activeTree, AFTER_PRAYER, definition, DHIKR, growthRatio, sequenceSteps, SPECIES, STAGE_NAMES, STAGES } from './model';
+import { afterPrayerNow } from '../utils/prayerWindow';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -46,7 +47,7 @@ function modeLabel(state, ru) {
 // занимал столько, сколько просил, и на разных телефонах дерево то упиралось
 // в счётчик, то висело в пустоте.
 export default function TasbihScreen({ onClose }) {
-  const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit, setSequence } = useTasbih();
+  const { state, error, tap, select, retry, plant, setActive, retire, ackDrop, addCustom, removeCustom, setCircleLimit, setSequence } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
   const appearance = useAppearance();
@@ -124,6 +125,9 @@ export default function TasbihScreen({ onClose }) {
   const treeSpecies = tree ? SPECIES.find(s => s.id === tree.species) : null;
   const speciesLabel = treeSpecies ? (ru ? treeSpecies.ru : treeSpecies.en) : '';
   const ratio = tree ? growthRatio(tree) : 0;
+  // Окно «после намаза»: проверяется на каждой отрисовке, а они идут на каждое
+  // нажатие и на смену подсказки, поэтому отдельный таймер не нужен.
+  const afterPrayer = afterPrayerNow(new Date(), AFTER_PRAYER.minutes);
   // Плодоносящее дерево больше не растёт — рост копится для следующего зерна.
   const fruiting = !!tree && tree.stage === STAGES.length - 1;
   const onTreeLayout = e => {
@@ -239,6 +243,9 @@ export default function TasbihScreen({ onClose }) {
                 <Text style={styles.hint}>{ru ? 'Нажимайте на дерево, чтобы считать зикр' : 'Tap the tree to count dhikr'}</Text>
               ) : (
                 <>
+                  {afterPrayer && <Text style={[styles.afterPrayer, { color: accent }]}>
+                    {ru ? 'После намаза рост быстрее' : 'Growing faster after prayer'}
+                  </Text>}
                   <Text style={styles.stageLine}>{speciesLabel} · {stageLabel}</Text>
                   {fruiting && seedTotal > 0 ? (
                     <Text style={styles.plantHint} numberOfLines={1}>{ru ? 'Посадите зерно — рост перейдёт к нему' : 'Plant a seed — growth carries over'}</Text>
@@ -258,7 +265,7 @@ export default function TasbihScreen({ onClose }) {
       <DhikrSheet visible={selector} onClose={() => setSelector(false)} state={state}
         select={select} addCustom={addCustom} removeCustom={removeCustom} setCircleLimit={setCircleLimit} setSequence={setSequence} />
 
-      <GardenSheet visible={garden} onClose={() => setGarden(false)} state={state} plant={plant} setActive={setActive} />
+      <GardenSheet visible={garden} onClose={() => setGarden(false)} state={state} plant={plant} setActive={setActive} retire={retire} />
     </ThemedBackground>
   );
 }
@@ -300,7 +307,8 @@ const styles = StyleSheet.create({
 
   treeArea: { flex: 1, width: '100%', alignSelf: 'center', minHeight: 180 },
 
-  footer: { alignItems: 'center', height: 52, justifyContent: 'center' },
+  footer: { alignItems: 'center', height: 68, justifyContent: 'center' },
+  afterPrayer: { ...LEGIBLE, ...TYPE.caption, fontWeight: '600', marginBottom: 2 },
   hint: { ...LEGIBLE, ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center' },
   plantHint: { ...LEGIBLE, ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xs },
   stageLine: { ...LEGIBLE, ...TYPE.callout, color: COLORS.text },

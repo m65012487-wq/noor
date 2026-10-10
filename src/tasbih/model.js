@@ -1,3 +1,4 @@
+import { dateFromKey } from '../utils/calendarDate';
 export const DHIKR = [
   { id: 'subhanallah', arabic: 'سُبْحَانَ اللَّهِ', ru: 'Субханаллах', en: 'SubhanAllah', translation_ru: 'Пречист Аллах', translation_en: 'Glory be to Allah', target: 33 },
   { id: 'alhamdulillah', arabic: 'الْحَمْدُ لِلَّهِ', ru: 'Альхамдулиллях', en: 'Alhamdulillah', translation_ru: 'Хвала Аллаху', translation_en: 'Praise be to Allah', target: 33 },
@@ -25,6 +26,10 @@ export const SEQUENCE_MAX_TARGET = 999;
 // Prototype coefficients are separate from the counter and artwork. Every dhikr
 // is one unit of growth; the first `bonusTaps` of each day count `bonusMultiplier` times.
 export const GROWTH = { bonusTaps: 33, bonusMultiplier: 2 };
+// Азкары после намаза: в первые полчаса после любого из пяти намазов рост
+// идёт в полтора раза быстрее. Это поощрение привычки, а не ограничение:
+// вне окна дерево растёт как обычно.
+export const AFTER_PRAYER = { minutes: 30, multiplier: 1.5 };
 
 // 8 stages shared by every species; the silhouette is resolved by (species, stage index) in treeArt.js.
 // Стадию задаёт только накопленный рост — сроков нет: 99 поминаний в день дают
@@ -71,9 +76,9 @@ export function initialState() {
   return {
     version: 3, selectedDhikr: 'sequence', currentDhikrIndex: 0, currentDhikrCount: 0,
     totalDhikrCount: 0, perDhikrCounts: {}, dailyDhikrCounts: {},
-    lastActiveDate: null, activeDays: 0,
+    lastActiveDate: null, activeDays: 0, lastFridayGift: null,
     hasSeenTasbihHint: false,
-    trees: [{ id: 't1', species: 'olive', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false }],
+    trees: [{ id: 't1', species: 'olive', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false, inGrove: false }],
     activeTreeId: 't1',
     seeds: {},
     reserve: 0,
@@ -248,6 +253,25 @@ function ownedSpecies(state) {
   for (const [species, count] of Object.entries(state.seeds || {})) if (count > 0) owned.add(species);
   return owned;
 }
+// Подарочные зёрна — за семь дней зикра и за подросшее дерево — несут только
+// новые породы, пока коллекция не собрана: подарок должен открывать растение,
+// которого ещё нет, а не копить дубли. Зерно за плоды выпадает всегда и по весам.
+// Когда нечего открывать, подарка нет — и зёрна не копятся горой, которую
+// некуда сажать: растёт одно дерево за раз.
+export const GIFT_EVERY_DAYS = 7;
+export const GIFT_STAGE = 4;
+function pickNewSpecies(state, rng) {
+  const owned = ownedSpecies(state);
+  const fresh = SPECIES.filter(s => !owned.has(s.id) && (s.id !== 'sidr' || owned.size >= 3));
+  if (!fresh.length) return null;
+  const total = fresh.reduce((sum, s) => sum + s.weight, 0);
+  let roll = rng() * total;
+  for (const s of fresh) {
+    roll -= s.weight;
+    if (roll <= 0) return s.id;
+  }
+  return fresh[fresh.length - 1].id;
+}
 function pickSpecies(state, rng) {
   const owned = ownedSpecies(state);
   const sidrAllowed = owned.size >= 3;
@@ -261,17 +285,18 @@ function pickSpecies(state, rng) {
   }
   return entries[entries.length - 1].id;
 }
-export function registerDhikr(previous, dateKey, { rng = Math.random } = {}) {
+export function registerDhikr(previous, dateKey, { rng = Math.random, afterPrayer = false } = {}) {
   const state = advance(previous);
   const dhikr = definition(state);
   const todayCount = state.dailyDhikrCounts[dateKey] || 0;
   const isFirstToday = todayCount === 0;
   const activeDays = state.activeDays + (isFirstToday ? 1 : 0);
   const totalDhikrCount = state.totalDhikrCount + 1;
-  const delta = growthForCount(todayCount + 1) - growthForCount(todayCount);
+  const delta = (growthForCount(todayCount + 1) - growthForCount(todayCount)) * (afterPrayer ? AFTER_PRAYER.multiplier : 1);
 
   const finalStage = STAGES.length - 1;
   let harvested = false;
+  let grewTo = false;
   let reserve = Number.isFinite(state.reserve) ? state.reserve : 0;
   const trees = state.trees.map(tree => {
     if (tree.id !== state.activeTreeId) return tree;
@@ -287,6 +312,7 @@ export function registerDhikr(previous, dateKey, { rng = Math.random } = {}) {
     const progress = tree.progress + delta;
     const stage = Math.max(tree.stage, chooseStage(progress));
     if (stage === finalStage && !tree.harvested) harvested = true;
+    if (tree.stage < GIFT_STAGE && stage >= GIFT_STAGE) grewTo = true;
     return { ...tree, progress, activeDays: treeActiveDays, stage, lastGrowDate: dateKey, harvested: tree.harvested || stage === finalStage };
   });
 
@@ -298,11 +324,37 @@ export function registerDhikr(previous, dateKey, { rng = Math.random } = {}) {
     seeds = { ...seeds, [species]: (seeds[species] || 0) + 1 };
     pendingDrops.push({ species, reason: 'harvest' });
   }
+  // Подарки: каждый седьмой день зикра и первый подъём дерева до «Молодого
+  // дерева» (по разу на дерево — стадия назад не идёт).
+  const gifts = [];
+  if (isFirstToday && activeDays % GIFT_EVERY_DAYS === 0) gifts.push('week');
+  if (grewTo) gifts.push('growth');
+  for (const reason of gifts) {
+    const species = pickNewSpecies({ trees, seeds }, rng);
+    if (!species) break;
+    seeds = { ...seeds, [species]: (seeds[species] || 0) + 1 };
+    pendingDrops.push({ species, reason });
+  }
+  // Пятница: первая завершённая за день последовательность (или круг из 99 в
+  // свободном режиме) приносит зерно. В отличие от подарков оно выпадает и
+  // тогда, когда коллекция собрана, — это ритуал дня, а не награда за новизну;
+  // порода тогда выбирается по весам.
+  let lastFridayGift = state.lastFridayGift || null;
+  const counted = { ...state, currentDhikrCount: state.currentDhikrCount + 1 };
+  // Круг завершён последовательностью или набрано 99 поминаний за день в любом режиме:
+  // иначе считающий одиночным зикром или кругами по 33 пятничного зерна не видел бы.
+  const finishedCircle = tapEvent(previous, counted) === 'complete' || todayCount + 1 === 99;
+  if (lastFridayGift !== dateKey && dateFromKey(dateKey).getDay() === 5 && finishedCircle) {
+    const species = pickNewSpecies({ trees, seeds }, rng) || pickSpecies({ trees, seeds }, rng);
+    seeds = { ...seeds, [species]: (seeds[species] || 0) + 1 };
+    pendingDrops.push({ species, reason: 'friday' });
+    lastFridayGift = dateKey;
+  }
 
   return { ...state, currentDhikrCount: state.currentDhikrCount + 1, totalDhikrCount,
     perDhikrCounts: { ...state.perDhikrCounts, [dhikr.id]: (state.perDhikrCounts[dhikr.id] || 0) + 1 },
     dailyDhikrCounts: { ...state.dailyDhikrCounts, [dateKey]: todayCount + 1 },
-    lastActiveDate: dateKey, activeDays, trees, seeds, reserve, pendingDrops,
+    lastActiveDate: dateKey, activeDays, trees, seeds, reserve, pendingDrops, lastFridayGift,
     hasSeenTasbihHint: state.hasSeenTasbihHint || totalDhikrCount >= 5 };
 }
 function nextTreeId(trees) {
@@ -313,6 +365,18 @@ function nextTreeId(trees) {
   }
   return `t${max + 1}`;
 }
+// Дерево в плодах можно отправить в рощу: оно перестаёт быть «живым» и больше
+// не занимает ряд «Мои деревья», но остаётся в саду навсегда — и считается
+// в коллекции пород. Ухаживаемое дерево отправить нельзя (иначе счёт остался бы
+// без дерева), поэтому при посадке нового зерна плодоносящее уходит в рощу само.
+export function isFruiting(tree) {
+  return !!tree && tree.harvested && tree.stage === STAGES.length - 1;
+}
+export function retireTree(state, id) {
+  const tree = state.trees.find(t => t.id === id);
+  if (!isFruiting(tree) || tree.inGrove || id === state.activeTreeId) return state;
+  return { ...state, trees: state.trees.map(t => (t.id === id ? { ...t, inGrove: true } : t)) };
+}
 // The new tree takes over all growth kept while the previous one was fruiting.
 export function plantSeed(state, species, dateKey = null) {
   const available = state.seeds?.[species] || 0;
@@ -321,11 +385,13 @@ export function plantSeed(state, species, dateKey = null) {
   if (seeds[species] <= 0) delete seeds[species];
   const id = nextTreeId(state.trees);
   const progress = Number.isFinite(state.reserve) ? state.reserve : 0;
-  const tree = { id, species, progress, activeDays: 0, stage: chooseStage(progress), lastGrowDate: null, plantedOn: dateKey, harvested: false };
-  return { ...state, seeds, trees: [...state.trees, tree], activeTreeId: id, reserve: 0 };
+  const tree = { id, species, progress, activeDays: 0, stage: chooseStage(progress), lastGrowDate: null, plantedOn: dateKey, harvested: false, inGrove: false };
+  // Плодоносящее дерево, которое мы оставляем, уходит в рощу.
+  const retired = state.trees.map(t => (t.id === state.activeTreeId && isFruiting(t) ? { ...t, inGrove: true } : t));
+  return { ...state, seeds, trees: [...retired, tree], activeTreeId: id, reserve: 0 };
 }
 export function setActiveTree(state, id) {
-  if (!state.trees.some(t => t.id === id)) return state;
+  if (!state.trees.some(t => t.id === id && !t.inGrove)) return state;
   return { ...state, activeTreeId: id };
 }
 export function ackDrop(state) {
@@ -384,10 +450,17 @@ function sanitizeGarden(state, base) {
       lastGrowDate: typeof t.lastGrowDate === 'string' ? t.lastGrowDate : null,
       plantedOn: typeof t.plantedOn === 'string' ? t.plantedOn : null,
       harvested: !!t.harvested,
+      inGrove: !!t.inGrove,
     })) : [];
   if (trees.length === 0) trees = base.trees;
   next.trees = trees;
-  next.activeTreeId = trees.some(t => t.id === next.activeTreeId) ? next.activeTreeId : trees[0].id;
+  // Живое дерево — первое не из рощи; в роще не может быть и активного.
+  const living = trees.find(t => !t.inGrove);
+  if (!living) trees = trees.map((t, i) => (i === 0 ? { ...t, inGrove: false } : t));
+  next.trees = trees;
+  const activeOk = trees.some(t => t.id === next.activeTreeId && !t.inGrove);
+  next.activeTreeId = activeOk ? next.activeTreeId : trees.find(t => !t.inGrove).id;
+  next.lastFridayGift = typeof next.lastFridayGift === 'string' ? next.lastFridayGift : null;
   const seeds = {};
   if (next.seeds && typeof next.seeds === 'object') {
     for (const [species, count] of Object.entries(next.seeds)) {
@@ -409,7 +482,7 @@ function migrateFromV1(raw, base) {
   const stage = chooseStage(progress);
   merged.trees = [{ id: 't1', species: 'olive', progress, activeDays, stage,
     lastGrowDate: typeof merged.lastActiveDate === 'string' ? merged.lastActiveDate : null,
-    plantedOn: null, harvested: stage === STAGES.length - 1 }];
+    plantedOn: null, harvested: stage === STAGES.length - 1, inGrove: false }];
   merged.activeTreeId = 't1';
   merged.seeds = {};
   merged.pendingDrops = [];

@@ -122,7 +122,20 @@ test('10000 taps in a day give 10033 growth: the tree fruits once, the surplus i
   assert.equal(tree.stage, model.STAGES.length - 1);
   assert.equal(tree.harvested, true);
   assert.equal(state.reserve, model.RESERVE_CAP);
-  assert.equal(state.pendingDrops.length, 1);
+  // Один подарок за подъём до «Молодого дерева» и один — за плоды.
+  assert.deepEqual(state.pendingDrops.map(d => d.reason).sort(), ['growth', 'harvest']);
+});
+test('a gift never repeats a species the player already owns, and stops once the collection is complete', () => {
+  const rng = () => 0;
+  let state = { ...model.initialState(), seeds: { fig: 1, pomegranate: 1, date_palm: 1, sidr: 1 }, activeDays: 6 };
+  state = model.registerDhikr(state, day, { rng });
+  assert.equal(state.activeDays, 7);
+  assert.deepEqual(state.pendingDrops, []);
+  const fresh = { ...model.initialState(), activeDays: 6 };
+  const gifted = model.registerDhikr(fresh, day, { rng });
+  assert.equal(gifted.pendingDrops.length, 1);
+  assert.notEqual(gifted.pendingDrops[0].species, 'olive');
+  assert.notEqual(gifted.pendingDrops[0].species, 'sidr');
 });
 test('stages are chosen by growth alone, with no day requirements', () => {
   assert.deepEqual(model.STAGES.map(s => s.requiredProgress), [0, 40, 160, 360, 640, 1000, 1450, 2000]);
@@ -192,13 +205,15 @@ test('v1 saves migrate into a single olive tree and reset the garden fields', ()
   assert.ok(!('lastCircleDropDate' in state));
   assert.equal(state.totalDhikrCount, 40);
 });
-test('seeds come only from fruit: neither the 7th active day nor a full circle of 99 drops one', () => {
+test('a full circle of 99 drops no seed, and the 7th active day gifts only a species not owned yet', () => {
   const rng = () => 0;
   let state = model.initialState();
   for (let d = 1; d <= 7; d++) state = model.registerDhikr(state, `2026-09-0${d}`, { rng });
   assert.equal(state.activeDays, 7);
-  assert.deepEqual(state.pendingDrops, []);
-  assert.deepEqual(state.seeds, {});
+  assert.deepEqual(state.pendingDrops.map(d => d.reason), ['week']);
+  const [gift] = state.pendingDrops;
+  assert.notEqual(gift.species, 'olive');
+  assert.equal(state.seeds[gift.species], 1);
   let circle = model.initialState();
   for (let i = 0; i < 99 * 3; i++) circle = model.registerDhikr(circle, day, { rng });
   assert.deepEqual(circle.pendingDrops, []);
@@ -2097,3 +2112,126 @@ test('sync is not locked by a clock set back, and checks a downloaded table agai
     assert.equal(other.tables.officialTimesInfo('xx-a', HERE, noon(2026, 6, 10)).approximate, true);
   });
 }));
+
+// ---------- Брони серии, пятничное зерно, роща, окно после намаза ----------
+test('streak: a free missed day, then shields for further missed days; 7 days in a row earn a shield', () => {
+  const { advanceStreak, aliveGap, FREEZE_MAX } = load('src/utils/streakFreeze.js');
+  assert.deepEqual(advanceStreak({ streak: 0, gap: null, freezes: 0 }), { streak: 1, freezes: 0, used: 0, earned: 0 });
+  // вчера и позавчера — по правилу прежнему, без брони
+  assert.equal(advanceStreak({ streak: 4, gap: 1, freezes: 0 }).streak, 5);
+  assert.deepEqual(advanceStreak({ streak: 4, gap: 2, freezes: 0 }), { streak: 5, freezes: 0, used: 0, earned: 0 });
+  // три дня без чтения: без брони серия сгорает, с бронью — тратится одна
+  assert.equal(advanceStreak({ streak: 4, gap: 3, freezes: 0 }).streak, 1);
+  assert.deepEqual(advanceStreak({ streak: 4, gap: 3, freezes: 1 }), { streak: 5, freezes: 0, used: 1, earned: 0 });
+  // четыре дня: одной брони мало, двух хватает; серия не сгорает наполовину
+  assert.equal(advanceStreak({ streak: 4, gap: 4, freezes: 1 }).streak, 1);
+  assert.equal(advanceStreak({ streak: 4, gap: 4, freezes: 1 }).freezes, 1);
+  assert.deepEqual(advanceStreak({ streak: 4, gap: 4, freezes: 2 }), { streak: 5, freezes: 0, used: 2, earned: 0 });
+  // седьмой день подряд дарит бронь, но не больше двух
+  assert.deepEqual(advanceStreak({ streak: 6, gap: 1, freezes: 0 }), { streak: 7, freezes: 1, used: 0, earned: 1 });
+  assert.equal(advanceStreak({ streak: 13, gap: 1, freezes: FREEZE_MAX }).freezes, FREEZE_MAX);
+  assert.equal(advanceStreak({ streak: 13, gap: 1, freezes: FREEZE_MAX }).earned, 0);
+  // жизнь серии без чтения — столько же, сколько считает виджет
+  assert.equal(aliveGap(0), 2);
+  assert.equal(aliveGap(2), 4);
+  assert.equal(aliveGap(99), 4);
+  // мусор вместо числа броней не ломает расчёт
+  assert.equal(advanceStreak({ streak: 3, gap: 1, freezes: NaN }).freezes, 0);
+});
+
+test('Friday: the first completed sequence of the day drops one seed, even after every species is owned', () => {
+  const friday = '2026-10-09';
+  assert.equal(new Date(2026, 9, 9).getDay(), 5);
+  const rng = () => 0;
+  let state = model.initialState();
+  for (let i = 0; i < 99; i++) state = model.registerDhikr(state, friday, { rng });
+  assert.deepEqual(state.pendingDrops.map(d => d.reason), ['friday']);
+  assert.equal(state.lastFridayGift, friday);
+  // второй круг в ту же пятницу зерна не даёт
+  for (let i = 0; i < 99; i++) state = model.registerDhikr(state, friday, { rng });
+  assert.equal(state.pendingDrops.filter(d => d.reason === 'friday').length, 1);
+  // не пятница — зерна нет
+  let other = model.initialState();
+  for (let i = 0; i < 99; i++) other = model.registerDhikr(other, '2026-10-08', { rng });
+  assert.equal(other.pendingDrops.filter(d => d.reason === 'friday').length, 0);
+  // коллекция собрана — пятничное зерно всё равно выпадает
+  const full = { ...model.initialState(), seeds: { fig: 1, pomegranate: 1, date_palm: 1, sidr: 1 } };
+  let all = full;
+  for (let i = 0; i < 99; i++) all = model.registerDhikr(all, friday, { rng });
+  assert.equal(all.pendingDrops.filter(d => d.reason === 'friday').length, 1);
+});
+
+test('grove: a fruiting tree retires on planting or by hand, but never while it is the one being counted', () => {
+  const fruiting = { ...model.initialState(), trees: [fruitingTree('t1', 'olive')], activeTreeId: 't1', seeds: { fig: 1 } };
+  assert.equal(model.isFruiting(fruiting.trees[0]), true);
+  // активное дерево отправить нельзя: счёт остался бы без дерева
+  assert.equal(model.retireTree(fruiting, 't1'), fruiting);
+  // посадка зерна уводит плодоносящее дерево в рощу само
+  const planted = model.plantSeed(fruiting, 'fig', day);
+  assert.equal(planted.trees.find(t => t.id === 't1').inGrove, true);
+  assert.equal(planted.trees.find(t => t.id === planted.activeTreeId).inGrove, false);
+  // роща не становится активным деревом
+  assert.equal(model.setActiveTree(planted, 't1'), planted);
+  // порода из рощи остаётся в коллекции: подарок её не повторит
+  const owner = { ...planted, seeds: {} };
+  const gift = model.registerDhikr({ ...owner, activeDays: 6 }, day, { rng: () => 0 });
+  assert.notEqual(gift.pendingDrops[0]?.species, 'olive');
+  // неплодоносящее неактивное дерево в рощу не уйдёт
+  const young = { ...model.initialState(), trees: [
+    { id: 't1', species: 'olive', progress: 5, activeDays: 1, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false, inGrove: false },
+    fruitingTree('t2', 'fig')], activeTreeId: 't1' };
+  assert.equal(model.retireTree(young, 't2').trees.find(t => t.id === 't2').inGrove, true);
+  const noFruit = { ...young, trees: [young.trees[1], { ...young.trees[0], id: 't3' }], activeTreeId: 't2' };
+  assert.equal(model.retireTree(noFruit, 't3'), noFruit);
+  // сохранение не оставляет активным дерево из рощи
+  const broken = model.restoreState({ ...planted, activeTreeId: 't1' });
+  assert.equal(broken.trees.find(t => t.id === broken.activeTreeId).inGrove, false);
+});
+
+test('after prayer the tree grows one and a half times faster, and the window follows the prayer times', () => {
+  const normal = model.registerDhikr(model.initialState(), day);
+  const boosted = model.registerDhikr(model.initialState(), day, { afterPrayer: true });
+  assert.equal(model.activeTree(boosted).progress, model.activeTree(normal).progress * model.AFTER_PRAYER.multiplier);
+  const { afterPrayerNow } = load('src/utils/prayerWindow.js');
+  const days = [{ date: day, timings: { Fajr: '04:50', Sunrise: '06:10', Dhuhr: '12:10', Asr: '15:40', Maghrib: '18:00', Isha: '19:20' } }];
+  const at = (h, m) => new Date(2026, 8, 13, h, m);
+  assert.equal(afterPrayerNow(at(12, 10), 30, days), true);
+  assert.equal(afterPrayerNow(at(12, 39), 30, days), true);
+  assert.equal(afterPrayerNow(at(12, 41), 30, days), false);
+  assert.equal(afterPrayerNow(at(12, 9), 30, days), false);
+  // восход — не намаз
+  assert.equal(afterPrayerNow(at(6, 15), 30, days), false);
+  assert.equal(afterPrayerNow(at(12, 20), 30, []), false);
+});
+
+test('Friday seed also comes from 99 remembrances a day in a single-dhikr mode', () => {
+  const friday = '2026-10-09';
+  let state = { ...model.initialState(), selectedDhikr: 'subhanallah', circleLimit: true };
+  for (let i = 0; i < 99; i++) state = model.registerDhikr(state, friday, { rng: () => 0 });
+  assert.equal(state.pendingDrops.filter(d => d.reason === 'friday').length, 1);
+});
+
+test('old saves without grove or Friday fields restore cleanly; a growing tree stays out of the grove', () => {
+  const old = JSON.parse(JSON.stringify(model.initialState()));
+  delete old.lastFridayGift;
+  for (const tree of old.trees) delete tree.inGrove;
+  const restored = model.restoreState(old);
+  assert.equal(restored.lastFridayGift, null);
+  assert.equal(restored.trees[0].inGrove, false);
+  const growing = { ...model.initialState(), seeds: { fig: 1 } };
+  const planted = model.plantSeed(growing, 'fig', day);
+  assert.equal(planted.trees.find(t => t.id === 't1').inGrove, false);
+});
+
+test('the after-prayer window follows prayers shifted across midnight', () => {
+  const { afterPrayerNow } = load('src/utils/prayerWindow.js');
+  // Фаджр в строке дня стоит 23:54, но по смыслу это вечер предыдущих суток;
+  // Иша 00:20 — уже следующие.
+  const days = [{ date: '2026-05-20', timings: { Fajr: '23:54', Sunrise: '03:10', Dhuhr: '13:30', Asr: '18:30', Maghrib: '21:30', Isha: '00:20' } }];
+  assert.equal(afterPrayerNow(new Date(2026, 4, 19, 23, 58), 30, days), true);
+  assert.equal(afterPrayerNow(new Date(2026, 4, 20, 23, 58), 30, days), false);
+  assert.equal(afterPrayerNow(new Date(2026, 4, 21, 0, 30), 30, days), true);
+  assert.equal(afterPrayerNow(new Date(2026, 4, 20, 0, 30), 30, days), false);
+  // испорченный день не роняет, а даёт «окна нет»
+  assert.equal(afterPrayerNow(new Date(2026, 4, 20, 13, 40), 30, [{ timings: null }, null]), false);
+});

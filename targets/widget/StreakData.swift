@@ -11,6 +11,9 @@ struct StreakData: Codable {
     let read: Int
     let goal: Int
     let history: [String]
+    // Брони серии: каждая продлевает жизнь серии ещё на сутки (streakFreeze.js).
+    // Поле необязательное: снимок от прежней версии приложения его не содержит.
+    let freezes: Int?
 
     static func load() -> StreakData? {
         guard
@@ -27,13 +30,14 @@ struct StreakData: Codable {
         let now = Date()
         let day = { (offset: Int) in dayKey(Calendar.current.date(byAdding: .day, value: -offset, to: now) ?? now) }
         return StreakData(count: 12, lastGoalDay: day(1), today: day(0), read: 3, goal: 5,
-                          history: [1, 2, 4, 5, 6].map(day))
+                          history: [1, 2, 4, 5, 6].map(day), freezes: 1)
     }
 }
 
 // Что показывать. Правило то же, что в приложении (ReadingScreen.countAyah):
 // цель засчитывается, если с прошлого выполненного дня прошло не больше двух
-// дней; иначе огонёк сгорает и счёт начинается заново.
+// суток плюс по суткам на каждую бронь; иначе огонёк сгорает и счёт начинается
+// заново.
 struct StreakStatus {
     let days: Int          // сколько дней горит огонёк сейчас (0 — погас)
     let readToday: Int
@@ -52,7 +56,10 @@ struct StreakStatus {
                                 week: Array(repeating: false, count: 7))
         }
         let gap = data.lastGoalDay.flatMap { daysBetween($0, now) }
-        let alive = gap.map { $0 <= 2 } ?? false
+        // Правило то же, что в приложении (streakFreeze.js): двое суток бесплатно,
+        // дальше — по одной броне на лишние сутки.
+        let limit = 2 + min(2, max(0, data.freezes ?? 0))
+        let alive = gap.map { $0 <= limit } ?? false
         let done = data.lastGoalDay == today
         let week = (0..<7).reversed().map { offset -> Bool in
             guard let date = Calendar.current.date(byAdding: .day, value: -offset, to: now) else { return false }
@@ -63,7 +70,7 @@ struct StreakStatus {
             readToday: data.today == today ? data.read : 0,
             goal: max(1, data.goal),
             doneToday: done,
-            lastChance: !done && gap == 2,
+            lastChance: !done && gap == limit,
             lost: data.count > 0 && !alive && data.lastGoalDay != nil,
             week: week
         )

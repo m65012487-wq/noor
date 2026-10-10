@@ -13,6 +13,8 @@ import { getPrayerDay } from '../utils/prayerSchedule';
 import { useTablesVersion } from '../utils/useOfficialTables';
 import { prayerName } from '../constants/prayerNames';
 import { moonPhase } from '../utils/moon';
+import { localDateKey } from '../utils/calendarDate';
+import useTasbih from '../tasbih/useTasbih';
 
 const PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 const WEEK_RU = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
@@ -29,6 +31,10 @@ export default function CalendarSheet({ visible, onClose }) {
   const { accent } = useAppearance();
   const { hijriOffset, timeSourceId, asrSchool, tune } = useAppSettings();
   const { coords } = useLocation();
+  // Дни, в которые был зикр, отмечаются точкой: без наград и серий, просто
+  // след. Тасбих отдаёт счётчики по дням, календарь их только читает.
+  const tasbih = useTasbih();
+  const dhikrByDay = tasbih?.state?.dailyDhikrCounts || {};
   const tablesVersion = useTablesVersion();
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -110,6 +116,7 @@ export default function CalendarSheet({ visible, onClose }) {
                 {d.getDate()}
               </Text>
               <Text style={styles.dayHijri}>{h.day}</Text>
+              {dhikrByDay[localDateKey(d)] > 0 && <View style={[styles.dhikrDot, { backgroundColor: accent }]} />}
             </TouchableOpacity>
           );
         })}
@@ -120,6 +127,9 @@ export default function CalendarSheet({ visible, onClose }) {
         <Text style={styles.pickedMoon}>
           {t('illumination')}: {Math.round(moonPhase(picked).illumination * 100)}%
         </Text>
+        {dhikrByDay[localDateKey(picked)] > 0 && (
+          <Text style={styles.pickedMoon}>{t('dhikr_that_day')}: {dhikrByDay[localDateKey(picked)]}</Text>
+        )}
       </View>
 
       <ScrollView style={{ maxHeight: 260 }}>
@@ -147,6 +157,10 @@ const styles = StyleSheet.create({
   cell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center',
     borderRadius: RADIUS.sm, borderWidth: 1, borderColor: 'transparent' },
   dayNum: { ...TYPE.callout, color: COLORS.text, fontWeight: '600' },
+  // Число по хиджре мельче и приглушено: оно подпись, а не второй заголовок.
+  // Точка дня зикра — в правом верхнем углу ячейки: снизу она налезала на
+  // число по хиджре на узком экране и при крупном шрифте.
+  dhikrDot: { position: 'absolute', top: 4, right: 6, width: 5, height: 5, borderRadius: 2.5 },
   // Число по хиджре мельче и приглушено: оно подпись, а не второй заголовок.
   dayHijri: { fontSize: 10, color: COLORS.textMuted, marginTop: 1 },
 

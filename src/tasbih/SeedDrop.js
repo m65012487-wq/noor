@@ -16,6 +16,8 @@ const REASON_LABEL = {
   week: { ru: '7 дней зикра', en: '7 days of dhikr' },
   harvest: { ru: 'Дерево дало плод', en: 'The tree bore fruit' },
   circle: { ru: 'Полный круг 99', en: 'A full circle of 99' },
+  growth: { ru: 'Дерево подросло', en: 'The tree has grown' },
+  friday: { ru: 'Пятничное зерно', en: 'A Friday seed' },
 };
 
 // One pending drop at a time: a seed icon falls from the crown to the root

@@ -34,9 +34,9 @@ export function publishPrayerDay({ days, order, label, city }) {
 // сегодня шанс: снимок может пролежать в контейнере до следующего открытия.
 export async function publishStreak() {
   try {
-    const [count, lastGoalDay, progress, goal, history] = await Promise.all([
+    const [count, lastGoalDay, progress, goal, history, freezes] = await Promise.all([
       loadJSON('streakCount', 0), loadJSON('lastGoalDay', null), loadJSON('readProgress', {}),
-      loadJSON('dailyGoal', 5), loadJSON('goalHistory', {}),
+      loadJSON('dailyGoal', 5), loadJSON('goalHistory', {}), loadJSON('streakFreezes', 0),
     ]);
     const today = todayKey();
     const week = [];
@@ -45,7 +45,7 @@ export async function publishStreak() {
       if (history[key]) week.push(key);
     }
     shared().set('streak:v1', JSON.stringify({
-      count, lastGoalDay, today, read: progress[today] || 0, goal, history: week,
+      count, lastGoalDay, today, read: progress[today] || 0, goal, history: week, freezes,
     }));
     ExtensionStorage.reloadWidget();
     return true;

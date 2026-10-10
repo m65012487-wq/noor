@@ -16,6 +16,7 @@ import { surahMeaning } from '../constants/surahNames';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { publishStreak } from '../utils/widgetBridge';
+import { advanceStreak, FREEZE_MAX } from '../utils/streakFreeze';
 import { useTabSwipe } from '../utils/useTabSwipe';
 
 const TOTAL_AYAHS = 6236;
@@ -32,6 +33,16 @@ export default function ReadingScreen() {
   const [surahData, setSurahData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [streak, setStreak] = useState(0);
+  const [freezes, setFreezes] = useState(0);
+  // Короткая строка о том, что сделала бронь: потратилась или выдана новая.
+  const [freezeNote, setFreezeNote] = useState(null);
+  const countingRef = useRef(false);
+  // Заметка гаснет сама: висящая до следующего касания она двигала карточку аята.
+  useEffect(() => {
+    if (!freezeNote) return undefined;
+    const timer = setTimeout(() => setFreezeNote(null), 5000);
+    return () => clearTimeout(timer);
+  }, [freezeNote]);
   const [readToday, setReadToday] = useState(0);
   const [playing, setPlaying] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
@@ -48,6 +59,7 @@ export default function ReadingScreen() {
         const saved = await loadJSON('readingPos', { surah: 1, ayah: 1 });
         setPos(saved);
         setStreak(await loadJSON('streakCount', 0));
+        setFreezes(await loadJSON('streakFreezes', 0));
         const prog = await loadJSON('readProgress', {});
         const todayCount = prog[todayKey()] || 0;
         setReadToday(todayCount);
@@ -83,6 +95,14 @@ export default function ReadingScreen() {
   }
 
   async function countAyah() {
+    // Между чтением и записью серии много await; без замка второе нажатие читало
+    // бы ещё не записанные брони и могло оборвать серию.
+    if (countingRef.current) return;
+    countingRef.current = true;
+    try { await countAyahLocked(); } finally { countingRef.current = false; }
+  }
+
+  async function countAyahLocked() {
     hapticLight();
     const prog = await loadJSON('readProgress', {});
     const newCount = (prog[todayKey()] || 0) + 1;
@@ -95,13 +115,20 @@ export default function ReadingScreen() {
     if (!history[todayKey()] && newCount >= dailyGoal) {
       history[todayKey()] = true;
       await saveJSON('goalHistory', history);
-      let s = await loadJSON('streakCount', 0);
       const last = await loadJSON('lastGoalDay', null);
-      if (!last) s = 1;
-      else { const gap = dayDiff(todayKey(), last); s = gap <= 2 ? s + 1 : 1; }
-      await saveJSON('streakCount', s);
+      const result = advanceStreak({
+        streak: await loadJSON('streakCount', 0),
+        gap: last ? dayDiff(todayKey(), last) : null,
+        freezes: await loadJSON('streakFreezes', 0),
+      });
+      await saveJSON('streakCount', result.streak);
+      await saveJSON('streakFreezes', result.freezes);
       await saveJSON('lastGoalDay', todayKey());
-      setStreak(s);
+      setStreak(result.streak);
+      setFreezes(result.freezes);
+      // Потратилась и выдалась в один день — показываем обе строки.
+      const notes = [result.used && t('freeze_used'), result.earned && t('freeze_earned')].filter(Boolean);
+      if (notes.length) setFreezeNote(notes.join(' · '));
     }
     // Виджет ударного режима: прогресс за сегодня и счётчик дней.
     publishStreak();
@@ -175,13 +202,26 @@ export default function ReadingScreen() {
         </View>
       </GlassView>
 
+      {freezeNote && (
+        <Text style={styles.freezeNote} accessibilityLiveRegion="polite" onPress={() => setFreezeNote(null)}>
+          {freezeNote}
+        </Text>
+      )}
       <View style={styles.topRow}>
         <GlassView azure radius={RADIUS.md} style={[styles.statBox, goalDone && styles.statBoxGlow]}>
           <View style={styles.statInner}>
             <Image source={require('../../assets/glyphs/streak.png')}
               style={[styles.streakIcon, goalDone && { tintColor: COLORS.ember }]} />
-            <View><Text style={[styles.statBig, goalDone && { color: COLORS.emberSoft }]}>{streak}</Text>
-              <Text style={styles.statLabel}>{t('streak_days')}</Text></View>
+            <View style={{ flexShrink: 1 }}><Text style={[styles.statBig, goalDone && { color: COLORS.emberSoft }]}>{streak}</Text>
+              <Text style={styles.statLabel} numberOfLines={1}>{t('streak_days')}</Text></View>
+            {/* Брони: по щиту на каждую, пустые — контуром. Две — потолок. */}
+            <View style={styles.freezes} accessible accessibilityLabel={`${t('streak_freezes')}: ${freezes}`}
+              accessibilityHint={t('freeze_hint')}>
+              {Array.from({ length: FREEZE_MAX }, (_, i) => (
+                <Icon key={i} name={i < freezes ? 'shield' : 'shield_empty'} size={16}
+                  color={i < freezes ? COLORS.emberSoft : COLORS.textFaint} />
+              ))}
+            </View>
           </View>
         </GlassView>
         <GlassView radius={RADIUS.md} style={styles.statBox}>
@@ -248,6 +288,8 @@ const styles = StyleSheet.create({
   statBoxGlow: { borderWidth: 1.5, borderColor: 'rgba(255,206,90,0.60)' },
   statInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
   streakIcon: { width: 32, height: 32, tintColor: COLORS.white, marginRight: SPACING.sm },
+  freezes: { flexDirection: 'row', gap: 4, marginLeft: 'auto', paddingLeft: SPACING.xs },
+  freezeNote: { ...TYPE.caption, color: COLORS.emberSoft, textAlign: 'center', marginBottom: SPACING.xs },
   statBig: { ...TYPE.heading, color: COLORS.white, fontWeight: '800' },
   statLabel: { ...TYPE.caption, color: COLORS.textMuted },
 

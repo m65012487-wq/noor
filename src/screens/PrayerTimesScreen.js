@@ -18,6 +18,7 @@ import { useTablesVersion } from '../utils/useOfficialTables';
 import { syncOfficialTables } from '../utils/timesServer';
 import { localDateKey } from '../utils/calendarDate';
 import { updateSchedule } from '../utils/scheduleQueue';
+import { setPrayerDays } from '../utils/prayerWindow';
 import { schedulePrayerReminders } from '../utils/prayerNotifications';
 import { publishPrayerDay, publishStreak } from '../utils/widgetBridge';
 import { useLang } from '../i18n/LanguageContext';
@@ -156,6 +157,9 @@ export default function PrayerTimesScreen() {
     setError(null);
     setTimings(null);
     setDays([]);
+    // Дни прежнего места не годятся: до прихода нового графика окна «после
+    // намаза» нет, а не окно прошлого города.
+    setPrayerDays([]);
     const options = { lat: coords.lat, lng: coords.lng, region: coords.region, country: coords.country, sourceId: timeSourceId, school: asrSchool, tune };
     getPrayerDay(options)
       .then(day => {
@@ -168,6 +172,8 @@ export default function PrayerTimesScreen() {
       .then(window => {
         if (cancelled) return;
         setDays(window);
+        // Тасбих по этим дням узнаёт, идёт ли окно «после намаза».
+        setPrayerDays(window);
         setTimings(window.find(day => day.date === dayKey)?.timings || null);
         publishPrayerDay({ days: window, order: PRAYERS, label: key => prayerName(key, lang), city: coords.label || '' });
         // Вместе с расписанием обновляем и ударный режим: так виджет получает
