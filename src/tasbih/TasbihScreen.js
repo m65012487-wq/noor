@@ -76,6 +76,14 @@ export default function TasbihScreen({ onClose }) {
     },
     onPanResponderTerminationRequest: () => true,
   }), []);
+  const edge = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderRelease: (_event, g) => {
+      if (g.dx > 60 && g.dx > Math.abs(g.dy)) closeRef.current();
+    },
+  }), []);
   const textFade = useRef(new Animated.Value(1)).current;
   // Native-driver-only value (opacity + transform): a brief accent flash
   // behind the counter and a small scale pop mark the end of a circle or a
@@ -139,6 +147,10 @@ export default function TasbihScreen({ onClose }) {
     // Живая абстрактная тема не спорит, поэтому тасбих берёт её.
     <ThemedBackground scene={patternKind(appearance?.pattern) === 'live' ? null : GARDEN_SCENE}>
       <View style={{ flex: 1 }} {...swipe.panHandlers}>
+        {/* Полоса у левого края — классический жест «назад» из iOS: палец ставится
+            на кромку и ведётся вправо. Отдельная полоса надёжнее общего жеста: её
+            не перехватывают ни дерево, ни прокрутка. */}
+        <View style={styles.edge} {...edge.panHandlers} />
       <SafeAreaView style={styles.safe} onAccessibilityEscape={onClose}>
         {/* Шапка: закрыть — режим — сад. Названия экрана нет: о том, где
             человек находится, говорит дерево, а строка режима нужнее. */}
@@ -257,6 +269,7 @@ export default function TasbihScreen({ onClose }) {
 const LEGIBLE = { textShadowColor: 'rgba(8,18,16,0.55)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 
 const styles = StyleSheet.create({
+  edge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 28, zIndex: 10 },
   safe: { flex: 1, paddingHorizontal: SPACING.lg },
   header: { height: 48, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface },

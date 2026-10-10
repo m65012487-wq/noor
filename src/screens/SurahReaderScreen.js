@@ -13,7 +13,7 @@ import { getWordByWordRuLocal } from '../utils/quranLocalWbw';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
 import { useLang } from '../i18n/LanguageContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
-import { setLastRead, getBookmarks, toggleBookmark, getFontScale, setFontScale } from '../utils/quranProgress';
+import { setLastRead, getBookmarks, toggleBookmark } from '../utils/quranProgress';
 import { surahMeaning } from '../constants/surahNames';
 import { useAppearance } from '../utils/AppearanceContext';
 
@@ -21,7 +21,7 @@ import { useAppearance } from '../utils/AppearanceContext';
 export default function SurahReaderScreen({ route, navigation }) {
   const { surah, jumpToAyah } = route.params;
   const { t, lang } = useLang();
-  const { translationId, reciterId, showArabic, showTranslit, showTranslation, wordByWord } = useQuranPrefs();
+  const { translationId, reciterId, showArabic, showTranslit, showTranslation, wordByWord, fontScale: scale, changeFontScale } = useQuranPrefs();
   const appearance = useAppearance();
   const fonts = appearance?.fonts;
   const tint = appearance?.tint || '180,215,230';
@@ -35,7 +35,6 @@ export default function SurahReaderScreen({ route, navigation }) {
   const [wbw, setWbw] = useState(null); // { ayahNum: [{ar,ru}] }
   const [playingAll, setPlayingAll] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
-  const [scale, setScale] = useState(1);
   const [nextSurah, setNextSurah] = useState(null);
   const scrollRef = useRef(null);
   const ayahYs = useRef({});
@@ -68,7 +67,6 @@ export default function SurahReaderScreen({ route, navigation }) {
     let mounted = true;
     (async () => {
       try {
-        setScale(await getFontScale());
         setBookmarks(await getBookmarks());
         const d = await getSurah(surah.number, translationId, true);
         if (!mounted) return;
@@ -124,10 +122,7 @@ export default function SurahReaderScreen({ route, navigation }) {
   }
   const isMarked = (n) => bookmarks.some((b) => b.surahNumber === surah.number && b.ayah === n);
 
-  async function changeScale(delta) {
-    const v = Math.min(1.6, Math.max(0.8, +(scale + delta).toFixed(2)));
-    setScale(v); await setFontScale(v);
-  }
+  const changeScale = changeFontScale;
 
   const meaning = surahMeaning(surah.number, lang) || surah.englishNameTranslation;
 

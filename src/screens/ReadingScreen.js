@@ -23,7 +23,7 @@ const TOTAL_AYAHS = 6236;
 export default function ReadingScreen() {
   const { fonts } = useAppearance();
   const { t, lang } = useLang();
-  const { translationId, reciterId, showArabic, showTranslit, showTranslation } = useQuranPrefs();
+  const { translationId, reciterId, showArabic, showTranslit, showTranslation, fontScale } = useQuranPrefs();
   const { dailyGoal } = useAppSettings();
   const tabSwipe = useTabSwipe('Read');
   const [goalDone, setGoalDone] = useState(false);
@@ -202,12 +202,12 @@ export default function ReadingScreen() {
           <Animated.View style={{ opacity: fade, flex: 1 }}>
             <GlassView radius={RADIUS.lg} style={{ flex: 1 }}>
               <ScrollView contentContainerStyle={styles.ayahScroll} showsVerticalScrollIndicator={false}>
-                {showArabic && <Text style={styles.ar}>{ayah.ar}</Text>}
+                {showArabic && <Text style={[styles.ar, { fontSize: READER.ayah.fontSize * fontScale, lineHeight: READER.ayah.lineHeight * fontScale }]}>{ayah.ar}</Text>}
                 {showTranslit && !!ayah.tr && (
-                  <Text style={[styles.tr, { fontFamily: fonts?.reading }]}>{ayah.tr}</Text>
+                  <Text style={[styles.tr, { fontSize: READER.translit.fontSize * fontScale, fontFamily: fonts?.reading }]}>{ayah.tr}</Text>
                 )}
                 {showTranslation && (
-                  <Text style={[styles.en, { fontFamily: fonts?.reading }]}>{ayah.en}</Text>
+                  <Text style={[styles.en, { fontSize: READER.trans.fontSize * fontScale, lineHeight: READER.trans.lineHeight * fontScale, fontFamily: fonts?.reading }]}>{ayah.en}</Text>
                 )}
                 <TouchableOpacity style={styles.listenBtn} onPress={listen}>
                   <Icon name={playing ? 'pause' : 'play'} size={16} color={COLORS.text} />
