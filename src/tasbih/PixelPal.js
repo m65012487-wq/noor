@@ -415,7 +415,23 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
   const hasGift = !!state && (
     Object.values(state.seeds || {}).reduce((sum, n) => sum + n, 0) > 0 || (state.pendingDrops?.length ?? 0) > 0
   );
-  const openGarden = useCallback(() => setOpen(true), []);
+  // Экран тасбиха выезжает справа и уезжает вправо — под жест «назад» из iOS.
+  // Системный Modal со slide ездит снизу вверх, поэтому окно прозрачное, без
+  // собственной анимации, а двигаем содержимое сами.
+  const slide = useRef(new Animated.Value(width)).current;
+  const [shown, setShown] = useState(false);
+  const openGarden = useCallback(() => {
+    slide.setValue(width);
+    setShown(true);
+    setOpen(true);
+    Animated.timing(slide, { toValue: 0, duration: reduceMotion ? 120 : 280,
+      easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [slide, width, reduceMotion]);
+  const closeGarden = useCallback(() => {
+    setOpen(false);
+    Animated.timing(slide, { toValue: width, duration: reduceMotion ? 120 : 240,
+      easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setShown(false));
+  }, [slide, width, reduceMotion]);
   const label = ru ? 'Сад тасбиха' : 'Tasbih garden';
   const hint = (ru ? 'Открывает счётчик зикра и дерево' : 'Opens the dhikr counter and the tree')
     + (hasGift ? (ru ? '. Есть зёрна для посадки.' : '. Seeds are ready to plant.') : '');
@@ -434,10 +450,11 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
         </View>
       ) : null}
 
-      <Modal visible={open} animationType="slide" presentationStyle="fullScreen"
-        onRequestClose={() => setOpen(false)}>
+      <Modal visible={shown} transparent animationType="none" onRequestClose={closeGarden}>
         <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width, height }, insets }}>
-          <TasbihScreen onClose={() => setOpen(false)} />
+          <Animated.View style={{ flex: 1, transform: [{ translateX: slide }] }}>
+            <TasbihScreen onClose={closeGarden} />
+          </Animated.View>
         </SafeAreaProvider>
       </Modal>
     </View>

@@ -69,10 +69,9 @@ export default function TasbihScreen({ onClose }) {
   // Один обработчик на весь экран, а не по частям: прежние висели на
   // SafeAreaView и шапке, и жест по дереву или саду до них не доходил.
   const swipe = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: (_event, gesture) =>
-      capturesDismiss(gesture, 'right') || capturesDismiss(gesture, 'down'),
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => capturesDismiss(gesture, 'right'),
     onPanResponderRelease: (_event, gesture) => {
-      if (finishesDismiss(gesture, 'right') || finishesDismiss(gesture, 'down')) closeRef.current();
+      if (finishesDismiss(gesture, 'right')) closeRef.current();
     },
     onPanResponderTerminationRequest: () => true,
   }), []);
