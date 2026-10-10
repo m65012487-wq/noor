@@ -9,7 +9,7 @@ import Icon from '../components/Icon';
 import { ARABIC, COLORS, FONTS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useAppearance, patternKind } from '../utils/AppearanceContext';
 import { useLang } from '../i18n/LanguageContext';
-import { hapticHeavy, hapticLight, hapticSuccess } from '../utils/haptics';
+import { hapticCircle, hapticComplete, hapticLight } from '../utils/haptics';
 import TreeView from './TreeView';
 import LeafBurst from './LeafBurst';
 import WateringCan, { wateringBreath } from './WateringCan';
@@ -108,9 +108,11 @@ export default function TasbihScreen({ onClose }) {
   const [arabicLines, setArabicLines] = useState(1);
   const onTap = (e) => {
     const event = tap();
-    hapticLight();
-    if (event === 'circle') hapticHeavy();
-    else if (event === 'complete') hapticSuccess();
+    // Лёгкое касание — на каждый счёт, но не вместе с кругом: поверх серии
+    // оно глушило её первый удар.
+    if (event === 'circle') hapticCircle();
+    else if (event === 'complete') hapticComplete();
+    else hapticLight();
     setPulse(v => v + 1);
     // Листья разлетаются из места касания (координаты внутри области дерева).
     setBurst({ event, x: e?.nativeEvent?.locationX, y: e?.nativeEvent?.locationY });
