@@ -6,7 +6,7 @@ import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
-import { DEFAULT_SEQUENCE, DHIKR, SEQUENCE_MAX_STEPS, SEQUENCE_MAX_TARGET, sequenceSteps } from './model';
+import { AZKAR_AFTER_PRAYER, DEFAULT_SEQUENCE, DHIKR, SEQUENCE_MAX_STEPS, SEQUENCE_MAX_TARGET, sequenceSteps } from './model';
 
 // Быстрые наборы: три основных поминания с готовыми числами. Второй — классика
 // после намаза: Аллаху акбар 34, в сумме круг из 100.
@@ -155,6 +155,15 @@ export default function SequenceEditor({ state, setSequence, onDone, onFocusRow 
             </Pressable>
           );
         })}
+        {/* Целый набор азкаров после намаза: шесть шагов вместо трёх. */}
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: sameSteps(steps, AZKAR_AFTER_PRAYER) }}
+          accessibilityLabel={ru ? 'Набор: азкары после намаза' : 'Preset: adhkar after prayer'}
+          onPress={() => choosePreset(AZKAR_AFTER_PRAYER)}
+          style={[styles.chip, sameSteps(steps, AZKAR_AFTER_PRAYER) && { borderColor: accent }]}>
+          <Text style={[styles.chipText, sameSteps(steps, AZKAR_AFTER_PRAYER) && { color: accent, fontWeight: '600' }]}>
+            {ru ? 'После намаза' : 'After prayer'}
+          </Text>
+        </Pressable>
       </View>
 
       {resolved.map((d, index) => (

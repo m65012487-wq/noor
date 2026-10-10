@@ -15,7 +15,7 @@ const RULES = [
   { ru: 'Когда дерево приносит плоды — новое зерно.', en: 'A tree in fruit gives a new seed.' },
   { ru: 'Новые породы дарятся за каждый седьмой день зикра и когда дерево становится молодым.', en: 'New species are gifted every seventh day of dhikr and when a tree grows young.' },
   { ru: 'В пятницу зерно приносит первая завершённая последовательность или 99 поминаний за день.', en: 'On Friday a seed comes with the first completed sequence or 99 remembrances in a day.' },
-  { ru: 'В первые полчаса после намаза дерево растёт в полтора раза быстрее.', en: 'In the half hour after prayer the tree grows one and a half times faster.' },
+  { ru: 'В первые полчаса после намаза дерево растёт в полтора раза быстрее; азкары после намаза есть в наборах последовательности.', en: 'In the half hour after prayer the tree grows one and a half times faster; the adhkar set is among the sequence presets.' },
   { ru: 'Дерево в плодах можно отправить в рощу — оно останется в саду навсегда.', en: 'A tree in fruit can be sent to the grove, where it stays for good.' },
   { ru: 'Рост после плодов не пропадает — он перейдёт к следующему посаженному зерну.', en: 'Growth after fruiting is kept for the next seed you plant.' },
 ];

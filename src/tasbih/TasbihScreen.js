@@ -19,7 +19,7 @@ import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
 import useTasbih from './useTasbih';
 import { GARDEN_SCENE } from './gardenScene';
-import { activeTree, AFTER_PRAYER, definition, DHIKR, growthRatio, sequenceSteps, SPECIES, STAGE_NAMES, STAGES } from './model';
+import { activeTree, AFTER_PRAYER, AZKAR_AFTER_PRAYER, definition, DHIKR, growthRatio, sequenceSteps, SPECIES, STAGE_NAMES, STAGES } from './model';
 import { afterPrayerNow } from '../utils/prayerWindow';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
@@ -243,9 +243,15 @@ export default function TasbihScreen({ onClose }) {
                 <Text style={styles.hint}>{ru ? 'Нажимайте на дерево, чтобы считать зикр' : 'Tap the tree to count dhikr'}</Text>
               ) : (
                 <>
-                  {afterPrayer && <Text style={[styles.afterPrayer, { color: accent }]}>
-                    {ru ? 'После намаза рост быстрее' : 'Growing faster after prayer'}
-                  </Text>}
+                  {afterPrayer && (
+                    <Pressable accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
+                      accessibilityLabel={ru ? 'Начать азкары после намаза' : 'Start adhkar after prayer'}
+                      onPress={() => { hapticLight(); setSequence(AZKAR_AFTER_PRAYER); select('sequence'); }}>
+                      <Text style={[styles.afterPrayer, { color: accent }]}>
+                        {ru ? 'После намаза рост быстрее · азкары ›' : 'Faster growth after prayer · adhkar ›'}
+                      </Text>
+                    </Pressable>
+                  )}
                   <Text style={styles.stageLine}>{speciesLabel} · {stageLabel}</Text>
                   {fruiting && seedTotal > 0 ? (
                     <Text style={styles.plantHint} numberOfLines={1}>{ru ? 'Посадите зерно — рост перейдёт к нему' : 'Plant a seed — growth carries over'}</Text>

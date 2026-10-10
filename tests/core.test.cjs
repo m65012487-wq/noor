@@ -392,7 +392,9 @@ test('restoreState validates circleLimit, customDhikr entries, and mode referenc
   assert.equal(model.restoreState({ ...base, selectedDhikr: 'free' }).selectedDhikr, 'free');
 });
 const EXTRA_DHIKR = ['la_ilaha_illallah', 'astaghfirullah', 'subhanallahi_wa_bihamdihi',
-  'subhanallahil_azim', 'la_hawla', 'salawat', 'hasbunallah'];
+  'subhanallahil_azim', 'la_hawla', 'salawat', 'allahumma_antas_salam', 'la_ilaha_wahdahu', 'hasbunallah'];
+// Длинные азкары после намаза читаются один раз, а не по 33.
+const SINGLE_DHIKR = ['allahumma_antas_salam', 'la_ilaha_wahdahu'];
 test('DHIKR keeps the three classics first, then the extra remembrances, each complete and vocalized', () => {
   assert.deepEqual(model.DHIKR.map(d => d.id), ['subhanallah', 'alhamdulillah', 'allahuakbar', ...EXTRA_DHIKR]);
   assert.deepEqual(model.DEFAULT_SEQUENCE, [{ id: 'subhanallah', target: 33 }, { id: 'alhamdulillah', target: 33 }, { id: 'allahuakbar', target: 33 }]);
@@ -403,7 +405,7 @@ test('DHIKR keeps the three classics first, then the extra remembrances, each co
       assert.equal(typeof d[key], 'string', `${d.id}.${key}`);
       assert.ok(d[key].trim().length > 0, `${d.id}.${key} is empty`);
     }
-    assert.equal(d.target, 33, d.id);
+    assert.equal(d.target, SINGLE_DHIKR.includes(d.id) ? 1 : 33, d.id);
     // Только арабские буквы, пробелы и огласовки (фатха…сукун и кинжальный алиф).
     assert.match(d.arabic, /^[ء-يً-ْٰ ]+$/u, `${d.id} arabic has foreign characters`);
     assert.match(d.arabic, /[ً-ْ]/u, `${d.id} arabic has no vowel marks`);
@@ -2234,4 +2236,17 @@ test('the after-prayer window follows prayers shifted across midnight', () => {
   assert.equal(afterPrayerNow(new Date(2026, 4, 20, 0, 30), 30, days), false);
   // испорченный день не роняет, а даёт «окна нет»
   assert.equal(afterPrayerNow(new Date(2026, 4, 20, 13, 40), 30, [{ timings: null }, null]), false);
+});
+
+test('the after-prayer adhkar set uses known dhikr, fits the sequence editor and survives setSequence', () => {
+  assert.ok(model.AZKAR_AFTER_PRAYER.length <= model.SEQUENCE_MAX_STEPS);
+  for (const step of model.AZKAR_AFTER_PRAYER) {
+    const item = model.DHIKR.find(d => d.id === step.id);
+    assert.ok(item, step.id);
+    assert.ok(item.arabic && item.ru && item.en && item.translation_ru && item.translation_en, step.id);
+    assert.ok(Number.isInteger(step.target) && step.target >= 1 && step.target <= model.SEQUENCE_MAX_TARGET);
+  }
+  const state = model.setSequence(model.initialState(), model.AZKAR_AFTER_PRAYER);
+  assert.deepEqual(state.sequence, model.AZKAR_AFTER_PRAYER);
+  assert.equal(model.sequenceSteps(state).length, model.AZKAR_AFTER_PRAYER.length);
 });

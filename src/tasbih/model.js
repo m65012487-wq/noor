@@ -11,6 +11,11 @@ export const DHIKR = [
   { id: 'subhanallahil_azim', arabic: 'سُبْحَانَ اللَّهِ الْعَظِيمِ', ru: 'Субханаллахиль-Азым', en: 'SubhanAllahil-Azim', translation_ru: 'Пречист Аллах Великий', translation_en: 'Glory be to Allah the Magnificent', target: 33 },
   { id: 'la_hawla', arabic: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', ru: 'Ля хауля ва ля куввата илля билЛях', en: 'La hawla wa la quwwata illa billah', translation_ru: 'Нет мощи и силы, кроме как у Аллаха', translation_en: 'There is no power nor strength except with Allah', target: 33 },
   { id: 'salawat', arabic: 'اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ', ru: 'Аллахумма салли аля Мухаммад', en: 'Allahumma salli ala Muhammad', translation_ru: 'О Аллах, благослови Мухаммада', translation_en: 'O Allah, send blessings upon Muhammad', target: 33 },
+  // Азкары после намаза (Муслим): просьба о прощении, слова о мире и завершающее
+  // единобожие. Они стоят в списке рядом с остальными, а целиком собираются в набор
+  // AZKAR_AFTER_PRAYER ниже.
+  { id: 'allahumma_antas_salam', arabic: 'اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ', ru: 'Аллахумма антас-саляму', en: 'Allahumma antas-salam', translation_ru: 'О Аллах, Ты — Мир, и от Тебя мир; благословенен Ты, о Обладатель величия и щедрости', translation_en: 'O Allah, You are Peace and from You comes peace; blessed are You, Owner of majesty and honour', target: 1 },
+  { id: 'la_ilaha_wahdahu', arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ', ru: 'Ля иляха илляЛлаху вахдаху', en: 'La ilaha illallahu wahdahu', translation_ru: 'Нет божества, кроме Аллаха, Единого, у Которого нет сотоварища; Ему принадлежит власть и хвала, и Он всё может', translation_en: 'There is no god but Allah alone, with no partner; His is the dominion and the praise, and He is able to do all things', target: 1 },
   { id: 'hasbunallah', arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', ru: 'Хасбуна-Ллаху ва ни‘маль-вакиль', en: "Hasbunallahu wa ni'mal wakil", translation_ru: 'Достаточно нам Аллаха, и Он — лучший Покровитель', translation_en: 'Allah is sufficient for us, and He is the best Disposer of affairs', target: 33 },
 ];
 // «Последовательность» — шаги { id, target } по кругу; по умолчанию три первых
@@ -22,6 +27,17 @@ export const DEFAULT_SEQUENCE = [
   { id: 'allahuakbar', target: 33 },
 ];
 export const SEQUENCE_MAX_STEPS = 12;
+// Азкары после намаза по порядку: прощение трижды, слова о мире, тасбих
+// 33 · 33 · 34 и завершающее единобожие. Набор можно выбрать в редакторе
+// последовательности, а в окне после намаза — одним нажатием на подсказку.
+export const AZKAR_AFTER_PRAYER = [
+  { id: 'astaghfirullah', target: 3 },
+  { id: 'allahumma_antas_salam', target: 1 },
+  { id: 'subhanallah', target: 33 },
+  { id: 'alhamdulillah', target: 33 },
+  { id: 'allahuakbar', target: 34 },
+  { id: 'la_ilaha_wahdahu', target: 1 },
+];
 export const SEQUENCE_MAX_TARGET = 999;
 // Prototype coefficients are separate from the counter and artwork. Every dhikr
 // is one unit of growth; the first `bonusTaps` of each day count `bonusMultiplier` times.
