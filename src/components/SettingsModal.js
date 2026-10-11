@@ -8,6 +8,7 @@ import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppSettings, NOTIF_SOUNDS, SOUND_ASSETS } from '../utils/AppSettingsContext';
 import { useAppearance, makeScheme } from '../utils/AppearanceContext';
+import { Sprite, useSproutColors } from '../tasbih/sproutArt';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
 import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm } from '../utils/fajrAlarm';
@@ -139,7 +140,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { pattern, choosePattern, PATTERNS, scheme, chooseScheme, SCHEMES,
     customColor, chooseCustomColor,
     uiFont, chooseUiFont, UI_FONTS, parallax, toggleParallax,
+    character, chooseCharacter, CHARACTERS,
     tint, accent } = useAppearance();
+  const characterColors = useSproutColors();
   const tintRgb = tint || '180,215,230';
   const accentColor = accent || COLORS.accent;
   const activeBg = { backgroundColor: `rgba(${tintRgb},0.18)` };
@@ -407,6 +410,22 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
             ))}
           </Grid>
 
+          {/* Спутник на таб-баре и в обучении. Образец нарисован самим
+              персонажем в цветах схемы. */}
+          <Text style={styles.label}>{t('character')}</Text>
+          <Text style={styles.hintText}>{t('character_hint')}</Text>
+          <Grid>
+            {CHARACTERS.map((c) => (
+              <Cell key={c.id} active={character === c.id} onPress={() => chooseCharacter(c.id)}
+                style={[styles.characterCell, character === c.id && activeBg]}>
+                <Sprite frame="idle" colors={characterColors} px={3} character={c.id} />
+                <Text style={[styles.fontName, character === c.id && styles.cellTextActive]} {...FIT}>
+                  {lang === "ru" ? c.label_ru : c.label_en}
+                </Text>
+              </Cell>
+            ))}
+          </Grid>
+
         </Section>
 
         {/* ===== GENERAL ===== */}
@@ -535,6 +554,7 @@ const styles = StyleSheet.create({
   cellTextActive: { color: COLORS.white, fontWeight: '700' },
   schemeCell: { flexDirection: 'row', justifyContent: 'flex-start', gap: SPACING.xs },
   fontCell: { height: 64 },
+  characterCell: { height: 80 },
   fontSample: { fontSize: 17, color: COLORS.white },
   fontName: { ...TYPE.caption, color: COLORS.textMuted, marginTop: 2 },
   themeChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,

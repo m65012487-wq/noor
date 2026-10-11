@@ -206,6 +206,13 @@ export function schemeFor(id, custom) {
 const uiFontFor = (id) => UI_FONTS.find((f) => f.id === id) || UI_FONTS[0];
 const readingFontFor = (id) => READING_FONTS.find((f) => f.id === id) || READING_FONTS[0];
 
+// Спутник на таб-баре и в обучении (рисунки — в tasbih/sproutArt.js).
+// Семечко без лица — по умолчанию; росток с глазами оставлен на выбор.
+export const CHARACTERS = [
+  { id: 'seed', label_ru: 'Семечко', label_en: 'Seed' },
+  { id: 'sprout', label_ru: 'Росток', label_en: 'Sprout' },
+];
+
 export function AppearanceProvider({ children }) {
   const [pattern, setPattern] = useState(DEFAULT_PATTERN);
   const [scheme, setScheme] = useState(SCHEMES[0].id);
@@ -214,6 +221,7 @@ export function AppearanceProvider({ children }) {
   const [readingFont, setReadingFont] = useState('system');
   const [arabicFont, setArabicFont] = useState('system');
   const [parallax, setParallax] = useState(true);
+  const [character, setCharacter] = useState(CHARACTERS[0].id);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -249,6 +257,8 @@ export function AppearanceProvider({ children }) {
       setArabicFont(ARABIC_FONTS.some((f) => f.id === savedArabic) ? savedArabic : 'system');
 
       setParallax(await loadJSON('parallax', true) !== false);
+      const savedCharacter = await loadJSON('character', CHARACTERS[0].id);
+      setCharacter(CHARACTERS.some((c) => c.id === savedCharacter) ? savedCharacter : CHARACTERS[0].id);
 
       setReady(true);
     })();
@@ -265,6 +275,7 @@ export function AppearanceProvider({ children }) {
   const chooseReadingFont = async (id) => { setReadingFont(id); await saveJSON('readingFont', id); };
   const chooseArabicFont = async (id) => { setArabicFont(id); await saveJSON('arabicFont', id); };
   const toggleParallax = async (v) => { setParallax(v); await saveJSON('parallax', v); };
+  const chooseCharacter = async (id) => { setCharacter(id); await saveJSON('character', id); };
 
   const sc = React.useMemo(() => schemeFor(scheme, customColor), [scheme, customColor]);
   const fonts = React.useMemo(() => ({ ui: uiFontFor(uiFont).family, reading: readingFontFor(readingFont).family }),
@@ -288,6 +299,7 @@ export function AppearanceProvider({ children }) {
       arabicFont, chooseArabicFont, ARABIC_FONTS,
       arabicFamily: arabicFontFor(arabicFont).family,
       parallax, toggleParallax,
+      character, chooseCharacter, CHARACTERS,
       patterned: pattern !== 'none',
       schemeColors: sc, fonts,
       accent: sc.accent, tint: sc.tint,
@@ -306,6 +318,7 @@ export const useAppearance = () => useContext(AppearanceContext) || {
   arabicFont: 'system', chooseArabicFont: () => {}, ARABIC_FONTS,
   arabicFamily: 'System',
   parallax: true, toggleParallax: () => {},
+  character: CHARACTERS[0].id, chooseCharacter: () => {}, CHARACTERS,
   patterned: true, schemeColors: SCHEMES[0], fonts: { ui: UI_FONTS[0].family, reading: undefined },
   accent: SCHEMES[0].accent, tint: SCHEMES[0].tint,
 };

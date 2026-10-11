@@ -2,9 +2,13 @@ import React, { memo, useMemo } from 'react';
 import { View } from 'react-native';
 import { useAppearance } from '../utils/AppearanceContext';
 
-// Рисунок ростка — один на всё приложение: он гуляет по таб-бару главного
-// экрана (PixelPal) и сопровождает в обучении (SproutGuide). Квадраты-«пиксели»
-// цветов схемы: лист — accent, тело — tint, глаз — самый тёмный цвет фона.
+// Спутник — один на всё приложение: он гуляет по таб-бару главного экрана
+// (PixelPal) и сопровождает в обучении (SproutGuide). Персонажей два, выбор в
+// настройках оформления: проросшее семечко (по умолчанию) и росток-малыш.
+// У семечка нет лица: изображать существ с душой многие учёные запрещают, а
+// растения можно по согласию, поэтому настроение семечка передают листки.
+// Квадраты-«пиксели» цветов схемы: лист — accent, тело — tint, глаз ростка —
+// самый тёмный цвет фона. Имена кадров у обоих персонажей одни и те же.
 
 export const COLS = 12;
 export const ROWS = 13;
@@ -29,7 +33,7 @@ const IDLE = [
 ];
 const withRows = (rows, changes) => rows.map((r, i) => (changes[i] !== undefined ? changes[i] : r));
 
-export const FRAMES = {
+const SPROUT = {
   idle: { top: 0, rows: IDLE },
   // Шаг: ноги разведены.
   walkA: { top: 0, rows: withRows(IDLE, { 12: '..B......B..' }) },
@@ -51,6 +55,86 @@ export const FRAMES = {
     7: '.BBBBBBBBBB.', 8: '.BBEBBBBEBB.', 9: '.BBEBBBBEBB.', 10: '.BBBBEEBBBB.', 11: '..BBEBBEBB..',
   }) },
 };
+
+// Проросшее семечко: боб с бликом и тенью, из него стебелёк с двумя листками.
+// Ног нет — на ходу листки отклоняются назад, а семечко подскакивает на
+// пиксель. «Моргание» — листок вздрагивает, «речь» — листки поднимаются и
+// опускаются, радость — листки вскинуты, огорчение — поникли зонтиком.
+// 'K' — тело семечка, 'S' — его тень. Донце (пиксели 3…8) стоит там же, где
+// ноги ростка: на ровной части кромки таб-бара.
+const SEED_BODY = [
+  '...KKLKKK...',
+  '..KWKKKKKS..',
+  '.KWKKKKKKKS.',
+  '.KKKKKKKKKS.',
+  '.KKKKKKKKSS.',
+  '..KKKKKKSS..',
+  '...KKKKSS...',
+];
+const SEED_LEAVES = {
+  up: [
+    '.LLL....LLL.',
+    'LLLLL..LLLLL',
+    '.LLLL..LLLL.',
+    '...LLLLLL...',
+    '.....LL.....',
+    '.....L......',
+  ],
+  back: [
+    'LLL....LLL..',
+    'LLLL..LLLLL.',
+    'LLLL..LLLL..',
+    '..LLLLLL....',
+    '....LLL.....',
+    '.....L......',
+  ],
+  flick: [
+    '.LLL.....LLL',
+    'LLLLL..LLLLL',
+    '.LLLL..LLLL.',
+    '...LLLLLL...',
+    '.....LL.....',
+    '.....L......',
+  ],
+  raised: [
+    '..LL....LL..',
+    '.LLLL..LLLL.',
+    '.LLLL..LLLL.',
+    '..LLL..LLL..',
+    '....LLLL....',
+    '.....L......',
+  ],
+  droop: [
+    '............',
+    '............',
+    '...LLLLLL...',
+    '.LLLLLLLLLL.',
+    'LLLL.L..LLLL',
+    'LL...L....LL',
+  ],
+  flat: [
+    '............',
+    '............',
+    '............',
+    'LLL......LLL',
+    'LLLLL..LLLLL',
+    '..LLLLLLLL..',
+  ],
+};
+const seed = leaves => [...SEED_LEAVES[leaves], ...SEED_BODY];
+const SEED = {
+  idle: { top: 0, rows: seed('up') },
+  walkA: { top: 0, rows: seed('back') },
+  walkB: { top: -1, rows: seed('up') },
+  blink: { top: 0, rows: seed('flick') },
+  squish: { top: 0, rows: seed('flat') },
+  talk: { top: 0, rows: seed('raised') },
+  talkHalf: { top: 0, rows: seed('up') },
+  happy: { top: 0, rows: seed('raised') },
+  sad: { top: 0, rows: seed('droop') },
+};
+
+const CHARACTER_FRAMES = { seed: SEED, sprout: SPROUT };
 
 // Строки сливаются в отрезки, а одинаковые отрезки подряд — в прямоугольники:
 // вместо сотни View на кадр получается два-три десятка.
@@ -80,7 +164,8 @@ function buildRects({ top, rows }) {
   });
   return rects;
 }
-const RECTS = Object.fromEntries(Object.entries(FRAMES).map(([name, def]) => [name, buildRects(def)]));
+const RECTS = Object.fromEntries(Object.entries(CHARACTER_FRAMES).map(([id, frames]) => [id,
+  Object.fromEntries(Object.entries(frames).map(([name, def]) => [name, buildRects(def)]))]));
 
 // Цвета, которых нет в схеме: блик и румянец одинаковы при любой палитре.
 const FIXED = { W: 'rgba(255,255,255,0.9)', P: 'rgba(255,138,160,0.8)' };
@@ -90,11 +175,14 @@ const FIXED = { W: 'rgba(255,255,255,0.9)', P: 'rgba(255,138,160,0.8)' };
 // «пикселями» проступали бы тонкие щели.
 const SEAM = 0.5;
 
-// px — размер одного «пикселя» в пунктах.
-export const Sprite = memo(function Sprite({ frame, colors, px = 4 }) {
+// px — размер одного «пикселя» в пунктах; character — какой персонаж, без
+// него — выбранный в настройках.
+export const Sprite = memo(function Sprite({ frame, colors, px = 4, character }) {
+  const { character: chosen } = useAppearance();
+  const rects = (RECTS[character || chosen] || RECTS.seed)[frame] || [];
   return (
     <View style={{ width: COLS * px, height: ROWS * px }}>
-      {RECTS[frame].map(r => (
+      {rects.map(r => (
         <View key={`${r.c}:${r.x}:${r.y}`} style={{
           position: 'absolute', left: r.x * px, top: r.y * px, width: r.w * px + SEAM, height: r.h * px + SEAM,
           backgroundColor: colors[r.c] || FIXED[r.c],
@@ -104,7 +192,17 @@ export const Sprite = memo(function Sprite({ frame, colors, px = 4 }) {
   );
 });
 
-// Цвета ростка из текущей схемы.
+// Тело семечка темнее листков: цвет схемы, смешанный с фоном. Смешивается
+// заранее, а не прозрачностью — сквозь полупрозрачное тело просвечивала бы
+// прокрутка под таб-баром.
+function mix(rgb, hex, share) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return 'rgba(' + rgb + ',' + share + ')';
+  const a = rgb.split(',').map(Number);
+  const b = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  return 'rgb(' + a.map((v, i) => Math.round(v * share + b[i] * (1 - share))).join(',') + ')';
+}
+
+// Цвета персонажа из текущей схемы.
 export function useSproutColors() {
   const { accent, tint, schemeColors } = useAppearance();
   return useMemo(() => ({
@@ -113,5 +211,7 @@ export function useSproutColors() {
     W: FIXED.W,
     E: schemeColors.bg[1],
     P: FIXED.P,
+    K: mix(tint || '150,200,225', schemeColors.bg[0], 0.62),
+    S: mix(tint || '150,200,225', schemeColors.bg[0], 0.4),
   }), [accent, tint, schemeColors]);
 }

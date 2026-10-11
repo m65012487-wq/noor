@@ -7,12 +7,13 @@ import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 
-// Росток-спутник в обучении — тот же, что гуляет по таб-бару главного экрана.
-// Он «говорит» объяснения (рот шевелится, пока появляется реплика), моргает и
-// дышит, радуется верному ответу и пройденному уроку прыжками с салютом из
+// Спутник в обучении — тот же персонаж, что гуляет по таб-бару главного экрана
+// (семечко или росток, выбор в настройках оформления). Он «говорит» объяснения
+// (пока появляется реплика, у ростка шевелится рот, у семечка — листки), моргает
+// и дышит, радуется верному ответу и пройденному уроку прыжками с салютом из
 // пикселей, огорчается ошибке. Движения — нативный драйвер, только transform и
 // opacity; смену кадров ведут таймеры. При «Уменьшении движения» прыжков и
-// дыхания нет, остаются выражения лица.
+// дыхания нет, остаются выражения.
 
 const native = { useNativeDriver: true, isInteraction: false };
 const tween = (value, toValue, duration, easing = Easing.out(Easing.quad)) =>
@@ -228,7 +229,7 @@ export function SproutSays({ text, mood = 'idle', talkKey, cheerKey, hopKey, px 
       <Sprout px={px} mood={mood} talkKey={talkKey === undefined ? text : talkKey}
         talkMs={talkTime(text)} cheerKey={cheerKey} hopKey={hopKey} />
       <View style={[styles.bubble, { marginLeft: px * 3 }, fill]}>
-        {/* Хвостик облачка — две ступеньки «пикселей» ко рту ростка. */}
+        {/* Хвостик облачка — две ступеньки «пикселей» к спутнику. */}
         <View style={[styles.tail, fill, { left: -px * 2, width: px * 2, height: px * 2, bottom: px * 3 }]} />
         <View style={[styles.tail, fill, { left: -px * 3, width: px, height: px, bottom: px * 3 }]} />
         <Text style={styles.bubbleText}>{text}</Text>
