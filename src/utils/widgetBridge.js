@@ -52,6 +52,17 @@ export async function publishStreak() {
   } catch { return false; }
 }
 
+// Пятница для виджета: включён ли праздничный вид и докуда прочитана сура
+// аль-Кахф в эту пятницу. Саму пятницу (от магриба четверга до магриба
+// пятницы) виджет считает сам по графику: снимок может пролежать до вечера.
+export function publishFriday({ festive, friday, ayah, done }) {
+  try {
+    shared().set('friday:v1', JSON.stringify({ festive: !!festive, friday: friday || '', ayah: ayah | 0, done: !!done }));
+    ExtensionStorage.reloadWidget();
+    return true;
+  } catch { return false; }
+}
+
 // Цвета схемы и язык: виджет красится так же, как приложение, — градиент фона
 // и цвет силуэта на нём, — и говорит на языке приложения.
 export function publishTheme({ bg, accent, lang }) {

@@ -6,7 +6,7 @@ import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
-import { AZKAR_AFTER_PRAYER, DEFAULT_SEQUENCE, DHIKR, SEQUENCE_MAX_STEPS, SEQUENCE_MAX_TARGET, sequenceSteps } from './model';
+import { DEFAULT_SEQUENCE, DHIKR, SEQUENCE_MAX_STEPS, SEQUENCE_MAX_TARGET, ownSequenceSteps } from './model';
 
 // Быстрые наборы: три основных поминания с готовыми числами. Второй — классика
 // после намаза: Аллаху акбар 34, в сумме круг из 100.
@@ -75,14 +75,14 @@ function StepRow({ rowKey, index, step, name, first, last, only, ru, accent, onT
 // Редактор последовательности внутри шторки DhikrSheet (docs/TASBIH_V4_SPEC.md, A):
 // шаги — поминание и число повторений, 1…12 шагов. Каждая правка сразу уходит
 // в setSequence и сохраняется; «Готово» возвращает к списку режимов.
-// Шаги берутся из sequenceSteps: так редактор показывает ровно то, что считается.
+// Шаги берутся из ownSequenceSteps: так редактор показывает ровно то, что считается.
 export default function SequenceEditor({ state, setSequence, onDone, onFocusRow }) {
   const { lang } = useLang();
   const ru = lang === 'ru';
   const { accent } = useAppearance();
   const [picking, setPicking] = useState(false);
 
-  const resolved = sequenceSteps(state);
+  const resolved = ownSequenceSteps(state);
   const steps = resolved.map(d => ({ id: d.id, target: d.target }));
   const full = steps.length >= SEQUENCE_MAX_STEPS;
 
@@ -155,15 +155,6 @@ export default function SequenceEditor({ state, setSequence, onDone, onFocusRow 
             </Pressable>
           );
         })}
-        {/* Целый набор азкаров после намаза: шесть шагов вместо трёх. */}
-        <Pressable accessibilityRole="button" accessibilityState={{ selected: sameSteps(steps, AZKAR_AFTER_PRAYER) }}
-          accessibilityLabel={ru ? 'Набор: азкары после намаза' : 'Preset: adhkar after prayer'}
-          onPress={() => choosePreset(AZKAR_AFTER_PRAYER)}
-          style={[styles.chip, sameSteps(steps, AZKAR_AFTER_PRAYER) && { borderColor: accent }]}>
-          <Text style={[styles.chipText, sameSteps(steps, AZKAR_AFTER_PRAYER) && { color: accent, fontWeight: '600' }]}>
-            {ru ? 'После намаза' : 'After prayer'}
-          </Text>
-        </Pressable>
       </View>
 
       {resolved.map((d, index) => (

@@ -9,7 +9,11 @@ export default function QuranStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SurahList" component={QuranScreen} />
-      <Stack.Screen name="SurahReader" component={SurahReaderScreen} />
+      {/* Своя копия читалки на каждую суру (и отдельная — для пятничного чтения):
+          без getId переход с вкладки намаза подменял бы params у уже открытой
+          читалки, а текст на экране оставался бы от прежней суры. */}
+      <Stack.Screen name="SurahReader" component={SurahReaderScreen}
+        getId={({ params }) => `${params?.surah?.number}:${params?.friday ? 'friday' : ''}`} />
     </Stack.Navigator>
   );
 }

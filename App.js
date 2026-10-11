@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { KAHF_TAG } from './src/utils/kahfReminder';
+import { KAHF } from './src/utils/fridayKahf';
+import { getSurahList } from './src/utils/quranApi';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Notifications from 'expo-notifications';
 
@@ -19,6 +22,21 @@ import { TasbihProvider } from './src/tasbih/useTasbih';
 import { loadStoredTables } from './src/utils/timesServer';
 
 const Tab = createBottomTabNavigator();
+
+// Нажатие на уведомление о суре аль-Кахф открывает саму суру в пятничном режиме
+// (учёт отдельно от ежедневного чтения). Работает и при холодном старте:
+// последнее нажатое уведомление забирается, когда навигация готова.
+const navigationRef = createNavigationContainerRef();
+async function openKahfFromNotification(response) {
+  if (response?.notification?.request?.content?.data?.tag !== KAHF_TAG || !navigationRef.isReady()) return;
+  let surah = KAHF;
+  try { surah = (await getSurahList()).find(x => x.number === KAHF.number) || KAHF; } catch {}
+  navigationRef.navigate('Quran', { screen: 'SurahReader', initial: false, params: { surah, friday: true } });
+}
+async function openFromLastNotification() {
+  try { await openKahfFromNotification(await Notifications.getLastNotificationResponseAsync()); } catch {}
+}
+Notifications.addNotificationResponseReceivedListener(response => { openKahfFromNotification(response); });
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -76,7 +94,7 @@ export default function App() {
           <LocationProvider>
             <QuranPrefsWrapper>
               <TasbihProvider>
-                <NavigationContainer>
+                <NavigationContainer ref={navigationRef} onReady={openFromLastNotification}>
                   <Tabs />
                 </NavigationContainer>
               </TasbihProvider>

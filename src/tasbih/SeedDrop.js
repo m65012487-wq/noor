@@ -14,7 +14,7 @@ const TOAST_MS = 2600;
 
 const REASON_LABEL = {
   week: { ru: '7 дней зикра', en: '7 days of dhikr' },
-  harvest: { ru: 'Дерево дало плод', en: 'The tree bore fruit' },
+  harvest: { ru: 'Первый урожай — новая порода', en: 'First harvest — a new species' },
   circle: { ru: 'Полный круг 99', en: 'A full circle of 99' },
   growth: { ru: 'Дерево подросло', en: 'The tree has grown' },
   friday: { ru: 'Пятничное зерно', en: 'A Friday seed' },

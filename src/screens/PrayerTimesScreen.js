@@ -18,9 +18,13 @@ import { useTablesVersion } from '../utils/useOfficialTables';
 import { syncOfficialTables } from '../utils/timesServer';
 import { localDateKey } from '../utils/calendarDate';
 import { updateSchedule } from '../utils/scheduleQueue';
-import { setPrayerDays } from '../utils/prayerWindow';
+import { setPrayerDays, isFridayNow } from '../utils/prayerWindow';
+import { loadKahf, KAHF } from '../utils/fridayKahf';
+import { syncKahfReminder } from '../utils/kahfReminder';
+import { getSurahList } from '../utils/quranApi';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { schedulePrayerReminders } from '../utils/prayerNotifications';
-import { publishPrayerDay, publishStreak } from '../utils/widgetBridge';
+import { publishFriday, publishPrayerDay, publishStreak } from '../utils/widgetBridge';
 import { useLang } from '../i18n/LanguageContext';
 import { prayerName } from '../constants/prayerNames';
 import { useTabSwipe } from '../utils/useTabSwipe';
@@ -43,10 +47,13 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function PrayerTimesScreen() {
   const { t, lang } = useLang();
+  const navigation = useNavigation();
+  const focused = useIsFocused();
+  const [kahf, setKahf] = useState(null);
   const swipe = useTabSwipe('Prayer');
   const { accent } = useAppearance();
   const { coords } = useLocation();
-  const { reminders, timeSourceId, asrSchool, notifSound, adhanNotifSound, hijriOffset, tune } = useAppSettings();
+  const { reminders, timeSourceId, asrSchool, notifSound, adhanNotifSound, hijriOffset, tune, festiveFriday } = useAppSettings();
   // Пришла таблица с сервера — времена пересчитываются сразу.
   const tablesVersion = useTablesVersion();
   const [clock, setClock] = useState(new Date());
@@ -220,6 +227,42 @@ export default function PrayerTimesScreen() {
     setProgress(events.progress);
   }, [days, clock]);
 
+  // Пятница считается от магриба четверга до магриба пятницы (isFridayNow),
+  // а «Джума» вместо Зухра — только в календарную пятницу: сам намаз в полдень.
+  const friday = isFridayNow(clock);
+  const festive = friday && festiveFriday;
+  const jumuah = clock.getDay() === 5;
+  const pname = (p) => (p === 'Dhuhr' && jumuah ? (lang === 'ru' ? 'Джума' : "Jumu'ah") : prayerName(p, lang));
+  useEffect(() => {
+    if (!focused || !friday) return undefined;
+    let cancelled = false;
+    loadKahf(clock).then(v => {
+      if (cancelled) return;
+      setKahf(v);
+      publishFriday({ festive: festiveFriday, friday: v.friday, ayah: v.ayah, done: v.done });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+    // Перечитываем при возвращении на экран и при смене пятницы, не каждую секунду.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focused, friday, festiveFriday]);
+  // Напоминание о суре: ставится или снимается вместе с переключателем, а текст
+  // следует за языком.
+  const { kahfReminder } = useAppSettings();
+  useEffect(() => {
+    syncKahfReminder(kahfReminder, { title: t('kahf_notif_title'), body: t('kahf_notif_body') }).catch(() => {});
+  }, [kahfReminder, lang, t]);
+  useEffect(() => {
+    loadKahf(clock).then(v => publishFriday({ festive: festiveFriday, friday: v.friday, ayah: v.ayah, done: v.done })).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [festiveFriday]);
+  const openKahf = async () => {
+    let surah = KAHF;
+    try { surah = (await getSurahList()).find(x => x.number === KAHF.number) || KAHF; } catch {}
+    const at = kahf && !kahf.done && kahf.ayah > 1 ? kahf.ayah : undefined;
+    // initial: false — под читалкой остаётся список сур, «назад» ведёт к нему.
+    navigation.navigate('Quran', { screen: 'SurahReader', initial: false, params: { surah, jumpToAyah: at, friday: true } });
+  };
+
   return (
     <View style={styles.screen}>
       <ScreenWrapper swipeHandlers={swipe}>
@@ -257,6 +300,7 @@ export default function PrayerTimesScreen() {
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setCalendarOpen(true)} activeOpacity={0.8}
             style={styles.dateBlock}>
+            {festive && <Text style={styles.greeting}>جمعة مباركة</Text>}
             <Text style={styles.dateGreg}>{formatGregorian(today, lang)}</Text>
             <Text style={styles.dateHijri}>{formatHijri(today, hijriOffset, lang)}</Text>
           </TouchableOpacity>
@@ -303,7 +347,7 @@ export default function PrayerTimesScreen() {
                     <Text style={styles.nextLabel} numberOfLines={1} adjustsFontSizeToFit
                       minimumFontScale={0.8}>{t("next_short")}</Text>
                   )}
-                  <Text style={styles.nextName}>{nextName ? prayerName(nextName, lang) : ""}</Text>
+                  <Text style={styles.nextName}>{nextName ? pname(nextName) : ""}</Text>
                   <Text style={styles.countdown}>{countdown}</Text>
                   {!!nextName && !compactRing && (
                     <Text style={styles.nextAt}>{nextTime}</Text>
@@ -321,7 +365,7 @@ export default function PrayerTimesScreen() {
                   <View style={styles.rowRight}>
                     {!scheduleOpen && !!afterNext && (
                       <>
-                        <Text style={styles.spoilerLabel}>{prayerName(afterNext, lang)}</Text>
+                        <Text style={styles.spoilerLabel}>{pname(afterNext)}</Text>
                         <Text style={styles.spoilerNext}>{afterTime}</Text>
                       </>
                     )}
@@ -351,7 +395,7 @@ export default function PrayerTimesScreen() {
                     onPress={() => !isSunrise && setReminderPrayer(p)}>
                     <View style={[styles.row, styles.rowFill, { paddingVertical: rowPad }, i > 0 && styles.rowDivider]}>
                       <Text style={[styles.prayer, isNext && styles.prayerActive,
-                        isSunrise && styles.sunrise]}>{prayerName(p, lang)}</Text>
+                        isSunrise && styles.sunrise]}>{pname(p)}</Text>
                       <View style={styles.rowRight}>
                         {r?.enabled && !isSunrise && (
                           <Icon name="bell" size={14} color={COLORS.accentSoft}
@@ -366,6 +410,21 @@ export default function PrayerTimesScreen() {
                 {/* Край шторки: им список и давит на ростка. */}
                 <View pointerEvents="none" style={styles.listEdge} />
               </View>
+
+              {/* Пятница: одна строка под расписанием — сура аль-Кахф. Учёт свой,
+                  ежедневное чтение она не трогает. */}
+              {friday && (
+                <TouchableOpacity activeOpacity={0.85} onPress={openKahf} accessibilityRole="button"
+                  accessibilityLabel={kahf?.done ? t('kahf_done') : `${t('kahf_title')}. ${kahf?.ayah || 0} / ${KAHF.ayahs}`}>
+                  <View style={styles.kahfRow}>
+                    <Icon name="quran" size={16} color={COLORS.friday} />
+                    <Text style={styles.kahfTitle} numberOfLines={1}>{kahf?.done ? t('kahf_done') : t('kahf_title')}</Text>
+                    {!kahf?.done && (
+                      <Text style={styles.kahfCount}>{kahf?.ayah || 0} / {KAHF.ayahs}  ›</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
             </>
           )}
 
@@ -440,6 +499,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md },
   locChip: { alignSelf: 'flex-start' },
   dateBlock: { alignItems: 'flex-end', paddingLeft: SPACING.sm },
+  greeting: { fontSize: 17, lineHeight: 24, color: COLORS.friday, fontWeight: '600', ...SHADOW },
+  kahfRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, minHeight: 44, marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: 'rgba(233,207,143,0.5)',
+    backgroundColor: 'rgba(233,207,143,0.08)' },
+  kahfTitle: { ...TYPE.callout, color: COLORS.text, fontWeight: '600', flex: 1, ...SHADOW },
+  kahfCount: { ...TYPE.callout, ...TYPE.mono, color: COLORS.friday, fontWeight: '600', ...SHADOW },
   dateGreg: { ...TYPE.caption, color: COLORS.text, fontWeight: '600', ...SHADOW },
   dateHijri: { ...TYPE.caption, color: COLORS.accentSoft, marginTop: 1, ...SHADOW },
   locText: { ...TYPE.callout, color: COLORS.text, paddingVertical: SPACING.sm, fontWeight: '500' },

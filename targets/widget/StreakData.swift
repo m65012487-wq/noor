@@ -96,6 +96,36 @@ func daysBetween(_ key: String, _ now: Date) -> Int? {
     return calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: now)).day
 }
 
+// Пятница (widgetBridge.publishFriday): праздничный вид и чтение суры аль-Кахф.
+struct FridayData: Codable {
+    let festive: Bool
+    let friday: String
+    let ayah: Int
+    let done: Bool
+
+    static func load() -> FridayData? {
+        guard
+            let defaults = UserDefaults(suiteName: PrayerDay.appGroup),
+            let raw = defaults.string(forKey: "friday:v1"),
+            let data = raw.data(using: .utf8)
+        else { return nil }
+        return try? JSONDecoder().decode(FridayData.self, from: data)
+    }
+}
+
+// Идёт ли пятница по исламскому счёту суток: от магриба четверга до магриба
+// пятницы. Без графика — обычная календарная пятница.
+func isFridayWindow(_ date: Date) -> Bool {
+    let weekday = Calendar.current.component(.weekday, from: date) // 1 — воскресенье, 6 — пятница
+    guard weekday == 5 || weekday == 6 else { return false }
+    var maghrib: Date? = nil
+    if let day = PrayerDay.load(at: date), let item = day.times.first(where: { $0.key == "Maghrib" }) {
+        maghrib = clock(item.time, on: date, shift: item.dayShift)
+    }
+    if weekday == 6 { return maghrib.map { date < $0 } ?? true }
+    return maghrib.map { date >= $0 } ?? false
+}
+
 // Цвета схемы приложения и язык (widgetBridge.publishTheme).
 struct ThemeData: Codable {
     let top: String
@@ -114,6 +144,11 @@ struct ThemeData: Codable {
     }
 
     static let fallback = ThemeData(top: "#1b2430", bottom: "#0d131b", accent: "#c8d6e2", lang: "ru")
+
+    // Пятничная палитра: тёплое золото поверх тёмной зелени — та же, что в приложении.
+    func fridayTheme() -> ThemeData {
+        ThemeData(top: "#27341f", bottom: "#10170e", accent: "#e9cf8f", lang: lang)
+    }
 
     var ru: Bool { (lang ?? "ru") == "ru" }
     var topColor: Color { Color(hex: top) }

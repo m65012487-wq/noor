@@ -8,8 +8,13 @@ import { useLang } from '../i18n/LanguageContext';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
 import SequenceEditor from './SequenceEditor';
-import { DHIKR, sequenceSteps } from './model';
+import { DHIKR, ownSequenceSteps, SETS } from './model';
+import { isFridayNow } from '../utils/prayerWindow';
 
+// Три вкладки вместо одного списка в полтора десятка строк: «Наборы» (своя
+// последовательность, готовые наборы азкаров, свободный счёт), «Поминания»
+// (по одному) и «Свои». Вкладка открывается та, где лежит текущий режим.
+//
 // Mode picker for the tasbih screen's pill (docs/TASBIH_V3_SPEC.md, A):
 // sequence (its composition as a second line and a button that switches the
 // sheet to SequenceEditor), every single dhikr in DHIKR (each with its
@@ -25,6 +30,10 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
   const { accent } = useAppearance();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
+  const tabOf = id => (id === 'sequence' || id === 'free' || String(id).startsWith('set:') ? 'sets'
+    : String(id).startsWith('custom:') ? 'own' : 'single');
+  const [tab, setTab] = useState(() => tabOf(state?.selectedDhikr));
+  useEffect(() => { if (visible && state) setTab(tabOf(state.selectedDhikr)); }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const scrollRef = useRef(null);
   const scrollTimer = useRef(null);
   // Список и редактор делят один ScrollView: при смене режима он остаётся
@@ -48,13 +57,25 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
 
   if (!state) return null;
 
-  const options = [
-    { id: 'sequence', label: ru ? 'Последовательность' : 'Sequence',
-      sub: sequenceSteps(state).map(step => `${ru ? step.ru : step.en} ${step.target}`).join(' · '), editSequence: true },
-    ...DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en, sub: ru ? d.translation_ru : d.translation_en })),
-    { id: 'free', label: ru ? 'Свободный зикр' : 'Free dhikr' },
-    ...(state.customDhikr || []).map(d => ({ id: `custom:${d.id}`, label: d.text, customId: d.id })),
-  ];
+  const stepsLine = steps => steps.map(step => {
+    const d = DHIKR.find(x => x.id === step.id);
+    const name = d ? (ru ? d.ru : d.en) : step.id;
+    return `${name} ${step.target}`;
+  }).join(' · ');
+  const friday = isFridayNow();
+  const groups = {
+    sets: [
+      { id: 'sequence', label: ru ? 'Моя последовательность' : 'My sequence',
+        sub: ownSequenceSteps(state).map(step => `${ru ? step.ru : step.en} ${step.target}`).join(' · '), editSequence: true },
+      ...SETS.map(set => ({ id: set.id, label: ru ? set.ru : set.en, sub: stepsLine(set.steps),
+        tag: set.id === 'set:friday' && friday ? (ru ? 'сегодня' : 'today') : null })),
+      { id: 'free', label: ru ? 'Свободный счёт' : 'Free count', sub: state.circleLimit ? (ru ? 'Любые поминания, кругами по 33' : 'Any remembrance, in circles of 33') : (ru ? 'Без цели — просто считать' : 'No target — just count') },
+    ],
+    single: DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en, sub: ru ? d.translation_ru : d.translation_en })),
+    own: (state.customDhikr || []).map(d => ({ id: `custom:${d.id}`, label: d.text, customId: d.id })),
+  };
+  const options = groups[tab];
+  const TABS = [['sets', ru ? 'Наборы' : 'Sets'], ['single', ru ? 'Поминания' : 'Single'], ['own', ru ? 'Свои' : 'Mine']];
 
   const save = () => {
     const trimmed = text.trim();
@@ -68,13 +89,28 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
     <DraggableSheet visible={visible} onClose={close} keyboardAvoiding scrollRef={scrollRef}
       title={editing ? (ru ? 'Последовательность' : 'Sequence') : (ru ? 'Зикр' : 'Dhikr')}>
       {editing ? <SequenceEditor state={state} setSequence={setSequence} onDone={() => setEditing(false)} onFocusRow={showRow} /> : <>
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {TABS.map(([id, label]) => (
+          <Pressable key={id} accessibilityRole="tab" accessibilityState={{ selected: tab === id }}
+            onPress={() => { hapticLight(); setTab(id); }}
+            style={[styles.tab, tab === id && styles.tabActive]}>
+            <Text style={[styles.tabText, tab === id && styles.tabTextActive]}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {tab === 'own' && options.length === 0 && !adding && (
+        <Text style={styles.empty}>{ru ? 'Здесь будут ваши поминания.' : 'Your own remembrances will appear here.'}</Text>
+      )}
       {options.map(option => (
         <View key={option.id} style={styles.row}>
           <Pressable accessibilityRole="radio" accessibilityState={{ checked: option.id === state.selectedDhikr }}
             style={styles.option} onPress={() => { hapticLight(); select(option.id); close(); }}>
             <View style={[styles.radio, { borderColor: accent }, option.id === state.selectedDhikr && { backgroundColor: accent }]} />
             <View style={styles.optionBody}>
-              <Text style={styles.optionText} numberOfLines={2}>{option.label}</Text>
+              <View style={styles.titleRow}>
+                <Text style={styles.optionText} numberOfLines={2}>{option.label}</Text>
+                {!!option.tag && <Text style={[styles.tag, { color: accent, borderColor: accent }]}>{option.tag}</Text>}
+              </View>
               {!!option.sub && <Text style={styles.optionSub} numberOfLines={2}>{option.sub}</Text>}
             </View>
           </Pressable>
@@ -96,13 +132,13 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
         </View>
       ))}
 
-      <View style={styles.switchRow}>
+      {tab !== 'sets' || state.selectedDhikr === 'free' ? <View style={styles.switchRow}>
         <Text style={styles.switchLabel}>{ru ? 'Считать кругами по 33' : 'Count in circles of 33'}</Text>
         <Switch value={!!state.circleLimit} onValueChange={value => { hapticLight(); setCircleLimit(value); }}
           trackColor={{ false: COLORS.hairline, true: accent }} thumbColor={COLORS.text} />
-      </View>
+      </View> : null}
 
-      {!adding ? (
+      {tab !== 'own' ? null : !adding ? (
         <Pressable accessibilityRole="button" onPress={() => { hapticLight(); setAdding(true); }} style={styles.addButton}>
           <Icon name="add" size={18} color={accent} />
           <Text style={[styles.addText, { color: accent }]}>{ru ? 'Своё поминание' : 'Custom dhikr'}</Text>
@@ -132,6 +168,14 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
 }
 
 const styles = StyleSheet.create({
+  tabs: { flexDirection: 'row', backgroundColor: COLORS.surface, borderRadius: RADIUS.pill, padding: 3, marginBottom: SPACING.sm },
+  tab: { flex: 1, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderRadius: RADIUS.pill },
+  tabActive: { backgroundColor: COLORS.surfaceActive },
+  tabText: { ...TYPE.caption, color: COLORS.textMuted, fontWeight: '600' },
+  tabTextActive: { color: COLORS.white, fontWeight: '700' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, flexWrap: 'wrap' },
+  tag: { ...TYPE.caption, fontSize: 11, fontWeight: '700', borderWidth: 1, borderRadius: RADIUS.pill, paddingHorizontal: 6, overflow: 'hidden' },
+  empty: { ...TYPE.callout, color: COLORS.textMuted, paddingVertical: SPACING.md, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center' },
   option: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs },
   optionBody: { flex: 1 },

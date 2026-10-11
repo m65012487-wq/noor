@@ -18,6 +18,9 @@ export function AppSettingsProvider({ children }) {
   const [notifSound, setNotifSound] = useState('chime');
   const [adhanNotifSound, setAdhanNotifSound] = useState('bell');
   const [hijriOffset, setHijriOffset] = useState(-1);
+  // Пятница: праздничный вид включён сразу, напоминание о суре аль-Кахф — по желанию.
+  const [festiveFriday, setFestiveFriday] = useState(true);
+  const [kahfReminder, setKahfReminder] = useState(false);
   const [reminders, setReminders] = useState(defaultReminders());
   const [dailyGoal, setDailyGoal] = useState(5);
   const [calcMethod, setCalcMethod] = useState('mwl');
@@ -38,6 +41,8 @@ export function AppSettingsProvider({ children }) {
       const savedAdhanNotif = await loadJSON('adhanNotifSound', 'bell');
       setAdhanNotifSound(RETIRED_SOUNDS[savedAdhanNotif] || savedAdhanNotif);
       setHijriOffset(await loadJSON('hijriOffset', -1));
+      setFestiveFriday(await loadJSON('festiveFriday', true) !== false);
+      setKahfReminder(await loadJSON('kahfReminder', false) === true);
       setDailyGoal(await loadJSON('dailyGoal', 5));
       setCalcMethod(await loadJSON('calcMethod', 'mwl'));
       setApiSource(await loadJSON('apiSource', 'auto'));
@@ -58,6 +63,8 @@ export function AppSettingsProvider({ children }) {
   // а таблица даёт 26. Одна опорная точка — не закон, поэтому поправка
   // вынесена в настройки.
   const chooseHijriOffset = async (v) => { setHijriOffset(v); await saveJSON('hijriOffset', v); };
+  const toggleFestiveFriday = async (v) => { setFestiveFriday(v); await saveJSON('festiveFriday', v); };
+  const toggleKahfReminder = async (v) => { setKahfReminder(v); await saveJSON('kahfReminder', v); };
   const chooseCalcMethod = async (id) => { setCalcMethod(id); await saveJSON('calcMethod', id); };
   const chooseApiSource = async (id) => { setApiSource(id); await saveJSON('apiSource', id); };
   const chooseTimeSource = async (id) => { setTimeSourceId(id); await saveJSON('timeSourceId', id); };
@@ -87,6 +94,7 @@ export function AppSettingsProvider({ children }) {
       value={{ adhanSound, chooseAdhan, notifSound, chooseNotifSound,
         adhanNotifSound, chooseAdhanNotifSound,
         hijriOffset, chooseHijriOffset,
+        festiveFriday, toggleFestiveFriday, kahfReminder, toggleKahfReminder,
         reminders, setReminder, dailyGoal, chooseGoal,
         calcMethod, chooseCalcMethod, apiSource, chooseApiSource,
         timeSourceId, chooseTimeSource, asrSchool, chooseAsrSchool,

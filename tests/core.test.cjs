@@ -114,28 +114,31 @@ test('every remembrance is one unit of growth, the first 33 of the day count dou
   // Потолка нет: 300 поминаний за день — 333 роста.
   assert.equal(model.activeTree(taps(300)).progress, 333);
 });
-test('10000 taps in a day give 10033 growth: the tree fruits once, the surplus is kept up to the cap', () => {
+test('10000 taps in a day give 10033 growth: the tree fruits once and keeps counting harvests', () => {
   const state = taps(10000, model.initialState(), day, { rng: () => 0 });
   const tree = model.activeTree(state);
   assert.equal(state.activeDays, 1);
   assert.equal(tree.progress, 10033);
   assert.equal(tree.stage, model.STAGES.length - 1);
   assert.equal(tree.harvested, true);
-  assert.equal(state.reserve, model.RESERVE_CAP);
-  // Один подарок за подъём до «Молодого дерева» и один — за плоды.
-  assert.deepEqual(state.pendingDrops.map(d => d.reason).sort(), ['growth', 'harvest']);
+  // первый урожай на 2000, дальше по одному на каждую тысячу
+  assert.equal(model.harvestCount(tree), 1 + Math.floor((10033 - 2000) / model.HARVEST_EVERY));
+  assert.ok(!('reserve' in state));
+  // зерно одно — за первый урожай, и новой породы
+  assert.deepEqual(state.pendingDrops.map(d => d.reason), ['harvest']);
+  assert.notEqual(state.pendingDrops[0].species, 'olive');
 });
-test('a gift never repeats a species the player already owns, and stops once the collection is complete', () => {
-  const rng = () => 0;
-  let state = { ...model.initialState(), seeds: { fig: 1, pomegranate: 1, date_palm: 1, sidr: 1 }, activeDays: 6 };
-  state = model.registerDhikr(state, day, { rng });
-  assert.equal(state.activeDays, 7);
-  assert.deepEqual(state.pendingDrops, []);
-  const fresh = { ...model.initialState(), activeDays: 6 };
-  const gifted = model.registerDhikr(fresh, day, { rng });
-  assert.equal(gifted.pendingDrops.length, 1);
-  assert.notEqual(gifted.pendingDrops[0].species, 'olive');
-  assert.notEqual(gifted.pendingDrops[0].species, 'sidr');
+test('a first harvest gives a seed of a species not in the garden yet, and none once every place is taken', () => {
+  const nearFruit = (id, species) => ({ id, species, progress: model.STAGES[7].requiredProgress - 1, activeDays: 5, stage: 6, lastGrowDate: null, plantedOn: null, harvested: false });
+  const lonely = model.registerDhikr({ ...model.initialState(), trees: [nearFruit('t1', 'olive')] }, day, { rng: () => 0 });
+  assert.equal(lonely.pendingDrops.length, 1);
+  assert.notEqual(lonely.pendingDrops[0].species, 'olive');
+  // сидр открывается, только когда в саду уже три породы
+  assert.notEqual(lonely.pendingDrops[0].species, 'sidr');
+  assert.equal(lonely.seeds[lonely.pendingDrops[0].species], 1);
+  // все места заняты (деревом или ждущим зерном) — зерна нет
+  const full = { ...model.initialState(), trees: [nearFruit('t1', 'olive')], seeds: { fig: 1, pomegranate: 1, date_palm: 1, sidr: 1 } };
+  assert.deepEqual(model.registerDhikr(full, day, { rng: () => 0 }).pendingDrops, []);
 });
 test('stages are chosen by growth alone, with no day requirements', () => {
   assert.deepEqual(model.STAGES.map(s => s.requiredProgress), [0, 40, 160, 360, 640, 1000, 1450, 2000]);
@@ -200,24 +203,21 @@ test('v1 saves migrate into a single olive tree and reset the garden fields', ()
   assert.equal(tree.stage, model.chooseStage(500));
   assert.deepEqual(state.seeds, {});
   assert.deepEqual(state.pendingDrops, []);
-  assert.equal(state.reserve, 0);
+  assert.ok(!('reserve' in state));
   assert.deepEqual(state.sequence, model.DEFAULT_SEQUENCE);
   assert.ok(!('lastCircleDropDate' in state));
   assert.equal(state.totalDhikrCount, 40);
 });
-test('a full circle of 99 drops no seed, and the 7th active day gifts only a species not owned yet', () => {
+test('seeds come only from a first harvest: not from the 7th day, a full circle or a Friday', () => {
   const rng = () => 0;
   let state = model.initialState();
   for (let d = 1; d <= 7; d++) state = model.registerDhikr(state, `2026-09-0${d}`, { rng });
   assert.equal(state.activeDays, 7);
-  assert.deepEqual(state.pendingDrops.map(d => d.reason), ['week']);
-  const [gift] = state.pendingDrops;
-  assert.notEqual(gift.species, 'olive');
-  assert.equal(state.seeds[gift.species], 1);
+  assert.deepEqual(state.pendingDrops, []);
   let circle = model.initialState();
-  for (let i = 0; i < 99 * 3; i++) circle = model.registerDhikr(circle, day, { rng });
+  for (let i = 0; i < 99 * 3; i++) circle = model.registerDhikr(circle, day, { rng, friday: true });
   assert.deepEqual(circle.pendingDrops, []);
-  assert.ok(!('lastCircleDropDate' in circle));
+  assert.deepEqual(circle.seeds, {});
 });
 test('a seed drops with reason harvest exactly when the active tree first reaches the final stage', () => {
   const rng = () => 0;
@@ -739,47 +739,43 @@ test('restoreState cleans the sequence and keeps the index inside its steps', ()
 });
 
 const fruitingTree = (id = 't1', species = 'olive') => ({ id, species, progress: 2500, activeDays: 40, stage: 7, lastGrowDate: null, plantedOn: null, harvested: true });
-test('growth of a fruiting tree is kept in the reserve up to the cap, then goes to the next planted seed', () => {
-  assert.equal(model.RESERVE_CAP, model.STAGES[5].requiredProgress);
-  assert.equal(model.RESERVE_CAP, 1000);
-  assert.equal(model.initialState().reserve, 0);
-  assert.equal(taps(50).reserve, 0);
-  const fruiting = { ...model.initialState(), seeds: { fig: 2 }, trees: [fruitingTree()] };
+test('a fruiting tree keeps growing and counting harvests; a seed fills an empty place and the old tree stays', () => {
+  const fruiting = { ...model.initialState(), seeds: { fig: 1 }, trees: [fruitingTree()] };
+  assert.equal(model.harvestCount(fruitingTree()), 1);
   let state = taps(10, fruiting);
-  assert.equal(state.reserve, 20);
-  assert.equal(model.activeTree(state).stage, 7);
+  assert.equal(model.activeTree(state).progress, 2520);
   assert.equal(state.pendingDrops.length, 0);
-  state = taps(2000, state);
-  assert.equal(state.reserve, model.RESERVE_CAP);
-
+  state = taps(1000, state);
+  assert.equal(model.harvestCount(model.activeTree(state)), 2);
   const planted = model.plantSeed(state, 'fig', day);
   const tree = model.activeTree(planted);
   assert.equal(tree.species, 'fig');
-  assert.equal(tree.progress, 1000);
-  assert.equal(tree.stage, 5);
-  assert.equal(tree.harvested, false);
-  assert.equal(tree.activeDays, 0);
-  assert.equal(planted.reserve, 0);
-  assert.equal(planted.seeds.fig, 1);
-  // Запас отдан один раз: следующее дерево начинает с нуля.
-  const second = model.activeTree(model.plantSeed(planted, 'fig', day));
-  assert.equal(second.progress, 0);
-  assert.equal(second.stage, 0);
-  // Небольшой запас даёт ту стадию, которую заслуживает.
-  assert.equal(model.activeTree(model.plantSeed({ ...fruiting, reserve: 20 }, 'fig', day)).stage, 0);
-  assert.equal(model.activeTree(model.plantSeed({ ...fruiting, reserve: 40 }, 'fig', day)).stage, 1);
-  // Посаженное дерево растёт дальше и обычным порядком, запас больше не копится.
-  const grown = taps(1, planted, '2026-09-14');
-  assert.equal(model.activeTree(grown).progress, 1002);
-  assert.equal(grown.reserve, 0);
+  assert.equal(tree.progress, 0);
+  assert.equal(tree.stage, 0);
+  assert.deepEqual(planted.seeds, {});
+  // прежнее дерево остаётся в саду как было
+  assert.equal(planted.trees.length, 2);
+  assert.equal(planted.trees.find(t => t.species === 'olive').progress, model.activeTree(state).progress);
+  // зерна нет или порода уже растёт — посадка ничего не меняет
+  assert.equal(model.plantSeed(planted, 'fig', day), planted);
+  assert.equal(model.plantSeed({ ...planted, seeds: { olive: 1 } }, 'olive', day).trees.length, 2);
+  // за любым деревом можно снова ухаживать
+  const back = model.setActiveTree(planted, 't1');
+  assert.equal(model.activeTree(back).species, 'olive');
 });
-test('reserve only grows while the active tree is fruiting; a younger active tree grows itself', () => {
+test('only the chosen tree grows, except on Friday when the whole garden gets a little', () => {
   const young = { id: 't2', species: 'fig', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false };
   const state = { ...model.initialState(), trees: [fruitingTree(), young], activeTreeId: 't2' };
-  const next = taps(5, state);
-  assert.equal(next.reserve, 0);
-  assert.equal(next.trees.find(t => t.id === 't2').progress, 10);
-  assert.equal(next.trees.find(t => t.id === 't1').progress, 2500);
+  const weekday = taps(5, state);
+  assert.equal(weekday.trees.find(t => t.id === 't2').progress, 10);
+  assert.equal(weekday.trees.find(t => t.id === 't1').progress, 2500);
+  let friday = state;
+  for (let i = 0; i < 5; i++) friday = model.registerDhikr(friday, day, { friday: true });
+  assert.equal(friday.trees.find(t => t.id === 't2').progress, 10);
+  // десятые доли складываются с погрешностью — сравниваем с допуском
+  assert.ok(Math.abs(friday.trees.find(t => t.id === 't1').progress - (2500 + 10 * model.FRIDAY_WATERING)) < 1e-9);
+  // полив не трогает счётчики дней у невыбранного дерева
+  assert.equal(friday.trees.find(t => t.id === 't1').lastGrowDate, null);
 });
 test('v2 saves migrate to v3: default sequence, empty reserve, trees catch up to the new thresholds, old drops stay', () => {
   const tree = (id, species, progress, stage, harvested = false) => ({ id, species, progress, activeDays: 7, stage, lastGrowDate: day, plantedOn: null, harvested });
@@ -792,12 +788,14 @@ test('v2 saves migrate to v3: default sequence, empty reserve, trees catch up to
   const state = model.restoreState(v2);
   assert.equal(state.version, 3);
   assert.deepEqual(state.sequence, model.DEFAULT_SEQUENCE);
-  assert.equal(state.reserve, 0);
+  assert.ok(!('reserve' in state));
   assert.ok(!('lastCircleDropDate' in state));
   assert.deepEqual(state.trees.map(t => [t.id, t.stage, t.progress]), [['t1', 4, 700], ['t2', 1, 10], ['t3', 7, 5300]]);
   assert.equal(state.activeTreeId, 't1');
-  assert.deepEqual(state.pendingDrops, [{ species: 'fig', reason: 'week' }, { species: 'olive', reason: 'circle' }]);
-  assert.deepEqual(state.seeds, { fig: 2 });
+  // инжир и олива уже растут — старые тосты про их зёрна не показываются
+  assert.deepEqual(state.pendingDrops, []);
+  // инжир уже растёт — его зерну некуда лечь
+  assert.deepEqual(state.seeds, {});
   assert.equal(state.selectedDhikr, 'allahuakbar');
   assert.equal(state.currentDhikrIndex, 2);
   assert.equal(state.currentDhikrCount, 12);
@@ -809,15 +807,12 @@ test('v2 saves migrate to v3: default sequence, empty reserve, trees catch up to
   const fruited = model.restoreState({ ...v2, activeTreeId: 't3' });
   assert.equal(model.activeTree(fruited).harvested, false);
   const paid = model.registerDhikr(fruited, '2026-09-14', { rng: () => 0 });
-  assert.deepEqual(paid.pendingDrops.map(d => d.reason), ['week', 'circle', 'harvest']);
+  assert.deepEqual(paid.pendingDrops.map(d => d.reason), ['harvest']);
 
-  // Сохранение v3 стадии не подтягивает, а запас чистит.
+  // Сохранение v3 стадии не подтягивает, а прежний запас роста убирает.
   const v3 = model.restoreState({ ...model.initialState(), trees: [tree('t1', 'olive', 700, 3)] });
   assert.equal(model.activeTree(v3).stage, 3);
-  const reserveOf = reserve => model.restoreState({ ...model.initialState(), reserve }).reserve;
-  assert.equal(reserveOf(12.5), 12.5);
-  assert.equal(reserveOf(5000), model.RESERVE_CAP);
-  for (const bad of [-3, 'x', NaN, Infinity, null, undefined]) assert.equal(reserveOf(bad), 0);
+  assert.ok(!('reserve' in model.restoreState({ ...model.initialState(), reserve: 500 })));
   assert.deepEqual(model.restoreState({ version: 4 }), model.initialState());
   assert.deepEqual(model.restoreState(JSON.parse(JSON.stringify(state))), state);
 });
@@ -2141,53 +2136,20 @@ test('streak: a free missed day, then shields for further missed days; 7 days in
   assert.equal(advanceStreak({ streak: 3, gap: 1, freezes: NaN }).freezes, 0);
 });
 
-test('Friday: the first completed sequence of the day drops one seed, even after every species is owned', () => {
-  const friday = '2026-10-09';
-  assert.equal(new Date(2026, 9, 9).getDay(), 5);
-  const rng = () => 0;
-  let state = model.initialState();
-  for (let i = 0; i < 99; i++) state = model.registerDhikr(state, friday, { rng });
-  assert.deepEqual(state.pendingDrops.map(d => d.reason), ['friday']);
-  assert.equal(state.lastFridayGift, friday);
-  // второй круг в ту же пятницу зерна не даёт
-  for (let i = 0; i < 99; i++) state = model.registerDhikr(state, friday, { rng });
-  assert.equal(state.pendingDrops.filter(d => d.reason === 'friday').length, 1);
-  // не пятница — зерна нет
-  let other = model.initialState();
-  for (let i = 0; i < 99; i++) other = model.registerDhikr(other, '2026-10-08', { rng });
-  assert.equal(other.pendingDrops.filter(d => d.reason === 'friday').length, 0);
-  // коллекция собрана — пятничное зерно всё равно выпадает
-  const full = { ...model.initialState(), seeds: { fig: 1, pomegranate: 1, date_palm: 1, sidr: 1 } };
-  let all = full;
-  for (let i = 0; i < 99; i++) all = model.registerDhikr(all, friday, { rng });
-  assert.equal(all.pendingDrops.filter(d => d.reason === 'friday').length, 1);
-});
-
-test('grove: a fruiting tree retires on planting or by hand, but never while it is the one being counted', () => {
-  const fruiting = { ...model.initialState(), trees: [fruitingTree('t1', 'olive')], activeTreeId: 't1', seeds: { fig: 1 } };
-  assert.equal(model.isFruiting(fruiting.trees[0]), true);
-  // активное дерево отправить нельзя: счёт остался бы без дерева
-  assert.equal(model.retireTree(fruiting, 't1'), fruiting);
-  // посадка зерна уводит плодоносящее дерево в рощу само
-  const planted = model.plantSeed(fruiting, 'fig', day);
-  assert.equal(planted.trees.find(t => t.id === 't1').inGrove, true);
-  assert.equal(planted.trees.find(t => t.id === planted.activeTreeId).inGrove, false);
-  // роща не становится активным деревом
-  assert.equal(model.setActiveTree(planted, 't1'), planted);
-  // порода из рощи остаётся в коллекции: подарок её не повторит
-  const owner = { ...planted, seeds: {} };
-  const gift = model.registerDhikr({ ...owner, activeDays: 6 }, day, { rng: () => 0 });
-  assert.notEqual(gift.pendingDrops[0]?.species, 'olive');
-  // неплодоносящее неактивное дерево в рощу не уйдёт
-  const young = { ...model.initialState(), trees: [
-    { id: 't1', species: 'olive', progress: 5, activeDays: 1, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false, inGrove: false },
-    fruitingTree('t2', 'fig')], activeTreeId: 't1' };
-  assert.equal(model.retireTree(young, 't2').trees.find(t => t.id === 't2').inGrove, true);
-  const noFruit = { ...young, trees: [young.trees[1], { ...young.trees[0], id: 't3' }], activeTreeId: 't2' };
-  assert.equal(model.retireTree(noFruit, 't3'), noFruit);
-  // сохранение не оставляет активным дерево из рощи
-  const broken = model.restoreState({ ...planted, activeTreeId: 't1' });
-  assert.equal(broken.trees.find(t => t.id === broken.activeTreeId).inGrove, false);
+test('old gardens fold into one tree per species: the biggest stays and takes the others\' growth', () => {
+  const t = (id, species, progress, stage, extra = {}) => ({ id, species, progress, activeDays: 3, stage, lastGrowDate: null, plantedOn: null, harvested: stage === 7, ...extra });
+  const old = { ...model.initialState(),
+    trees: [t('t1', 'olive', 2600, 7, { inGrove: true }), t('t2', 'olive', 300, 2), t('t3', 'fig', 50, 1), t('t4', 'olive', 100, 1)],
+    activeTreeId: 't2', seeds: { olive: 3, pomegranate: 2 }, reserve: 800, lastFridayGift: '2026-10-09' };
+  const state = model.restoreState(old);
+  assert.deepEqual(state.trees.map(x => [x.species, x.progress]), [['olive', 3000], ['fig', 50]]);
+  assert.ok(state.trees.every(x => !('inGrove' in x)));
+  // выбранное дерево слилось — выбор переходит к оставшемуся дереву той же породы
+  assert.equal(model.activeTree(state).species, 'olive');
+  // зерно оливы снято (место занято), гранат — одно зерно, а не два
+  assert.deepEqual(state.seeds, { pomegranate: 1 });
+  assert.ok(!('reserve' in state) && !('lastFridayGift' in state));
+  assert.deepEqual(model.restoreState(JSON.parse(JSON.stringify(state))), state);
 });
 
 test('after prayer the tree grows one and a half times faster, and the window follows the prayer times', () => {
@@ -2206,25 +2168,13 @@ test('after prayer the tree grows one and a half times faster, and the window fo
   assert.equal(afterPrayerNow(at(12, 20), 30, []), false);
 });
 
-test('Friday seed also comes from 99 remembrances a day in a single-dhikr mode', () => {
-  const friday = '2026-10-09';
-  let state = { ...model.initialState(), selectedDhikr: 'subhanallah', circleLimit: true };
-  for (let i = 0; i < 99; i++) state = model.registerDhikr(state, friday, { rng: () => 0 });
-  assert.equal(state.pendingDrops.filter(d => d.reason === 'friday').length, 1);
-});
-
-test('old saves without grove or Friday fields restore cleanly; a growing tree stays out of the grove', () => {
-  const old = JSON.parse(JSON.stringify(model.initialState()));
-  delete old.lastFridayGift;
-  for (const tree of old.trees) delete tree.inGrove;
-  const restored = model.restoreState(old);
-  assert.equal(restored.lastFridayGift, null);
-  assert.equal(restored.trees[0].inGrove, false);
+test('planting next to a growing tree keeps both; the garden never holds two trees of one species', () => {
   const growing = { ...model.initialState(), seeds: { fig: 1 } };
   const planted = model.plantSeed(growing, 'fig', day);
-  assert.equal(planted.trees.find(t => t.id === 't1').inGrove, false);
+  assert.deepEqual(planted.trees.map(x => x.species), ['olive', 'fig']);
+  assert.equal(model.activeTree(planted).species, 'fig');
+  assert.equal(new Set(planted.trees.map(x => x.species)).size, planted.trees.length);
 });
-
 test('the after-prayer window follows prayers shifted across midnight', () => {
   const { afterPrayerNow } = load('src/utils/prayerWindow.js');
   // Фаджр в строке дня стоит 23:54, но по смыслу это вечер предыдущих суток;
@@ -2249,4 +2199,65 @@ test('the after-prayer adhkar set uses known dhikr, fits the sequence editor and
   const state = model.setSequence(model.initialState(), model.AZKAR_AFTER_PRAYER);
   assert.deepEqual(state.sequence, model.AZKAR_AFTER_PRAYER);
   assert.equal(model.sequenceSteps(state).length, model.AZKAR_AFTER_PRAYER.length);
+});
+
+// ---------- Пятница, наборы, Аль-Кахф ----------
+test('Friday runs from Thursday maghrib to Friday maghrib; without times it is the calendar Friday', () => {
+  const { isFridayNow, fridayKey } = load('src/utils/prayerWindow.js');
+  const row = (date, maghrib) => ({ date, timings: { Fajr: '05:10', Sunrise: '06:40', Dhuhr: '12:30', Asr: '15:40', Maghrib: maghrib, Isha: '19:40' } });
+  const days = [row('2026-10-08', '18:05'), row('2026-10-09', '18:03')];
+  // четверг до магриба — ещё не пятница, после — уже она
+  assert.equal(isFridayNow(new Date(2026, 9, 8, 17, 0), days), false);
+  assert.equal(isFridayNow(new Date(2026, 9, 8, 18, 10), days), true);
+  // пятница до магриба — пятница, после — уже суббота по исламскому счёту
+  assert.equal(isFridayNow(new Date(2026, 9, 9, 12, 0), days), true);
+  assert.equal(isFridayNow(new Date(2026, 9, 9, 18, 30), days), false);
+  // без графика: вся календарная пятница, четверг — нет
+  assert.equal(isFridayNow(new Date(2026, 9, 9, 22, 0), []), true);
+  assert.equal(isFridayNow(new Date(2026, 9, 8, 22, 0), []), false);
+  assert.equal(isFridayNow(new Date(2026, 9, 10, 9, 0), days), false);
+  // вечер четверга относится к той же пятнице, что и её день
+  assert.equal(fridayKey(new Date(2026, 9, 8, 20, 0)), '2026-10-09');
+  assert.equal(fridayKey(new Date(2026, 9, 9, 10, 0)), '2026-10-09');
+});
+
+test('sets are their own modes: choosing one never overwrites the person\'s sequence', () => {
+  const mine = [{ id: 'la_hawla', target: 10 }];
+  let state = model.setSequence(model.initialState(), mine);
+  state = model.selectDhikr(state, 'set:friday');
+  assert.equal(state.selectedDhikr, 'set:friday');
+  assert.deepEqual(state.sequence, mine);
+  assert.deepEqual(model.sequenceSteps(state).map(s => [s.id, s.target]), model.AZKAR_FRIDAY.map(s => [s.id, s.target]));
+  assert.deepEqual(model.ownSequenceSteps(state).map(s => s.id), ['la_hawla']);
+  assert.equal(model.definition(state).id, 'salawat');
+  assert.equal(model.definition(state).target, 100);
+  // круг набора: после 100 салаватов — следующий шаг, в конце — 'complete'
+  for (let i = 0; i < 100; i++) state = model.registerDhikr(state, day);
+  assert.equal(model.advance(state).currentDhikrIndex, 1);
+  const after = model.selectDhikr(model.initialState(), 'set:after_prayer');
+  assert.equal(model.sequenceSteps(after).length, model.AZKAR_AFTER_PRAYER.length);
+  // набор переживает сохранение
+  assert.equal(model.restoreState(JSON.parse(JSON.stringify(after))).selectedDhikr, 'set:after_prayer');
+});
+
+test('the Friday al-Kahf progress is its own record: it never moves back and starts over next Friday', async () => {
+  const store = new Map();
+  const storage = { getItem: async k => store.get(k) ?? null, setItem: async (k, v) => store.set(k, v), removeItem: async k => store.delete(k) };
+  const published = [];
+  const kahf = loader({
+    '@react-native-async-storage/async-storage': storage,
+    './widgetBridge': { publishFriday: v => published.push(v) },
+  })('src/utils/fridayKahf.js');
+  const thu = new Date(2026, 9, 8, 20, 0);
+  assert.deepEqual(await kahf.loadKahf(thu), { friday: '2026-10-09', ayah: 0, done: false });
+  await kahf.saveKahfAyah(34, thu);
+  await kahf.saveKahfAyah(12, thu);
+  assert.equal((await kahf.loadKahf(new Date(2026, 9, 9, 11, 0))).ayah, 34);
+  const done = await kahf.saveKahfAyah(110, new Date(2026, 9, 9, 12, 0));
+  assert.equal(done.done, true);
+  assert.equal(published.at(-1).done, true);
+  // ежедневное чтение не тронуто
+  for (const key of ['readingPos', 'readProgress', 'goalHistory', 'streakCount', 'lastGoalDay']) assert.ok(!store.has(key), key);
+  // следующая пятница — с нуля
+  assert.deepEqual(await kahf.loadKahf(new Date(2026, 9, 16, 10, 0)), { friday: '2026-10-16', ayah: 0, done: false });
 });

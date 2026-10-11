@@ -19,8 +19,8 @@ import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
 import useTasbih from './useTasbih';
 import { GARDEN_SCENE } from './gardenScene';
-import { activeTree, AFTER_PRAYER, AZKAR_AFTER_PRAYER, definition, DHIKR, growthRatio, sequenceSteps, SPECIES, STAGE_NAMES, STAGES } from './model';
-import { afterPrayerNow } from '../utils/prayerWindow';
+import { activeTree, AFTER_PRAYER, definition, harvestCount, HARVEST_EVERY, isSequenceMode, SETS, DHIKR, growthRatio, sequenceSteps, SPECIES, STAGE_NAMES, STAGES } from './model';
+import { afterPrayerNow, isFridayNow } from '../utils/prayerWindow';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
@@ -29,12 +29,16 @@ const clamp01 = v => Math.max(0, Math.min(1, v));
 // под транскрипцию в две строки и перевод в одну, поэтому две строки арабского
 // идут кеглем 25, а не полными 34.
 const ARABIC_BLOCK = 96;
+// Длинный азкар — до четырёх строк кеглем ARABIC.md.
+const ARABIC_BLOCK_LONG = 4 * 56;
 
 // Pill label for the current mode — 'sequence'/'free' aren't in DHIKR, and a
 // custom dhikr's label is its own text, so this can't just look the id up
 // in the options list definition() would return for the active dhikr.
 function modeLabel(state, ru) {
-  if (state.selectedDhikr === 'sequence') return ru ? 'Последовательность' : 'Sequence';
+  if (state.selectedDhikr === 'sequence') return ru ? 'Моя последовательность' : 'My sequence';
+  const set = SETS.find(s => s.id === state.selectedDhikr);
+  if (set) return ru ? set.ru : set.en;
   if (state.selectedDhikr === 'free') return ru ? 'Свободный зикр' : 'Free dhikr';
   const single = DHIKR.find(d => d.id === state.selectedDhikr);
   if (single) return ru ? single.ru : single.en;
@@ -47,7 +51,7 @@ function modeLabel(state, ru) {
 // занимал столько, сколько просил, и на разных телефонах дерево то упиралось
 // в счётчик, то висело в пустоте.
 export default function TasbihScreen({ onClose }) {
-  const { state, error, tap, select, retry, plant, setActive, retire, ackDrop, addCustom, removeCustom, setCircleLimit, setSequence } = useTasbih();
+  const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit, setSequence } = useTasbih();
   const { lang } = useLang();
   const ru = lang === 'ru';
   const appearance = useAppearance();
@@ -130,8 +134,24 @@ export default function TasbihScreen({ onClose }) {
   // Окно «после намаза»: проверяется на каждой отрисовке, а они идут на каждое
   // нажатие и на смену подсказки, поэтому отдельный таймер не нужен.
   const afterPrayer = afterPrayerNow(new Date(), AFTER_PRAYER.minutes);
-  // Плодоносящее дерево больше не растёт — рост копится для следующего зерна.
   const fruiting = !!tree && tree.stage === STAGES.length - 1;
+  // Плодоносящее дерево растёт дальше урожаями: полоса показывает путь к следующему.
+  const harvests = harvestCount(tree);
+  const harvestRatio = fruiting
+    ? clamp01(((tree.progress - STAGES[STAGES.length - 1].requiredProgress) % HARVEST_EVERY) / HARVEST_EVERY) : 0;
+  // Одна подсказка под шапкой, а не стопка строк: пятница важнее окна после
+  // намаза. Подсказка прячется, если её набор уже выбран.
+  const friday = isFridayNow();
+  const slot = !state ? null
+    : friday && state.selectedDhikr !== 'set:friday'
+      ? { id: 'set:friday', label: ru ? 'Пятница · умножайте салават ﷺ  ›' : 'Friday · send more salawat ﷺ  ›' }
+      : afterPrayer && state.selectedDhikr !== 'set:after_prayer'
+        ? { id: 'set:after_prayer', label: ru ? 'После намаза · азкары, рост ×1,5  ›' : 'After prayer · adhkar, growth ×1.5  ›' }
+        : null;
+  // Длинный азкар («Аллахумма антас-салям», завершающее единобожие) не помещается
+  // в две строки над счётчиком: он показывается карточкой целиком, а дерево
+  // становится меньше — его и так касаются один раз.
+  const longText = (item.arabic || '').length > 48;
   const onTreeLayout = e => {
     const { width, height } = e.nativeEvent.layout;
     setTreeSize(prev => (Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5 ? prev : { width, height }));
@@ -188,21 +208,30 @@ export default function TasbihScreen({ onClose }) {
           </Pressable>
         </View>
 
+        {slot && (
+          <Pressable accessibilityRole="button" accessibilityLabel={slot.label.replace('›', '').trim()}
+            onPress={() => { hapticLight(); select(slot.id); }} style={styles.slotWrap}>
+            <View style={[styles.slot, { borderColor: accent }]}>
+              <Text style={[styles.slotText, { color: accent }]} numberOfLines={1}>{slot.label}</Text>
+            </View>
+          </Pressable>
+        )}
+
         {error && <Pressable onPress={retry} accessibilityRole="button" style={styles.error}>
           <Text style={styles.caption}>{ru ? 'Не удалось сохранить или прочитать прогресс. Нажмите, чтобы повторить.' : 'Could not save or load progress. Tap to retry.'}</Text>
         </Pressable>}
 
         {!state || !tree ? <ActivityIndicator style={{ flex: 1 }} color={accent} /> : (
           <>
-            <Animated.View style={[styles.words, { opacity: textFade }]}>
+            <Animated.View style={[styles.words, longText && styles.wordsLong, { opacity: textFade }]}>
               {/* Длинный зикр не ужимается в одну строку до точек: кегль не
                   меньше 24, дальше — перенос на вторую строку (ArabicFitText). */}
               {!!item.arabic && <ArabicFitText style={styles.arabic} accessibilityLanguage="ar"
-                base={ARABIC.lg} min={24} maxLines={2} maxHeight={ARABIC_BLOCK}
+                base={longText ? ARABIC.md : ARABIC.lg} min={22} maxLines={longText ? 4 : 2} maxHeight={longText ? ARABIC_BLOCK_LONG : ARABIC_BLOCK}
                 onLines={setArabicLines}>{item.arabic}</ArabicFitText>}
               <Text style={styles.phrase} numberOfLines={2}>{phrase}</Text>
               {/* Арабский в две строки — перевод в одну: полоса слов не растёт. */}
-              {!!translation && <Text style={styles.translation} numberOfLines={item.arabic && arabicLines > 1 ? 1 : 2}>{translation}</Text>}
+              {!!translation && <Text style={styles.translation} numberOfLines={longText ? 3 : item.arabic && arabicLines > 1 ? 1 : 2}>{translation}</Text>}
             </Animated.View>
 
             <Animated.View style={[styles.counter, { transform: [{ scale: reduceMotion ? 1 : flashScale }] }]}>
@@ -219,7 +248,7 @@ export default function TasbihScreen({ onClose }) {
                 }]} />}
               </View>
               <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
-                {state.selectedDhikr === 'sequence' && sequenceSteps(state).map((d, index) => (
+                {isSequenceMode(state) && sequenceSteps(state).map((d, index) => (
                   <View key={`${index}:${d.id}`} style={[styles.dot, {
                     backgroundColor: index === state.currentDhikrIndex ? accent : COLORS.textMuted,
                     opacity: index === state.currentDhikrIndex ? 1 : 0.35,
@@ -228,7 +257,7 @@ export default function TasbihScreen({ onClose }) {
               </View>
             </Animated.View>
 
-            <Pressable onPress={onTap} style={styles.treeArea} onLayout={onTreeLayout}
+            <Pressable onPress={onTap} style={[styles.treeArea, longText && styles.treeAreaLong]} onLayout={onTreeLayout}
               accessibilityRole="button"
               accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${ru ? 'из' : 'of'} ${item.target}` : ''}`}
               accessibilityHint={ru ? 'Нажмите дважды, чтобы засчитать одно поминание' : 'Double tap to count one remembrance'}>
@@ -245,21 +274,14 @@ export default function TasbihScreen({ onClose }) {
                 <Text style={styles.hint}>{ru ? 'Нажимайте на дерево, чтобы считать зикр' : 'Tap the tree to count dhikr'}</Text>
               ) : (
                 <>
-                  {afterPrayer && (
-                    <Pressable accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
-                      accessibilityLabel={ru ? 'Начать азкары после намаза' : 'Start adhkar after prayer'}
-                      onPress={() => { hapticLight(); setSequence(AZKAR_AFTER_PRAYER); select('sequence'); }}>
-                      <Text style={[styles.afterPrayer, { color: accent }]}>
-                        {ru ? 'После намаза рост быстрее · азкары ›' : 'Faster growth after prayer · adhkar ›'}
-                      </Text>
-                    </Pressable>
-                  )}
-                  <Text style={styles.stageLine}>{speciesLabel} · {stageLabel}</Text>
-                  {fruiting && seedTotal > 0 ? (
-                    <Text style={styles.plantHint} numberOfLines={1}>{ru ? 'Посадите зерно — рост перейдёт к нему' : 'Plant a seed — growth carries over'}</Text>
+                  <Text style={styles.stageLine}>
+                    {speciesLabel} · {fruiting ? (ru ? `${harvests}-й урожай` : `harvest ${harvests}`) : stageLabel}
+                  </Text>
+                  {seedTotal > 0 ? (
+                    <Text style={styles.plantHint} numberOfLines={1}>{ru ? 'Есть зерно — посадите его в «Саду»' : 'You have a seed — plant it in the Garden'}</Text>
                   ) : (
                     <View style={styles.growthTrack}>
-                      <View style={[styles.growthFill, { width: `${ratio * 100}%`, backgroundColor: accent }]} />
+                      <View style={[styles.growthFill, { width: `${(fruiting ? harvestRatio : ratio) * 100}%`, backgroundColor: accent }]} />
                     </View>
                   )}
                 </>
@@ -273,7 +295,7 @@ export default function TasbihScreen({ onClose }) {
       <DhikrSheet visible={selector} onClose={() => setSelector(false)} state={state}
         select={select} addCustom={addCustom} removeCustom={removeCustom} setCircleLimit={setCircleLimit} setSequence={setSequence} />
 
-      <GardenSheet visible={garden} onClose={() => setGarden(false)} state={state} plant={plant} setActive={setActive} retire={retire} />
+      <GardenSheet visible={garden} onClose={() => setGarden(false)} state={state} plant={plant} setActive={setActive} />
     </ThemedBackground>
   );
 }
@@ -296,6 +318,14 @@ const styles = StyleSheet.create({
   // Высота с запасом на арабский в две строки (ARABIC_BLOCK) над транскрипцией в
   // две строки и переводом в одну.
   words: { alignItems: 'center', justifyContent: 'center', height: 166, overflow: 'hidden' },
+  // Длинный азкар: карточка во всю ширину и выше, дерево под ней сжимается.
+  wordsLong: { height: undefined, maxHeight: 280, marginTop: SPACING.sm, paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.lg, backgroundColor: COLORS.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorderSoft },
+  // При длинном азкаре дереву хватает и малого места: его касаются один раз.
+  treeAreaLong: { minHeight: 96 },
+  slotWrap: { alignItems: 'center', marginTop: SPACING.xs },
+  slot: { minHeight: 34, paddingHorizontal: SPACING.md, borderRadius: RADIUS.pill, borderWidth: 1, justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)' },
+  slotText: { ...LEGIBLE, ...TYPE.caption, fontSize: 13, fontWeight: '600' },
   arabic: { ...LEGIBLE, ...ARABIC.lg, fontFamily: FONTS.arabic, color: COLORS.text, textAlign: 'center' },
   phrase: { ...LEGIBLE, ...TYPE.subhead, color: COLORS.text, textAlign: 'center', marginTop: SPACING.xs },
   translation: { ...LEGIBLE, ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center', marginTop: 2 },
@@ -316,7 +346,6 @@ const styles = StyleSheet.create({
   treeArea: { flex: 1, width: '100%', alignSelf: 'center', minHeight: 180 },
 
   footer: { alignItems: 'center', height: 68, justifyContent: 'center' },
-  afterPrayer: { ...LEGIBLE, ...TYPE.caption, fontWeight: '600', marginBottom: 2 },
   hint: { ...LEGIBLE, ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center' },
   plantHint: { ...LEGIBLE, ...TYPE.caption, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xs },
   stageLine: { ...LEGIBLE, ...TYPE.callout, color: COLORS.text },

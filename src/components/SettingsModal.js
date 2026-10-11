@@ -132,6 +132,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
     adhanNotifSound, chooseAdhanNotifSound, hijriOffset, chooseHijriOffset,
+    festiveFriday, toggleFestiveFriday, kahfReminder, toggleKahfReminder,
     asrSchool, chooseAsrSchool, tune, setTuneFor, resetTune } = useAppSettings();
   const { coords } = useLocation();
   const tablesVersion = useTablesVersion();
@@ -430,6 +431,24 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Пятница: праздничный вид и напоминание о суре аль-Кахф. */}
+          <TouchableOpacity style={[styles.row, { marginTop: SPACING.md }]}
+            onPress={() => toggleFestiveFriday(!festiveFriday)} activeOpacity={0.8}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowText}>{t('festive_friday')}</Text>
+              <Text style={styles.hintText}>{t('festive_friday_hint')}</Text>
+            </View>
+            {festiveFriday && <Icon name="check" size={17} color={COLORS.white} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.row}
+            onPress={() => toggleKahfReminder(!kahfReminder)} activeOpacity={0.8}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowText}>{t('kahf_reminder')}</Text>
+              <Text style={styles.hintText}>{t('kahf_reminder_hint')}</Text>
+            </View>
+            {kahfReminder && <Icon name="check" size={17} color={COLORS.white} />}
+          </TouchableOpacity>
         </Section>
 
       <TouchableOpacity style={styles.doneBtn} onPress={close}>

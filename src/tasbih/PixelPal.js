@@ -10,6 +10,9 @@ import { hapticLight } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
 import useTasbih from './useTasbih';
 import TasbihScreen from './TasbihScreen';
+import Text from '../components/AppText';
+import { isFridayNow } from '../utils/prayerWindow';
+import { useAppSettings } from '../utils/AppSettingsContext';
 
 // Вход в «Сад тасбиха» — пиксельный росток-малыш без единой подписи. При
 // открытии приложения он выпрыгивает из-за таб-бара, приземляется на его верхнюю
@@ -125,7 +128,7 @@ const Ember = memo(function Ember({ reduceMotion }) {
 
 // Сам зверёк: выпрыгивание, прогулка по кромке, моргание, прыжки, нажатие.
 // active — приложение на экране, вкладка в фокусе, сад не открыт.
-const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, pressDelay, pressMs, releaseMs,
+const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed, pressDelay, pressMs, releaseMs,
   reduceMotion, label, hint, onOpen }) {
   const [motion] = useState(() => makeMotion(rand(place.minX, place.maxX)));
   const [landed, setLanded] = useState(false);
@@ -345,6 +348,10 @@ const Pal = memo(function Pal({ place, colors, hasGift, active, squashed, pressD
         </Pressable>
         {/* Огонёк над макушкой упёрся бы в край расписания — пока оно раскрыто, его нет. */}
         {hasGift && landed && !squashed ? <Ember reduceMotion={reduceMotion} /> : null}
+        {/* В пятницу росток напоминает о салавате Пророку ﷺ: облачко у плеча. */}
+        {friday && landed && !squashed ? (
+          <View pointerEvents="none" style={styles.bubble}><Text style={styles.bubbleText}>ﷺ</Text></View>
+        ) : null}
       </Animated.View>
     </Animated.View>
   );
@@ -412,6 +419,8 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
     };
   }, [frame, height, insets.bottom]);
   const colors = useSproutColors();
+  const { festiveFriday } = useAppSettings() || {};
+  const friday = festiveFriday !== false && isFridayNow();
   const hasGift = !!state && (
     Object.values(state.seeds || {}).reduce((sum, n) => sum + n, 0) > 0 || (state.pendingDrops?.length ?? 0) > 0
   );
@@ -434,7 +443,8 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
   }, [slide, width, reduceMotion]);
   const label = ru ? 'Сад тасбиха' : 'Tasbih garden';
   const hint = (ru ? 'Открывает счётчик зикра и дерево' : 'Opens the dhikr counter and the tree')
-    + (hasGift ? (ru ? '. Есть зёрна для посадки.' : '. Seeds are ready to plant.') : '');
+    + (hasGift ? (ru ? '. Есть зёрна для посадки.' : '. Seeds are ready to plant.') : '')
+    + (friday ? (ru ? '. Пятница: умножайте салават.' : '. Friday: send more salawat.') : '');
 
   return (
     <View ref={layer} onLayout={measure} pointerEvents="box-none" style={StyleSheet.absoluteFill}>
@@ -443,7 +453,7 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
           Окно обрезки кончается на верхней кромке таб-бара: всё ниже скрыто. */}
       {enabled && place ? (
         <View pointerEvents="box-none" style={[styles.clip, { height: place.barTop }]}>
-          <Pal key={entryKey} place={place} colors={colors} hasGift={hasGift}
+          <Pal key={entryKey} place={place} colors={colors} hasGift={hasGift} friday={friday}
             active={appActive && focused && !open} squashed={squashed} reduceMotion={reduceMotion}
             pressDelay={pressDelay} pressMs={pressMs} releaseMs={releaseMs}
             label={label} hint={hint} onOpen={openGarden} />
@@ -484,6 +494,12 @@ const styles = StyleSheet.create({
     position: 'absolute', left: (SPRITE_W - SHADOW.w) / 2, top: SPRITE_H - SHADOW.h + 1,
     width: SHADOW.w, height: SHADOW.h, borderRadius: SHADOW.h / 2, backgroundColor: '#000',
   },
+  bubble: {
+    position: 'absolute', left: SPRITE_W - 2, top: -22, height: 20, minWidth: 26, paddingHorizontal: 5,
+    borderRadius: 10, borderWidth: 1, borderColor: COLORS.friday, backgroundColor: 'rgba(233,207,143,0.16)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  bubbleText: { fontSize: 13, lineHeight: 16, color: COLORS.friday },
   ember: {
     position: 'absolute', right: -2, top: -EMBER_SIZE, width: EMBER_SIZE, height: EMBER_SIZE,
     borderRadius: EMBER_SIZE / 2, backgroundColor: COLORS.ember,

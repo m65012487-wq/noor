@@ -13,13 +13,27 @@ import { getWordByWordRuLocal } from '../utils/quranLocalWbw';
 import { playUrl, stopAudio } from '../utils/audioPlayer';
 import { useLang } from '../i18n/LanguageContext';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
-import { setLastRead, getBookmarks, toggleBookmark } from '../utils/quranProgress';
+import { setLastRead as saveLastRead, getBookmarks, toggleBookmark } from '../utils/quranProgress';
+import { saveKahfAyah } from '../utils/fridayKahf';
 import { surahMeaning } from '../constants/surahNames';
 import { useAppearance } from '../utils/AppearanceContext';
 
 
 export default function SurahReaderScreen({ route, navigation }) {
-  const { surah, jumpToAyah } = route.params;
+  const { surah, jumpToAyah, friday } = route.params;
+  // Пятничное чтение Аль-Кахф ведёт свой учёт (fridayKahf.js) и не трогает
+  // «последнее прочитанное» вкладки Коран — как и ежедневное чтение.
+  const setLastRead = (info) => { if (!friday) saveLastRead(info); };
+  const kahfSeen = useRef(0);
+  const viewH = useRef(0);
+  // Дочитанным считается аят, который поднялся выше нижней пятой части экрана.
+  const trackKahf = (y) => {
+    if (!friday) return;
+    const edge = y + viewH.current * 0.8;
+    let seen = kahfSeen.current;
+    for (const [n, top] of Object.entries(ayahYs.current)) if (top <= edge && Number(n) > seen) seen = Number(n);
+    if (seen > kahfSeen.current) { kahfSeen.current = seen; saveKahfAyah(seen).catch(() => {}); }
+  };
   const { t, lang } = useLang();
   const { translationId, reciterId, showArabic, showTranslit, showTranslation, wordByWord, fontScale: scale, changeFontScale } = useQuranPrefs();
   const appearance = useAppearance();
@@ -151,7 +165,9 @@ export default function SurahReaderScreen({ route, navigation }) {
 
           {data && (
             <ScrollView ref={scrollRef} contentContainerStyle={{ padding: SPACING.md, paddingBottom: 140 }}
-              showsVerticalScrollIndicator={false}>
+              showsVerticalScrollIndicator={false} scrollEventThrottle={250}
+              onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
+              onScroll={(e) => trackKahf(e.nativeEvent.contentOffset.y)}>
               {data.ayahs.map((a) => (
                 <View key={a.number}
                   onLayout={(e) => { ayahYs.current[a.number] = e.nativeEvent.layout.y; }}>

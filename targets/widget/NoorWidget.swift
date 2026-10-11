@@ -10,6 +10,23 @@ struct NoorEntry: TimelineEntry {
     let day: PrayerDay
     let streak: StreakStatus
     let theme: ThemeData
+    // Пятница с праздничным видом: золотая палитра, приветствие и Аль-Кахф.
+    var friday: Bool = false
+    var kahf: FridayData? = nil
+}
+
+// Запись на момент: в пятницу (и если праздничный вид не выключен) палитра
+// меняется на золотую, а в записи появляется чтение суры аль-Кахф.
+func makeEntry(_ date: Date, day: PrayerDay, streak: StreakStatus, theme: ThemeData) -> NoorEntry {
+    let data = FridayData.load()
+    let festive = (data?.festive ?? true) && isFridayWindow(date)
+    // Запись чтения другой пятницы не считается: эта начинается с нуля.
+    var probe = date
+    if Calendar.current.component(.weekday, from: date) == 5 { probe = Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date }
+    let key = dayKey(probe)
+    let kahf = data.flatMap { $0.friday == key ? $0 : nil } ?? FridayData(festive: true, friday: key, ayah: 0, done: false)
+    return NoorEntry(date: date, day: day, streak: streak, theme: festive ? theme.fridayTheme() : theme,
+                     friday: festive, kahf: festive ? kahf : nil)
 }
 
 struct Provider: TimelineProvider {
@@ -23,7 +40,7 @@ struct Provider: TimelineProvider {
             completion(placeholder(in: context))
             return
         }
-        completion(NoorEntry(date: now, day: PrayerDay.load() ?? .empty,
+        completion(makeEntry(now, day: PrayerDay.load() ?? .empty,
                              streak: .from(StreakData.load(), now: now), theme: ThemeData.load()))
     }
 
@@ -47,7 +64,7 @@ struct Provider: TimelineProvider {
             }
         }
         let entries = dates.sorted().map { date in
-            NoorEntry(date: date, day: PrayerDay.load(at: date) ?? .empty,
+            makeEntry(date, day: PrayerDay.load(at: date) ?? .empty,
                       streak: .from(streak, now: date), theme: theme)
         }
         completion(Timeline(entries: entries, policy: .atEnd))
@@ -101,6 +118,11 @@ struct Words {
     var lastChance: String { ru ? "Последний день — не дайте огоньку погаснуть" : "Last day to keep the flame alive" }
     var lost: String { ru ? "Огонёк погас — начните заново" : "The flame went out — start again" }
     var openApp: String { ru ? "Откройте Noor, чтобы обновить расписание" : "Open Noor to update prayer times" }
+    var greeting: String { "جمعة مباركة" }
+    func kahf(_ data: FridayData) -> String {
+        if data.done { return ru ? "Аль-Кахф прочитана" : "Al-Kahf read" }
+        return ru ? "Аль-Кахф \(data.ayah) / 110" : "Al-Kahf \(data.ayah) / 110"
+    }
     func today(_ read: Int, _ goal: Int) -> String {
         ru ? "Сегодня \(read) из \(goal) аятов" : "Today \(read) of \(goal) ayahs"
     }
@@ -242,6 +264,12 @@ struct SmallView: View {
     var body: some View {
         let next = upcomingPrayers(in: entry.day, count: 1, now: entry.date).first
         VStack(alignment: .leading, spacing: 0) {
+            if entry.friday {
+                Text(words.greeting)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(entry.theme.accentColor)
+                    .lineLimit(1)
+            }
             if let next {
                 Text(next.item.name)
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
@@ -280,6 +308,12 @@ struct MediumView: View {
         let list = upcomingPrayers(in: entry.day, count: 3, now: entry.date)
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 1) {
+                if entry.friday {
+                    Text(words.greeting)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(entry.theme.accentColor)
+                        .lineLimit(1)
+                }
                 if let next = list.first {
                     Text("\(words.next) · \(next.item.name)")
                         .font(.system(.caption, design: .rounded).weight(.semibold))
@@ -317,7 +351,14 @@ struct MediumView: View {
                     }
                 }
                 WeekDots(streak: entry.streak, theme: entry.theme, dot: 9)
-                StatusLine(streak: entry.streak, theme: entry.theme, words: words)
+                if let kahf = entry.kahf {
+                    Text(words.kahf(kahf))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(entry.theme.accentColor)
+                        .lineLimit(1)
+                } else {
+                    StatusLine(streak: entry.streak, theme: entry.theme, words: words)
+                }
                 Spacer(minLength: 0)
             }
             .frame(width: 128, alignment: .leading)
@@ -332,6 +373,21 @@ struct LargeView: View {
     var body: some View {
         let next = upcomingPrayers(in: entry.day, count: 1, now: entry.date).first
         VStack(alignment: .leading, spacing: 8) {
+            if entry.friday {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(words.greeting)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(entry.theme.accentColor)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    if let kahf = entry.kahf {
+                        Text(words.kahf(kahf))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(entry.theme.accentColor)
+                            .lineLimit(1)
+                    }
+                }
+            }
             HStack(alignment: .firstTextBaseline) {
                 Text(entry.day.city)
                     .font(.system(.caption, design: .rounded).weight(.semibold))
