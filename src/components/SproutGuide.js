@@ -2,7 +2,7 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import Text from './AppText';
 import { useReduceMotion, useScreenFocused } from './ScreenWrapper';
-import { COLS, ROWS, Sprite, useSproutColors } from '../tasbih/sproutArt';
+import { COLS, ROWS, Sprite, guideCharacter, useSproutColors } from '../tasbih/sproutArt';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
@@ -66,6 +66,8 @@ const SPARKS = [
 // hopKey — смена шага: один маленький подскок.
 export const Sprout = memo(function Sprout({ mood = 'idle', talkKey, talkMs = 1200, cheerKey, hopKey, px = 3 }) {
   const colors = useSproutColors();
+  // В уроках говорит существо: при выбранном предмете — семечко.
+  const { character } = useAppearance();
   const reduceMotion = useReduceMotion();
   // Вне экрана (другая вкладка, приложение в фоне) росток замирает целиком:
   // ни дыхания, ни моргания, ни прыжков.
@@ -199,7 +201,7 @@ export const Sprout = memo(function Sprout({ mood = 'idle', talkKey, talkMs = 12
         }, sparkStyles[i]]} />
       ))}
       <Animated.View style={[{ width: W, height: H }, styles.body, bodyStyle]}>
-        <Sprite frame={frame} colors={colors} px={px} />
+        <Sprite frame={frame} colors={colors} px={px} character={guideCharacter(character)} />
       </Animated.View>
     </Pressable>
   );

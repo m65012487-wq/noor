@@ -9,6 +9,7 @@ import { useLang } from '../i18n/LanguageContext';
 import { useAppSettings, NOTIF_SOUNDS, SOUND_ASSETS } from '../utils/AppSettingsContext';
 import { useAppearance, makeScheme } from '../utils/AppearanceContext';
 import { Sprite, useSproutColors } from '../tasbih/sproutArt';
+import { TreeSilhouette } from '../tasbih/TreeView';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
 import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm } from '../utils/fajrAlarm';
@@ -418,7 +419,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
             {CHARACTERS.map((c) => (
               <Cell key={c.id} active={character === c.id} onPress={() => chooseCharacter(c.id)}
                 style={[styles.characterCell, character === c.id && activeBg]}>
-                <Sprite frame="idle" colors={characterColors} px={3} character={c.id} />
+                {c.id === 'tree'
+                  ? <View style={styles.treeSample}><TreeSilhouette species="olive" stage={6} color={accentColor} /></View>
+                  : <Sprite frame="idle" colors={characterColors} px={3} character={c.id} />}
                 <Text style={[styles.fontName, character === c.id && styles.cellTextActive]} {...FIT}>
                   {lang === "ru" ? c.label_ru : c.label_en}
                 </Text>
@@ -555,6 +558,7 @@ const styles = StyleSheet.create({
   schemeCell: { flexDirection: 'row', justifyContent: 'flex-start', gap: SPACING.xs },
   fontCell: { height: 64 },
   characterCell: { height: 80 },
+  treeSample: { width: 36, height: 39 },
   fontSample: { fontSize: 17, color: COLORS.white },
   fontName: { ...TYPE.caption, color: COLORS.textMuted, marginTop: 2 },
   themeChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,

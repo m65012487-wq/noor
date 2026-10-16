@@ -5,7 +5,9 @@ import { useIsFocused } from '@react-navigation/native';
 import { useReduceMotion } from '../components/ScreenWrapper';
 import { TAB_ISLAND } from '../components/GlassTabBar';
 import { COLORS } from '../constants/theme';
-import { COLS, ROWS, Sprite, useSproutColors } from './sproutArt';
+import { COLS, OBJECT_ANIM, ROWS, Sprite, useSproutColors, WALKERS } from './sproutArt';
+import { TreeSilhouette } from './TreeView';
+import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
 import useTasbih from './useTasbih';
@@ -58,6 +60,12 @@ const PRESS_SCALE_Y = 0.5;
 const PRESS_SCALE_X = 1.4;
 const EMBER_SIZE = 8;
 const BEAT_MS = 1800;
+// Предметы на кромке: дерево качается на ветру, древко знамени чуть клонится
+// вслед за полотнищем. Градусы и длительность полупериода.
+const SWAY = { tree: { deg: 2.5, ms: 900 }, banner: { deg: 1.2, ms: 700 } };
+// Знамя поворачивается вокруг основания древка (столбец 3 из 12), а не центра.
+const BANNER_ORIGIN = `${((3.5 / COLS) * 100).toFixed(1)}% 100%`;
+const GLOW = 64;
 
 const rand = (from, to) => from + Math.random() * (to - from);
 
@@ -77,8 +85,70 @@ function makeMotion(startX) {
     // Придавленность раскрытым расписанием: 0 — обычный, 1 — сплющен.
     press: new Animated.Value(0),
     fade: new Animated.Value(1),
+    // Наклон в градусах (знамя, дерево, отклик на нажатие), рост дерева при
+    // входе и дыхание света фонаря.
+    tilt: new Animated.Value(0),
+    // Отклик на нажатие — свой наклон поверх покачивания: общий Value
+    // остановил бы петлю покачивания насовсем.
+    tiltPress: new Animated.Value(0),
+    grow: new Animated.Value(1),
+    glow: new Animated.Value(0),
   };
 }
+
+// Вход предметов. Знамя влетает сверху с наклоном и втыкается в кромку —
+// древко дрожит; фонарь плавно опускается, будто на нити, и мягко садится;
+// дерево вырастает из кромки. Перед входом предмет ставится в начальную точку:
+// выше окна обрезки (его не видно) или нулевым ростом.
+function prepareObjectEnter(m, character, barTop) {
+  if (character === 'tree') { m.y.setValue(0); m.grow.setValue(0); return; }
+  m.y.setValue(-(barTop + SPRITE_H + 8));
+  if (character === 'banner') m.tilt.setValue(28);
+}
+function makeObjectEnter(m, character) {
+  if (character === 'tree') {
+    return Animated.sequence([
+      timing(m.grow, 1.08, 560, Easing.out(Easing.cubic)),
+      timing(m.grow, 1, 240, Easing.inOut(Easing.quad)),
+    ]);
+  }
+  if (character === 'banner') {
+    return Animated.sequence([
+      Animated.parallel([timing(m.y, 0, 460, Easing.in(Easing.quad)), timing(m.tilt, 0, 460, Easing.in(Easing.quad))]),
+      timing(m.sq, 1, 40, Easing.out(Easing.quad)),
+      Animated.parallel([
+        timing(m.sq, 0, 160, Easing.out(Easing.quad)),
+        Animated.sequence([
+          timing(m.tilt, -9, 90, Easing.out(Easing.quad)),
+          timing(m.tilt, 6, 110, Easing.inOut(Easing.quad)),
+          timing(m.tilt, -3, 110, Easing.inOut(Easing.quad)),
+          timing(m.tilt, 0, 120, Easing.inOut(Easing.quad)),
+        ]),
+      ]),
+    ]);
+  }
+  return Animated.sequence([timing(m.y, 0, 820, Easing.out(Easing.cubic)), makeHop(m, 4)]);
+}
+
+// Дерево из сада в росте спутника. Корень у всех стадий в одной точке холста
+// (50 %, 92 % высоты), а доля холста под деревом растёт со стадией. Картинка
+// масштабируется так, чтобы росток не терялся, а взрослое дерево не вылезало
+// выше кадра: видимая высота — от 20 до 53 пт.
+const TREE_SHARE = [0.1, 0.153, 0.26, 0.393, 0.527, 0.639, 0.737, 0.771];
+const TREE_HEIGHT = [20, 24, 30, 36, 42, 47, 51, 53];
+const TreeMini = memo(function TreeMini({ tree, color }) {
+  if (!tree) return null;
+  const stage = Math.max(0, Math.min(TREE_SHARE.length - 1, tree.stage | 0));
+  const h = TREE_HEIGHT[stage] / TREE_SHARE[stage];
+  const w = h * 0.8;
+  return (
+    <View pointerEvents="none" style={{ width: SPRITE_W, height: SPRITE_H }}>
+      <View style={{ position: 'absolute', width: w, height: h, left: (SPRITE_W - w) / 2, top: SPRITE_H - h * 0.92 }}>
+        <TreeSilhouette species={tree.species} stage={stage} color={color} />
+      </View>
+    </View>
+  );
+});
 
 // Прыжок: присед, взлёт, падение (Easing.in — как под тяжестью) и приземление
 // с пружинкой сжатия.
@@ -128,8 +198,10 @@ const Ember = memo(function Ember({ reduceMotion }) {
 
 // Сам зверёк: выпрыгивание, прогулка по кромке, моргание, прыжки, нажатие.
 // active — приложение на экране, вкладка в фокусе, сад не открыт.
-const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed, pressDelay, pressMs, releaseMs,
-  reduceMotion, label, hint, onOpen }) {
+// character — кто на кромке: семечко и росток ходят, предметы стоят на месте.
+const Pal = memo(function Pal({ place, colors, character, tree, accent, hasGift, friday, active, squashed, pressDelay,
+  pressMs, releaseMs, reduceMotion, label, hint, onOpen }) {
+  const walker = WALKERS.has(character);
   const [motion] = useState(() => makeMotion(rand(place.minX, place.maxX)));
   const [landed, setLanded] = useState(false);
   const [base, setBase] = useState('idle');
@@ -147,6 +219,7 @@ const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed
   const wasSquashed = useRef(squashed);
   const lastPressed = useRef(pressed);
   const timings = useRef({ pressDelay, pressMs, releaseMs });
+  const placeRef = useRef(place);
   const { minX, maxX } = place;
 
   // Таймингам хода края хватает последнего значения: экран пересчитывает их
@@ -154,13 +227,16 @@ const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed
   useEffect(() => {
     squashedRef.current = squashed;
     timings.current = { pressDelay, pressMs, releaseMs };
+    placeRef.current = place;
   });
 
   // isInteraction: false — иначе InteractionManager ждал бы конца входа.
   useEffect(() => {
-    const { y, sq, fade } = motion;
+    const { y, sq, fade, tilt, grow } = motion;
     setLanded(false);
     sq.setValue(0);
+    tilt.setValue(0);
+    grow.setValue(1);
     y.setValue(reduceMotion ? 0 : HIDE_Y);
     fade.setValue(reduceMotion ? 0 : 1);
     let animation = null;
@@ -169,13 +245,16 @@ const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed
       // некуда: росток выходит снизу сразу сплющенным.
       enterFlat.current = squashedRef.current;
       if (enterFlat.current) setPressed(true);
+      const objectEnter = !walker && !reduceMotion && !enterFlat.current;
+      if (objectEnter) prepareObjectEnter(motion, character, placeRef.current.barTop);
       animation = reduceMotion ? timing(fade, 1, 300)
         : enterFlat.current ? timing(y, 0, 280, Easing.out(Easing.quad))
+        : objectEnter ? makeObjectEnter(motion, character)
         : makeEnter(motion);
       animation.start(({ finished }) => { if (finished) setLanded(true); });
     }, reduceMotion ? 0 : ENTER_DELAY_MS);
     return () => { clearTimeout(timer); animation?.stop(); };
-  }, [motion, reduceMotion]);
+  }, [motion, reduceMotion, walker, character]);
 
   // Край расписания идёт сверху, как пресс. Росток сплющивается не сразу, а
   // в миг касания — экран знает, когда край дойдёт до макушки (pressDelay).
@@ -227,7 +306,7 @@ const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed
   // Прогулка: идти, постоять, подпрыгнуть — и снова. Всё на таймерах и нативных
   // анимациях, при потере активности гасится целиком.
   useEffect(() => {
-    if (!landed || !active || reduceMotion || squashed) return undefined;
+    if (!walker || !landed || !active || reduceMotion || squashed) return undefined;
     let timer = null;
     let steps = null;
     let walk = null;
@@ -283,12 +362,51 @@ const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed
       motion.sq.setValue(0);
       setBase('idle');
     };
-  }, [landed, active, reduceMotion, squashed, motion, minX, maxX, playHop]);
+  }, [walker, landed, active, reduceMotion, squashed, motion, minX, maxX, playHop]);
+
+  // Жизнь предмета на месте: кадры по кругу (полотнище, пламя), покачивание и
+  // дыхание света фонаря. При «Уменьшении движения» предмет стоит неподвижно.
+  useEffect(() => {
+    if (walker || !landed || !active || squashed || reduceMotion) return undefined;
+    const anim = OBJECT_ANIM[character];
+    let timer = null;
+    let i = 0;
+    if (anim) {
+      const step = () => {
+        i = anim.random ? Math.floor(Math.random() * anim.frames.length) : (i + 1) % anim.frames.length;
+        setBase(anim.frames[i]);
+        timer = setTimeout(step, rand(anim.ms[0], anim.ms[1]));
+      };
+      timer = setTimeout(step, anim.ms[0]);
+    }
+    const loops = [];
+    const sway = SWAY[character];
+    if (sway) {
+      loops.push(Animated.loop(Animated.sequence([
+        timing(motion.tilt, sway.deg, sway.ms, Easing.inOut(Easing.sin)),
+        timing(motion.tilt, -sway.deg, sway.ms * 2, Easing.inOut(Easing.sin)),
+        timing(motion.tilt, 0, sway.ms, Easing.inOut(Easing.sin)),
+      ])));
+    }
+    if (character === 'lantern') {
+      loops.push(Animated.loop(Animated.sequence([
+        timing(motion.glow, 1, 1100, Easing.inOut(Easing.sin)),
+        timing(motion.glow, 0, 1100, Easing.inOut(Easing.sin)),
+      ])));
+    }
+    loops.forEach(loop => loop.start());
+    return () => {
+      clearTimeout(timer);
+      loops.forEach(loop => loop.stop());
+      motion.tilt.setValue(0);
+      setBase('idle');
+    };
+  }, [walker, landed, active, squashed, reduceMotion, character, motion]);
 
   // Моргание (у семечка — вздрагивает листок) — на стоянке, раз в 3–6
   // секунд; на ходу пропускаем.
   useEffect(() => {
-    if (!landed || !active || squashed) return undefined;
+    if (!walker || !landed || !active || squashed) return undefined;
     let timer = null;
     const schedule = () => {
       timer = setTimeout(() => {
@@ -299,25 +417,32 @@ const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed
     };
     schedule();
     return () => { clearTimeout(timer); setBlink(false); };
-  }, [landed, active, squashed]);
+  }, [walker, landed, active, squashed]);
 
-  const frame = pressed ? 'squish' : blink && base === 'idle' ? 'blink' : base;
+  // У предметов нет кадров моргания и сплющивания: их сжимает transform.
+  const frame = !walker ? base : pressed ? 'squish' : blink && base === 'idle' ? 'blink' : base;
 
   const palStyle = useMemo(() => ({ transform: [{ translateX: motion.x }] }), [motion]);
   const bodyStyle = useMemo(() => ({
     opacity: motion.fade,
     transform: [
       { translateY: motion.y },
-      // Присед и придавленность перемножаются: повторять ключ scale в
-      // transform нельзя.
+      { rotate: Animated.add(motion.tilt, motion.tiltPress).interpolate({ inputRange: [-90, 90], outputRange: ['-90deg', '90deg'] }) },
+      // Присед, придавленность и рост дерева перемножаются: повторять ключ
+      // scale в transform нельзя.
       // press выходит за 0…1 в пружинке: интерполяция продолжает линию.
-      { scaleX: Animated.multiply(
+      { scaleX: Animated.multiply(Animated.multiply(
         motion.sq.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }),
-        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, PRESS_SCALE_X] })) },
-      { scaleY: Animated.multiply(
+        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, PRESS_SCALE_X] })),
+        motion.grow.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] })) },
+      { scaleY: Animated.multiply(Animated.multiply(
         motion.sq.interpolate({ inputRange: [0, 1], outputRange: [1, 0.84] }),
-        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, PRESS_SCALE_Y] })) },
+        motion.press.interpolate({ inputRange: [0, 1], outputRange: [1, PRESS_SCALE_Y] })),
+        motion.grow) },
     ],
+  }), [motion]);
+  const glowStyle = useMemo(() => ({
+    opacity: motion.glow.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.24] }),
   }), [motion]);
   // Тень появляется, когда зверёк уже над кромкой, и сжимается в прыжке.
   const shadowStyle = useMemo(() => ({
@@ -329,22 +454,39 @@ const Pal = memo(function Pal({ place, colors, hasGift, friday, active, squashed
 
   const press = () => {
     hapticLight();
-    // Под краем расписания прыгать некуда.
-    if (!reduceMotion && !squashed) playHop(HOP_JOY);
+    // Под краем расписания прыгать некуда. Предмет вместо прыжка качнётся.
+    if (!reduceMotion && !squashed) {
+      if (walker) playHop(HOP_JOY);
+      else {
+        hop.current?.stop();
+        hop.current = Animated.sequence([
+          timing(motion.tiltPress, 7, 80, Easing.out(Easing.quad)),
+          timing(motion.tiltPress, -5, 110, Easing.inOut(Easing.quad)),
+          timing(motion.tiltPress, 2, 100, Easing.inOut(Easing.quad)),
+          timing(motion.tiltPress, 0, 100, Easing.inOut(Easing.quad)),
+        ]);
+        hop.current.start();
+      }
+    }
     onOpen();
   };
 
   return (
     <Animated.View pointerEvents="box-none" style={[styles.pal, { top: place.barTop - SPRITE_H }, palStyle]}>
-      <Animated.View pointerEvents="none" style={[styles.shadow, shadowStyle]} />
-      <Animated.View pointerEvents={landed ? 'box-none' : 'none'} style={[styles.body, bodyStyle]}>
+      {/* Предмет падает сверху или вырастает: тень — только когда он на месте. */}
+      {walker || landed ? <Animated.View pointerEvents="none" style={[styles.shadow, shadowStyle]} /> : null}
+      <Animated.View pointerEvents={landed ? 'box-none' : 'none'}
+        style={[styles.body, character === 'banner' && { transformOrigin: BANNER_ORIGIN }, bodyStyle]}>
+        {/* Тёплый ореол вокруг пламени фонаря. */}
+        {character === 'lantern' ? <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} /> : null}
         {/* Зона нажатия шире рисунка; вниз — без запаса, там таб-бар. Под
             раскрытым расписанием и вверх без запаса: там его последняя строка. */}
         <Pressable onPress={press} hitSlop={{ top: squashed ? 0 : 18, left: 14, right: 14, bottom: 0 }}
           accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
           style={StyleSheet.absoluteFill}>
           <View style={{ transform: [{ scaleX: facing }] }}>
-            <Sprite frame={frame} colors={colors} />
+            {character === 'tree' ? <TreeMini tree={tree} color={accent} />
+              : <Sprite frame={frame} colors={colors} character={character} />}
           </View>
         </Pressable>
         {/* Огонёк над макушкой упёрся бы в край расписания — пока оно раскрыто, его нет. */}
@@ -420,6 +562,10 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
     };
   }, [frame, height, insets.bottom]);
   const colors = useSproutColors();
+  const { character: chosen, accent } = useAppearance();
+  const activeTree = state?.trees?.find(t => t.id === state.activeTreeId) || state?.trees?.[0] || null;
+  // Дерева ещё нет (тасбих не прочитался) — на кромке семечко.
+  const character = chosen === 'tree' && !activeTree ? 'seed' : chosen;
   const { festiveFriday } = useAppSettings() || {};
   const friday = festiveFriday !== false && isFridayNow();
   const hasGift = !!state && (
@@ -454,7 +600,9 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
           Окно обрезки кончается на верхней кромке таб-бара: всё ниже скрыто. */}
       {enabled && place ? (
         <View pointerEvents="box-none" style={[styles.clip, { height: place.barTop }]}>
-          <Pal key={entryKey} place={place} colors={colors} hasGift={hasGift} friday={friday}
+          {/* Смена спутника в настройках — тоже новый вход. */}
+          <Pal key={`${entryKey}:${character}`} place={place} colors={colors} character={character}
+            tree={activeTree} accent={accent} hasGift={hasGift} friday={friday}
             active={appActive && focused && !open} squashed={squashed} reduceMotion={reduceMotion}
             pressDelay={pressDelay} pressMs={pressMs} releaseMs={releaseMs}
             label={label} hint={hint} onOpen={openGarden} />
@@ -501,6 +649,10 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   bubbleText: { fontSize: 13, lineHeight: 16, color: COLORS.friday },
+  glow: {
+    position: 'absolute', left: SPRITE_W / 2 - GLOW / 2, top: 7.5 * PX - GLOW / 2,
+    width: GLOW, height: GLOW, borderRadius: GLOW / 2, backgroundColor: COLORS.ember,
+  },
   ember: {
     position: 'absolute', right: -2, top: -EMBER_SIZE, width: EMBER_SIZE, height: EMBER_SIZE,
     borderRadius: EMBER_SIZE / 2, backgroundColor: COLORS.ember,
