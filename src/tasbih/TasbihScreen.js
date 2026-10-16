@@ -29,8 +29,9 @@ const clamp01 = v => Math.max(0, Math.min(1, v));
 // под транскрипцию в две строки и перевод в одну, поэтому две строки арабского
 // идут кеглем 25, а не полными 34.
 const ARABIC_BLOCK = 96;
-// Длинный азкар — до четырёх строк кеглем ARABIC.md.
-const ARABIC_BLOCK_LONG = 4 * 56;
+// Длинный азкар — до четырёх строк кеглем от ARABIC.sm до 18: арабский
+// мельче, зато под ним помещается вся транскрипция.
+const ARABIC_BLOCK_LONG = 150;
 
 // Pill label for the current mode — 'sequence'/'free' aren't in DHIKR, and a
 // custom dhikr's label is its own text, so this can't just look the id up
@@ -107,7 +108,8 @@ export default function TasbihScreen({ onClose }) {
     textFade.setValue(0);
     Animated.timing(textFade, { toValue: 1, duration: reduceMotion ? 150 : 350, useNativeDriver: true }).start();
   }, [item.id, textFade, reduceMotion]);
-  const phrase = ru ? item.ru : item.en;
+  // У длинных азкаров ru/en — короткое имя для списков, full_* — вся транскрипция.
+  const phrase = ru ? (item.full_ru || item.ru) : (item.full_en || item.en);
   const translation = ru ? item.translation_ru : item.translation_en;
   const [arabicLines, setArabicLines] = useState(1);
   const onTap = (e) => {
@@ -227,9 +229,9 @@ export default function TasbihScreen({ onClose }) {
               {/* Длинный зикр не ужимается в одну строку до точек: кегль не
                   меньше 24, дальше — перенос на вторую строку (ArabicFitText). */}
               {!!item.arabic && <ArabicFitText style={styles.arabic} accessibilityLanguage="ar"
-                base={longText ? ARABIC.md : ARABIC.lg} min={22} maxLines={longText ? 4 : 2} maxHeight={longText ? ARABIC_BLOCK_LONG : ARABIC_BLOCK}
+                base={longText ? ARABIC.sm : ARABIC.lg} min={longText ? 18 : 22} maxLines={longText ? 4 : 2} maxHeight={longText ? ARABIC_BLOCK_LONG : ARABIC_BLOCK}
                 onLines={setArabicLines}>{item.arabic}</ArabicFitText>}
-              <Text style={styles.phrase} numberOfLines={2}>{phrase}</Text>
+              <Text style={[styles.phrase, longText && styles.phraseLong]} numberOfLines={longText ? undefined : 2}>{phrase}</Text>
               {/* Арабский в две строки — перевод в одну: полоса слов не растёт. */}
               {!!translation && <Text style={styles.translation} numberOfLines={longText ? 3 : item.arabic && arabicLines > 1 ? 1 : 2}>{translation}</Text>}
             </Animated.View>
@@ -319,7 +321,7 @@ const styles = StyleSheet.create({
   // две строки и переводом в одну.
   words: { alignItems: 'center', justifyContent: 'center', height: 166, overflow: 'hidden' },
   // Длинный азкар: карточка во всю ширину и выше, дерево под ней сжимается.
-  wordsLong: { height: undefined, maxHeight: 280, marginTop: SPACING.sm, paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
+  wordsLong: { height: undefined, maxHeight: 310, marginTop: SPACING.sm, paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
     borderRadius: RADIUS.lg, backgroundColor: COLORS.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: COLORS.glassBorderSoft },
   // При длинном азкаре дереву хватает и малого места: его касаются один раз.
   treeAreaLong: { minHeight: 96 },
@@ -328,6 +330,8 @@ const styles = StyleSheet.create({
   slotText: { ...LEGIBLE, ...TYPE.caption, fontSize: 13, fontWeight: '600' },
   arabic: { ...LEGIBLE, ...ARABIC.lg, fontFamily: FONTS.arabic, color: COLORS.text, textAlign: 'center' },
   phrase: { ...LEGIBLE, ...TYPE.subhead, color: COLORS.text, textAlign: 'center', marginTop: SPACING.xs },
+  // Транскрипция длинного азкара целиком, без обрезки.
+  phraseLong: { fontSize: 15, lineHeight: 20 },
   translation: { ...LEGIBLE, ...TYPE.callout, color: COLORS.textMuted, textAlign: 'center', marginTop: 2 },
 
   counter: { alignItems: 'center', height: 92, justifyContent: 'center' },
