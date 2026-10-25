@@ -211,9 +211,7 @@ const readingFontFor = (id) => READING_FONTS.find((f) => f.id === id) || READING
 export const CHARACTERS = [
   { id: 'seed', label_ru: 'Семечко', label_en: 'Seed' },
   { id: 'sprout', label_ru: 'Росток', label_en: 'Sprout' },
-  // Предметы: стоят на кромке, а не ходят. Дерево — то, что растёт в саду.
-  { id: 'tree', label_ru: 'Дерево', label_en: 'Tree' },
-  { id: 'banner', label_ru: 'Знамя', label_en: 'Banner' },
+  // Предмет: стоит на кромке, а не ходит.
   { id: 'lantern', label_ru: 'Фонарь', label_en: 'Lantern' },
 ];
 

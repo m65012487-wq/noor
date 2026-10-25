@@ -134,31 +134,8 @@ const SEED = {
   sad: { top: 0, rows: seed('droop') },
 };
 
-// Предметы вместо существ: они не ходят, а стоят на кромке и живут своей
+// Предмет вместо существа: фонарь не ходит, а стоит на кромке и живёт своей
 // анимацией — кадры a0…aN по кругу (OBJECT_ANIM), idle — первый из них.
-const blank = () => Array.from({ length: ROWS }, () => Array(COLS).fill('.'));
-const gridRows = grid => grid.map(r => r.join(''));
-
-// Знамя: древко в столбце 3 с навершием, вымпел с вырезом; волна бежит от
-// древка к краю, складки темнее ('D'). Надписи нет намеренно.
-function bannerFrame(phase) {
-  const g = blank();
-  g[0][3] = 'W';
-  for (let r = 1; r < ROWS; r += 1) g[r][3] = 'K';
-  for (let c = 4; c < COLS; c += 1) {
-    const d = c - 4;
-    const a = d * 0.9 - (phase * Math.PI) / 2;
-    const off = Math.round(Math.sin(a) * Math.min(1, d / 3));
-    const shade = Math.cos(a) < -0.35 && d > 0;
-    for (let h = 0; h < 6; h += 1) {
-      if (c === COLS - 1 && h >= 1 && h <= 4) continue;
-      if (c === COLS - 2 && (h === 2 || h === 3)) continue;
-      const r = 1 + h + off;
-      if (r >= 0 && r < ROWS) g[r][c] = shade ? 'D' : 'L';
-    }
-  }
-  return { top: 0, rows: gridRows(g) };
-}
 
 // Фонарь (фанус): купол и донце цветом листа, стенки — тела, стекло тёплое
 // ('G'), пламя ('F') с белым ядром мерцает.
@@ -191,17 +168,14 @@ const cycle = (count, make) => {
   for (let i = 0; i < count; i += 1) frames['a' + i] = make(i);
   return { idle: frames.a0, ...frames };
 };
-const BANNER = cycle(4, bannerFrame);
 const LANTERN_FRAMES = cycle(FLAMES.length, i => lanternFrame(FLAMES[i]));
 
-const CHARACTER_FRAMES = { seed: SEED, sprout: SPROUT, banner: BANNER, lantern: LANTERN_FRAMES };
+const CHARACTER_FRAMES = { seed: SEED, sprout: SPROUT, lantern: LANTERN_FRAMES };
 
-// Кто ходит по кромке (семечко, росток), а кто стоит на месте. Дерево —
-// не пиксели, а силуэт из сада (PixelPal рисует его сам).
+// Кто ходит по кромке (семечко, росток), а кто стоит на месте (фонарь).
 export const WALKERS = new Set(['seed', 'sprout']);
 // Кадры предметов по кругу и пауза между ними; у фонаря пауза случайная.
 export const OBJECT_ANIM = {
-  banner: { frames: ['a0', 'a1', 'a2', 'a3'], ms: [150, 150] },
   lantern: { frames: ['a0', 'a1', 'a2', 'a3'], ms: [110, 260], random: true },
 };
 // В уроках говорит и радуется только существо-спутник: при выбранном
@@ -289,7 +263,6 @@ export function useSproutColors() {
     P: FIXED.P,
     K: mix(tint || '150,200,225', schemeColors.bg[0], 0.62),
     S: mix(tint || '150,200,225', schemeColors.bg[0], 0.4),
-    // Складки знамени — лист, смешанный с фоном.
     D: mix(hexToRgb(accent) || tint || '150,200,225', schemeColors.bg[0], 0.6),
     // Пламя фонаря тёплое при любой схеме, стекло — то же пламя на фоне.
     F: FLAME,
