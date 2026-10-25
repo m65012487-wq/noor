@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Animated, Easing, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AppState, Animated, Easing, Modal, PanResponder, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import { useReduceMotion } from '../components/ScreenWrapper';
@@ -60,6 +60,11 @@ const PRESS_SCALE_X = 1.4;
 const EMBER_SIZE = 8;
 const BEAT_MS = 1800;
 const GLOW = 64;
+// Перетаскивание: сколько держать палец, чтобы взять; на сколько он
+// приподнимается над пальцем; наибольший наклон маятника в градусах.
+const HOLD_MS = 260;
+const LIFT = 10;
+const SWING = 22;
 
 const rand = (from, to) => from + Math.random() * (to - from);
 
@@ -157,6 +162,14 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
   const wasSquashed = useRef(squashed);
   const lastPressed = useRef(pressed);
   const timings = useRef({ pressDelay, pressMs, releaseMs });
+  // held — спутника держат пальцем или он падает после того, как отпустили:
+  // прогулка, моргание и жизнь предмета на это время останавливаются.
+  const [held, setHeld] = useState(false);
+  const heldRef = useRef(false);
+  const landedRef = useRef(false);
+  const tapRef = useRef(null);
+  const placeRef = useRef(place);
+  const awake = active && !held;
   const { minX, maxX } = place;
 
   // Таймингам хода края хватает последнего значения: экран пересчитывает их
@@ -164,6 +177,8 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
   useEffect(() => {
     squashedRef.current = squashed;
     timings.current = { pressDelay, pressMs, releaseMs };
+    landedRef.current = landed;
+    placeRef.current = place;
   });
 
   // isInteraction: false — иначе InteractionManager ждал бы конца входа.
@@ -239,7 +254,7 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
   // Прогулка: идти, постоять, подпрыгнуть — и снова. Всё на таймерах и нативных
   // анимациях, при потере активности гасится целиком.
   useEffect(() => {
-    if (!walker || !landed || !active || reduceMotion || squashed) return undefined;
+    if (!walker || !landed || !awake || reduceMotion || squashed) return undefined;
     let timer = null;
     let steps = null;
     let walk = null;
@@ -295,12 +310,12 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
       motion.sq.setValue(0);
       setBase('idle');
     };
-  }, [walker, landed, active, reduceMotion, squashed, motion, minX, maxX, playHop]);
+  }, [walker, landed, awake, reduceMotion, squashed, motion, minX, maxX, playHop]);
 
   // Жизнь предмета на месте: кадры по кругу (полотнище, пламя), покачивание и
   // дыхание света фонаря. При «Уменьшении движения» предмет стоит неподвижно.
   useEffect(() => {
-    if (walker || !landed || !active || squashed || reduceMotion) return undefined;
+    if (walker || !landed || !awake || squashed || reduceMotion) return undefined;
     const anim = OBJECT_ANIM[character];
     let timer = null;
     let i = 0;
@@ -326,12 +341,12 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
       motion.tilt.setValue(0);
       setBase('idle');
     };
-  }, [walker, landed, active, squashed, reduceMotion, character, motion]);
+  }, [walker, landed, awake, squashed, reduceMotion, character, motion]);
 
   // Моргание (у семечка — вздрагивает листок) — на стоянке, раз в 3–6
   // секунд; на ходу пропускаем.
   useEffect(() => {
-    if (!walker || !landed || !active || squashed) return undefined;
+    if (!walker || !landed || !awake || squashed) return undefined;
     let timer = null;
     const schedule = () => {
       timer = setTimeout(() => {
@@ -342,10 +357,11 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
     };
     schedule();
     return () => { clearTimeout(timer); setBlink(false); };
-  }, [walker, landed, active, squashed]);
+  }, [walker, landed, awake, squashed]);
 
   // У предметов нет кадров моргания и сплющивания: их сжимает transform.
-  const frame = !walker ? base : pressed ? 'squish' : blink && base === 'idle' ? 'blink' : base;
+  // В руке семечко вскидывает листки, а росток радуется.
+  const frame = !walker ? base : held ? 'happy' : pressed ? 'squish' : blink && base === 'idle' ? 'blink' : base;
 
   const palStyle = useMemo(() => ({ transform: [{ translateX: motion.x }] }), [motion]);
   const bodyStyle = useMemo(() => ({
@@ -393,6 +409,118 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
     }
     onOpen();
   };
+  tapRef.current = press;
+
+  // Перетаскивание. Взять — долгое нажатие (HOLD_MS): обычное касание
+  // по-прежнему открывает сад, а свайп по экрану не хватает спутника случайно.
+  // Пока его несут, он висит под пальцем и качается вслед за движением, как
+  // маятник. Отпустили — падает на кромку таб-бара под этим местом и
+  // приземляется с подскоком: посреди экрана он не остаётся и не закрывает
+  // расписание. Дальше гуляет уже оттуда.
+  //
+  // Анимации идут нативным драйвером, и значения из них назад не читаются
+  // (stopAnimation отдаёт их асинхронно): положение хранит сам жест в drag.
+  const drag = useRef({ timer: null, settle: null, fall: null, falling: false, ready: false,
+    moved: false, x0: 0, x: 0, y: 0 }).current;
+  useEffect(() => () => {
+    clearTimeout(drag.timer);
+    clearTimeout(drag.settle);
+    drag.fall?.stop();
+  }, [drag]);
+  const pan = useMemo(() => {
+    const clampX = v => Math.min(placeRef.current.width - SPRITE_W, Math.max(0, v));
+    const pickUp = () => {
+      drag.timer = null;
+      drag.ready = false;
+      hop.current?.stop();
+      motion.tiltPress.setValue(0);
+      heldRef.current = true;
+      setHeld(true);
+      hapticLight();
+      // Стоял на месте — его место известно сразу; шёл — ждём, где остановился.
+      if (!walking.current) { drag.x0 = pos.current; drag.x = pos.current; drag.y = 0; drag.ready = true; }
+      motion.x.stopAnimation(v => {
+        if (drag.ready || !heldRef.current) return;
+        drag.x0 = v; drag.x = v; drag.y = 0; drag.ready = true;
+      });
+    };
+    const drop = () => {
+      clearTimeout(drag.settle);
+      if (!heldRef.current || drag.falling) return;
+      const { minX: lo, maxX: hi } = placeRef.current;
+      const to = Math.min(hi, Math.max(lo, drag.x));
+      const done = () => {
+        drag.falling = false;
+        drag.fall = null;
+        pos.current = to;
+        heldRef.current = false;
+        setHeld(false);
+      };
+      if (reduceMotion) {
+        motion.x.setValue(to); motion.y.setValue(0); motion.tilt.setValue(0);
+        done();
+        return;
+      }
+      drag.falling = true;
+      // Время падения растёт как корень из высоты — как под тяжестью.
+      const fall = 160 + Math.sqrt(Math.max(0, -drag.y)) * 22;
+      drag.fall = Animated.sequence([
+        Animated.parallel([
+          timing(motion.y, 0, fall, Easing.in(Easing.quad)),
+          timing(motion.x, to, fall, Easing.out(Easing.quad)),
+          timing(motion.tilt, 0, fall, Easing.out(Easing.quad)),
+        ]),
+        timing(motion.sq, 1, 50, Easing.out(Easing.quad)),
+        timing(motion.sq, 0, 140, Easing.out(Easing.quad)),
+      ]);
+      drag.fall.start(({ finished }) => {
+        if (!finished) { motion.x.setValue(to); motion.y.setValue(0); motion.tilt.setValue(0); motion.sq.setValue(0); }
+        else hapticLight();
+        done();
+      });
+    };
+    return PanResponder.create({
+      // Падающего не ловим: касание дождётся приземления.
+      onStartShouldSetPanResponder: () => landedRef.current && !drag.falling,
+      onPanResponderGrant: () => {
+        drag.moved = false;
+        // Под раскрытым расписанием спутник придавлен: взять нельзя, только нажать.
+        drag.timer = squashedRef.current ? null : setTimeout(pickUp, HOLD_MS);
+      },
+      onPanResponderMove: (_e, g) => {
+        if (!heldRef.current) {
+          if (Math.abs(g.dx) > 8 || Math.abs(g.dy) > 8) { drag.moved = true; clearTimeout(drag.timer); drag.timer = null; }
+          return;
+        }
+        // Расписание раскрыли, пока спутник в руке, — он падает на место.
+        if (squashedRef.current) { drop(); return; }
+        if (!drag.ready) return;
+        const top = -(placeRef.current.barTop - SPRITE_H);
+        drag.x = clampX(drag.x0 + g.dx);
+        drag.y = Math.max(top, Math.min(0, g.dy - LIFT));
+        motion.x.setValue(drag.x);
+        motion.y.setValue(drag.y);
+        motion.tilt.setValue(Math.max(-SWING, Math.min(SWING, -g.vx * 14)));
+        // Палец замер — маятник успокаивается.
+        clearTimeout(drag.settle);
+        drag.settle = setTimeout(() => { if (heldRef.current && !drag.falling) timing(motion.tilt, 0, 180, Easing.out(Easing.quad)).start(); }, 90);
+      },
+      onPanResponderRelease: () => {
+        const tap = !drag.moved && !heldRef.current;
+        clearTimeout(drag.timer);
+        drag.timer = null;
+        if (heldRef.current) drop();
+        else if (tap) tapRef.current?.();
+      },
+      onPanResponderTerminate: () => {
+        clearTimeout(drag.timer);
+        drag.timer = null;
+        if (heldRef.current) drop();
+      },
+      // Пока спутник в руке, жест у экрана не отдаём (прокрутка, смена вкладки).
+      onPanResponderTerminationRequest: () => !heldRef.current,
+    });
+  }, [motion, reduceMotion, drag]);
 
   return (
     <Animated.View pointerEvents="box-none" style={[styles.pal, { top: place.barTop - SPRITE_H }, palStyle]}>
@@ -402,13 +530,16 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
         {character === 'lantern' ? <Animated.View pointerEvents="none" style={[styles.glow, glowStyle]} /> : null}
         {/* Зона нажатия шире рисунка; вниз — без запаса, там таб-бар. Под
             раскрытым расписанием и вверх без запаса: там его последняя строка. */}
-        <Pressable onPress={press} hitSlop={{ top: squashed ? 0 : 18, left: 14, right: 14, bottom: 0 }}
-          accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
+        <View {...pan.panHandlers} hitSlop={{ top: squashed ? 0 : 18, left: 14, right: 14, bottom: 0 }}
+          accessible accessibilityRole="button" accessibilityLabel={label} accessibilityHint={hint}
+          // iOS VoiceOver шлёт onAccessibilityTap, Android TalkBack — действие activate.
+          onAccessibilityTap={press} accessibilityActions={[{ name: 'activate' }]}
+          onAccessibilityAction={e => { if (e.nativeEvent.actionName === 'activate') press(); }}
           style={StyleSheet.absoluteFill}>
           <View style={{ transform: [{ scaleX: facing }] }}>
             <Sprite frame={frame} colors={colors} character={character} />
           </View>
-        </Pressable>
+        </View>
         {/* Огонёк над макушкой упёрся бы в край расписания — пока оно раскрыто, его нет. */}
         {hasGift && landed && !squashed ? <Ember reduceMotion={reduceMotion} /> : null}
         {/* В пятницу росток напоминает о салавате Пророку ﷺ: облачко у плеча. */}
@@ -479,6 +610,8 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
       barTop: Math.max(0, floorY(height, insets.bottom) - frame.y),
       minX,
       maxX: Math.max(minX, left + islandW - edge - FOOT_R),
+      // Ширина слоя: дальше неё спутника не утащить.
+      width: frame.w,
     };
   }, [frame, height, insets.bottom]);
   const colors = useSproutColors();
