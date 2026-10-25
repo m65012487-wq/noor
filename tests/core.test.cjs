@@ -527,6 +527,8 @@ test('alarm plans future mornings, and waking cancels only that day', async () =
     scheduleNotificationAsync: async n => { scheduled.push({ ...n, identifier: String(scheduled.length) }); } };
   const alarm = loader({ 'expo-notifications': { ...notifications, SchedulableTriggerInputTypes: { DATE: 'date' } },
     './prayerNotifications': { ensurePermission: async () => true },
+    // Системного будильника (AlarmKit) в тестах нет — работают уведомления.
+    '../../modules/noor-alarm': { __esModule: true, default: null, alarmKitSupported: () => false },
     './helpers': { loadJSON: async (k,f) => stored[k] ?? f, saveJSON: async(k,v) => { stored[k] = v; } },
   })('src/utils/fajrAlarm.js');
   const days = Array.from({ length: 3 }, (_, i) => { const date = new Date(); date.setDate(date.getDate()+i+1);
@@ -535,6 +537,35 @@ test('alarm plans future mornings, and waking cancels only that day', async () =
   assert.ok(scheduled.every(n => n.trigger.date > new Date()));
   await alarm.markAwake();
   assert.equal(scheduled.length, 12);
+});
+test('on iOS 26 the Fajr alarm uses system alarms, and waking cancels only that morning', async () => {
+  const stored = { fajrAlarmEnabled: true, fajrAlarmInterval: 5 };
+  const kit = new Map(); let n = 0; const notes = [];
+  const NoorAlarm = { isSupported: () => true, authorize: async () => 'authorized',
+    schedule: async (time, title, stop, sound) => { const id = 'a' + n++; kit.set(id, { time, title, stop, sound }); return id; },
+    cancel: ids => ids.forEach(id => kit.delete(id)), cancelAll: () => kit.clear() };
+  const alarm = loader({
+    'expo-notifications': { getAllScheduledNotificationsAsync: async () => notes, cancelScheduledNotificationAsync: async () => {},
+      scheduleNotificationAsync: async x => { notes.push(x); }, SchedulableTriggerInputTypes: { DATE: 'date' } },
+    './prayerNotifications': { ensurePermission: async () => true },
+    '../../modules/noor-alarm': { __esModule: true, default: NoorAlarm, alarmKitSupported: () => true },
+    './helpers': { loadJSON: async (k, f) => stored[k] ?? f, saveJSON: async (k, v) => { stored[k] = v; } },
+  })('src/utils/fajrAlarm.js');
+  const days = Array.from({ length: 3 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() + i + 1);
+    return { date: dates.localDateKey(date), timings: { Fajr: '05:00', Sunrise: '06:00' } }; });
+  assert.equal(await alarm.scheduleFajrDays(days, { title: 'Fajr', body: 'Wake', stop: 'Stop' }), 12);
+  assert.equal(kit.size, 12);
+  assert.equal(notes.length, 0);
+  assert.ok([...kit.values()].every(a => a.stop === 'Stop' && a.sound === 'alarm.wav' && a.time > Date.now()));
+  assert.equal((await alarm.getFajrAlarmStatus()).level, 'alarmkit');
+  // «Проснулся» в окне первого утра снимает только его четыре будильника.
+  const realNow = Date.now;
+  Date.now = () => stored.fajrAlarmWindows[0].from + 60000;
+  try { await alarm.markAwake(); } finally { Date.now = realNow; }
+  assert.equal(kit.size, 8);
+  // Повторное планирование не плодит будильники: старые снимаются.
+  await alarm.scheduleFajrDays(days, { title: 'Fajr', body: 'Wake', stop: 'Stop' });
+  assert.equal(kit.size, 8);
 });
 test('growthRatio reports progress toward the next stage, by growth alone', () => {
   const tree = (stage, progress, activeDays = 0) => ({ stage, progress, activeDays });
@@ -1266,6 +1297,8 @@ test('the Fajr alarm window starts on the evening before, and waking before midn
     scheduleNotificationAsync: async (n) => { scheduled.push({ ...n, identifier: String(id++) }); } };
   const alarm = loader({ 'expo-notifications': { ...notifications, SchedulableTriggerInputTypes: { DATE: 'date' } },
     './prayerNotifications': { ensurePermission: async () => true },
+    // Системного будильника (AlarmKit) в тестах нет — работают уведомления.
+    '../../modules/noor-alarm': { __esModule: true, default: null, alarmKitSupported: () => false },
     './helpers': { loadJSON: async (k, f) => stored[k] ?? f, saveJSON: async (k, v) => { stored[k] = v; } },
   })('src/utils/fajrAlarm.js');
   // Часы приложения подменяем: окно и отметка зависят только от Date.now().

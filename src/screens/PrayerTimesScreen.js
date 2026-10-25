@@ -208,6 +208,7 @@ export default function PrayerTimesScreen() {
       await scheduleFajrDays(days, {
         title: lang === 'ru' ? 'Фаджр — время проснуться' : 'Fajr — time to wake up',
         body: lang === 'ru' ? 'Подтвердите «Я проснулся» в приложении.' : 'Confirm “I’m awake” in the app.',
+        stop: lang === 'ru' ? 'Стоп' : 'Stop',
       });
       if (!cancelled) setAlarmWindow(await isInAlarmWindow() && (await getFajrAlarmSettings()).enabled);
     }).catch(() => { if (!cancelled) setError(lang === 'ru' ? 'Не удалось обновить уведомления. Проверьте разрешения.' : 'Could not update notifications. Check permissions.'); });

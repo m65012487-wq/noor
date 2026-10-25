@@ -14,7 +14,8 @@
       "bundleIdentifier": "app.noor.mobile",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We use your location to calculate accurate prayer times and the Qibla direction.",
-        "NSMotionUsageDescription": "Motion access is used for the Qibla compass."
+        "NSMotionUsageDescription": "Motion access is used for the Qibla compass.",
+        "NSAlarmKitUsageDescription": "Noor sets a real alarm for Fajr so it rings even when the phone is on silent."
       },
       "entitlements": {
         "com.apple.security.application-groups": [

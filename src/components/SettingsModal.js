@@ -11,7 +11,7 @@ import { useAppearance, makeScheme } from '../utils/AppearanceContext';
 import { Sprite, useSproutColors } from '../tasbih/sproutArt';
 import { ADHAN_SOUNDS } from '../utils/adhan';
 import { ASR_SCHOOLS } from '../constants/calcMethods';
-import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm } from '../utils/fajrAlarm';
+import { getFajrAlarmSettings, setFajrAlarmEnabled, setFajrAlarmInterval, cancelFajrAlarm, getFajrAlarmStatus, testFajrAlarm } from '../utils/fajrAlarm';
 import { describeAutoSource } from '../utils/prayerSource';
 import { useTablesVersion } from '../utils/useOfficialTables';
 import { useLocation } from '../utils/LocationContext';
@@ -129,6 +129,24 @@ function Cell({ active, onPress, style, children }) {
   );
 }
 
+// Строка состояния будильника по последнему планированию.
+function alarmStatusText(status, lang) {
+  const ru = lang === 'ru';
+  if (!status) return ru ? 'Будильник ещё не планировался: откройте вкладку «Намаз».' : 'Not scheduled yet: open the Prayer tab.';
+  if (status.count > 0) {
+    const d = new Date(status.next);
+    const when = d.toLocaleString(ru ? 'ru-RU' : 'en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    const plain = status.level === 'alarmkit' ? (ru ? ' (системный будильник)' : ' (system alarm)')
+      : status.kitDenied ? (ru ? ' (уведомления: будильникам Noor не дано разрешение в настройках iOS)' : ' (notifications: alarms are not allowed for Noor in iOS Settings)')
+      : status.level === 'active' ? (ru ? ' (обычные уведомления)' : ' (regular notifications)') : '';
+    return (ru ? `Запланировано сигналов: ${status.count}, ближайший — ${when}` : `Scheduled: ${status.count}, next ${when}`) + plain;
+  }
+  if (status.reason === 'denied') return ru ? 'Не запланирован: нет разрешения на уведомления.' : 'Not scheduled: notifications are not allowed.';
+  if (status.reason === 'error') return (ru ? 'Не запланирован, iOS отказала: ' : 'Not scheduled, iOS refused: ') + status.error;
+  if (status.reason === 'past') return ru ? 'Не запланирован: на ближайшие утра вы уже отметили «Я проснулся».' : 'Not scheduled: already marked awake.';
+  return ru ? 'Не запланирован: нет времён Фаджра на ближайшие дни.' : 'Not scheduled: no Fajr times for the next days.';
+}
+
 export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
@@ -154,6 +172,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const [openSection, setOpenSection] = useState(null);
   const [alarmOn, setAlarmOn] = useState(false);
   const [alarmInt, setAlarmInt] = useState(5);
+  const [alarmStatus, setAlarmStatus] = useState(null);
+  const [alarmTest, setAlarmTest] = useState(null);
 
   // Источник времени не выбирается: график духовного управления региона и
   // ближайшего к месту пункта, а где его нет — метод. Здесь только сказать,
@@ -181,6 +201,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   const tuned = TUNE_PRAYERS.some((key) => tune?.[key]);
   React.useEffect(() => { (async () => {
     const st = await getFajrAlarmSettings(); setAlarmOn(st.enabled); setAlarmInt(st.interval);
+    setAlarmStatus(await getFajrAlarmStatus());
   })(); }, [visible]);
 
   function toggle(id) {
@@ -330,6 +351,30 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
               ))}
             </View>
           )}
+          {/* Что на самом деле стоит в очереди iOS: если будильник «не приходит»,
+              здесь видно, запланирован ли он вообще и почему нет. */}
+          {alarmOn && (
+            <Text style={[styles.hintText, { marginTop: SPACING.xs }]}>{alarmStatusText(alarmStatus, lang)}</Text>
+          )}
+          {alarmOn && (
+            <TouchableOpacity style={[styles.intChip, styles.tuneReset]} activeOpacity={0.8}
+              onPress={async () => {
+                setAlarmTest(lang === 'ru' ? 'Ждите сигнал через 10 секунд…' : 'Wait 10 seconds…');
+                const r = await testFajrAlarm({
+                  title: lang === 'ru' ? 'Проверка будильника' : 'Alarm test',
+                  body: lang === 'ru' ? 'Если вы это видите, уведомления доходят.' : 'If you see this, notifications work.',
+                  stop: lang === 'ru' ? 'Стоп' : 'Stop',
+                });
+                if (r === 'denied') setAlarmTest(lang === 'ru' ? 'Нет разрешения на уведомления: Настройки iOS → Noor → Уведомления.' : 'Notifications are not allowed: iOS Settings → Noor → Notifications.');
+                else if (r !== 'timeSensitive' && r !== 'active' && r !== 'alarmkit') setAlarmTest((lang === 'ru' ? 'iOS отказала: ' : 'iOS refused: ') + r);
+                else if (r === 'active') setAlarmTest(lang === 'ru' ? 'Поставлен как обычное уведомление: «срочные» этому приложению запрещены. Сверните Noor и ждите.' : 'Scheduled as a regular notification. Leave Noor and wait.');
+                else if (r === 'alarmkit') setAlarmTest(lang === 'ru' ? 'Системный будильник прозвенит через 10 секунд — даже в беззвучном режиме.' : 'A system alarm will ring in 10 seconds, even on silent.');
+                else setAlarmTest(lang === 'ru' ? 'Поставлен. Сверните Noor и ждите сигнал.' : 'Scheduled. Leave Noor and wait.');
+              }}>
+              <Text style={styles.intText}>{lang === 'ru' ? 'Проверить через 10 секунд' : 'Test in 10 seconds'}</Text>
+            </TouchableOpacity>
+          )}
+          {alarmOn && !!alarmTest && <Text style={[styles.hintText, { marginTop: SPACING.xs }]}>{alarmTest}</Text>}
         </Section>
 
         {/* ===== APPEARANCE ===== */}
