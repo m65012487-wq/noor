@@ -4,6 +4,7 @@ import Text from '../components/AppText';
 import GlassView from '../components/GlassView';
 import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
+import { pick } from '../i18n/languages';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 import SeedIcon from './SeedIcon';
@@ -13,19 +14,18 @@ const FALL_MS = 900;
 const TOAST_MS = 2600;
 
 const REASON_LABEL = {
-  week: { ru: '7 дней зикра', en: '7 days of dhikr' },
-  harvest: { ru: 'Первый урожай — новая порода', en: 'First harvest — a new species' },
-  circle: { ru: 'Полный круг 99', en: 'A full circle of 99' },
-  growth: { ru: 'Дерево подросло', en: 'The tree has grown' },
-  friday: { ru: 'Пятничное зерно', en: 'A Friday seed' },
+  week: { ru: '7 дней зикра', en: '7 days of dhikr', tr: '7 gün zikir', id: '7 hari dzikir', fr: '7 jours de dhikr', de: '7 Tage Dhikr', es: '7 días de dhikr' },
+  harvest: { ru: 'Первый урожай — новая порода', en: 'First harvest — a new species', tr: 'İlk hasat — yeni bir tür', id: 'Panen pertama — jenis baru', fr: 'Première récolte — une nouvelle espèce', de: 'Erste Ernte — eine neue Art', es: 'Primera cosecha: una especie nueva' },
+  circle: { ru: 'Полный круг 99', en: 'A full circle of 99', tr: '99’luk tam bir tur', id: 'Satu putaran penuh 99', fr: 'Un cercle complet de 99', de: 'Ein voller Kreis von 99', es: 'Una vuelta completa de 99' },
+  growth: { ru: 'Дерево подросло', en: 'The tree has grown', tr: 'Ağaç büyüdü', id: 'Pohon telah tumbuh', fr: 'L’arbre a grandi', de: 'Der Baum ist gewachsen', es: 'El árbol ha crecido' },
+  friday: { ru: 'Пятничное зерно', en: 'A Friday seed', tr: 'Cuma tohumu', id: 'Biji hari Jumat', fr: 'Une graine du vendredi', de: 'Ein Freitagssamen', es: 'Una semilla del viernes' },
 };
 
 // One pending drop at a time: a seed icon falls from the crown to the root
 // with a small bounce, then a toast names the species and reason. Calls
 // `onDone` once — the caller pops the drop off `pendingDrops` (ackDrop()).
 export default function SeedDrop({ drop, reduceMotion, onDone }) {
-  const { lang } = useLang();
-  const ru = lang === 'ru';
+  const { t, lang } = useLang();
   const { accent } = useAppearance();
   const fall = useRef(new Animated.Value(0)).current;
   const toast = useRef(new Animated.Value(0)).current;
@@ -58,8 +58,8 @@ export default function SeedDrop({ drop, reduceMotion, onDone }) {
   }, [drop, reduceMotion]);
 
   const species = SPECIES.find(s => s.id === drop.species);
-  const speciesLabel = species ? (ru ? species.ru : species.en) : drop.species;
-  const reasonLabel = REASON_LABEL[drop.reason] ? (ru ? REASON_LABEL[drop.reason].ru : REASON_LABEL[drop.reason].en) : '';
+  const speciesLabel = species ? pick(species, lang) : drop.species;
+  const reasonLabel = REASON_LABEL[drop.reason] ? pick(REASON_LABEL[drop.reason], lang) : '';
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -78,7 +78,7 @@ export default function SeedDrop({ drop, reduceMotion, onDone }) {
       }]}>
         <GlassView radius={RADIUS.pill} style={styles.toast}>
           <Text style={[styles.toastTitle, { color: accent }]} accessibilityLiveRegion="polite">
-            {ru ? 'Выпало зерно' : 'A seed dropped'} · {speciesLabel}
+            {t('seed_dropped')} · {speciesLabel}
           </Text>
           {!!reasonLabel && <Text style={styles.toastReason}>{reasonLabel}</Text>}
         </GlassView>

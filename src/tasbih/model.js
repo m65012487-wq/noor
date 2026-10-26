@@ -1,21 +1,21 @@
 export const DHIKR = [
-  { id: 'subhanallah', arabic: 'سُبْحَانَ اللَّهِ', ru: 'Субханаллах', en: 'SubhanAllah', translation_ru: 'Пречист Аллах', translation_en: 'Glory be to Allah', target: 33 },
-  { id: 'alhamdulillah', arabic: 'الْحَمْدُ لِلَّهِ', ru: 'Альхамдулиллях', en: 'Alhamdulillah', translation_ru: 'Хвала Аллаху', translation_en: 'Praise be to Allah', target: 33 },
-  { id: 'allahuakbar', arabic: 'اللَّهُ أَكْبَرُ', ru: 'Аллаху акбар', en: 'Allahu Akbar', translation_ru: 'Аллах превелик', translation_en: 'Allah is the greatest', target: 33 },
+  { id: 'subhanallah', arabic: 'سُبْحَانَ اللَّهِ', ru: 'Субханаллах', en: 'SubhanAllah', tr: 'Sübhanallah', lang_id: 'Subhanallah', fr: 'SubhanAllah', de: 'SubhanAllah', es: 'SubhanAllah', translation_ru: 'Пречист Аллах', translation_en: 'Glory be to Allah', translation_tr: 'Allah her eksiklikten münezzehtir', translation_id: 'Mahasuci Allah', translation_fr: 'Gloire à Allah', translation_de: 'Preis sei Allah', translation_es: 'Gloria a Allah', target: 33 },
+  { id: 'alhamdulillah', arabic: 'الْحَمْدُ لِلَّهِ', ru: 'Альхамдулиллях', en: 'Alhamdulillah', tr: 'Elhamdülillah', lang_id: 'Alhamdulillah', fr: 'Alhamdulillah', de: 'Alhamdulillah', es: 'Alhamdulillah', translation_ru: 'Хвала Аллаху', translation_en: 'Praise be to Allah', translation_tr: 'Hamd Allah’a mahsustur', translation_id: 'Segala puji bagi Allah', translation_fr: 'Louange à Allah', translation_de: 'Lob sei Allah', translation_es: 'Alabado sea Allah', target: 33 },
+  { id: 'allahuakbar', arabic: 'اللَّهُ أَكْبَرُ', ru: 'Аллаху акбар', en: 'Allahu Akbar', tr: 'Allahu Ekber', lang_id: 'Allahu Akbar', fr: 'Allahu Akbar', de: 'Allahu Akbar', es: 'Allahu Akbar', translation_ru: 'Аллах превелик', translation_en: 'Allah is the greatest', translation_tr: 'Allah en büyüktür', translation_id: 'Allah Mahabesar', translation_fr: 'Allah est le plus grand', translation_de: 'Allah ist der Größte', translation_es: 'Allah es el más grande', target: 33 },
   // Дальше идут отдельные поминания: в последовательность по умолчанию они не
   // входят (см. DEFAULT_SEQUENCE), но их можно добавить в редакторе.
-  { id: 'la_ilaha_illallah', arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ', ru: 'Ля иляха илляЛлах', en: 'La ilaha illallah', translation_ru: 'Нет божества, кроме Аллаха', translation_en: 'There is no god but Allah', target: 33 },
-  { id: 'astaghfirullah', arabic: 'أَسْتَغْفِرُ اللَّهَ', ru: 'Астагфируллах', en: 'Astaghfirullah', translation_ru: 'Прошу прощения у Аллаха', translation_en: "I seek Allah's forgiveness", target: 33 },
-  { id: 'subhanallahi_wa_bihamdihi', arabic: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', ru: 'Субханаллахи ва бихамдихи', en: 'SubhanAllahi wa bihamdihi', translation_ru: 'Пречист Аллах, и хвала Ему', translation_en: 'Glory and praise be to Allah', target: 33 },
-  { id: 'subhanallahil_azim', arabic: 'سُبْحَانَ اللَّهِ الْعَظِيمِ', ru: 'Субханаллахиль-Азым', en: 'SubhanAllahil-Azim', translation_ru: 'Пречист Аллах Великий', translation_en: 'Glory be to Allah the Magnificent', target: 33 },
-  { id: 'la_hawla', arabic: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', ru: 'Ля хауля ва ля куввата илля билЛях', en: 'La hawla wa la quwwata illa billah', translation_ru: 'Нет мощи и силы, кроме как у Аллаха', translation_en: 'There is no power nor strength except with Allah', target: 33 },
-  { id: 'salawat', arabic: 'اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ', ru: 'Аллахумма салли аля Мухаммад', en: 'Allahumma salli ala Muhammad', translation_ru: 'О Аллах, благослови Мухаммада', translation_en: 'O Allah, send blessings upon Muhammad', target: 33 },
+  { id: 'la_ilaha_illallah', arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ', ru: 'Ля иляха илляЛлах', en: 'La ilaha illallah', tr: 'La ilahe illallah', lang_id: 'La ilaha illallah', fr: 'La ilaha illallah', de: 'La ilaha illallah', es: 'La ilaha illallah', translation_ru: 'Нет божества, кроме Аллаха', translation_en: 'There is no god but Allah', translation_tr: 'Allah’tan başka ilah yoktur', translation_id: 'Tiada tuhan selain Allah', translation_fr: 'Il n’y a de divinité qu’Allah', translation_de: 'Es gibt keinen Gott außer Allah', translation_es: 'No hay más dios que Allah', target: 33 },
+  { id: 'astaghfirullah', arabic: 'أَسْتَغْفِرُ اللَّهَ', ru: 'Астагфируллах', en: 'Astaghfirullah', tr: 'Estağfirullah', lang_id: 'Astaghfirullah', fr: 'Astaghfirullah', de: 'Astaghfirullah', es: 'Astaghfirullah', translation_ru: 'Прошу прощения у Аллаха', translation_en: "I seek Allah's forgiveness", translation_tr: 'Allah’tan bağışlanma dilerim', translation_id: 'Aku memohon ampun kepada Allah', translation_fr: 'Je demande pardon à Allah', translation_de: 'Ich bitte Allah um Vergebung', translation_es: 'Pido perdón a Allah', target: 33 },
+  { id: 'subhanallahi_wa_bihamdihi', arabic: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', ru: 'Субханаллахи ва бихамдихи', en: 'SubhanAllahi wa bihamdihi', tr: 'Sübhanallahi ve bihamdihi', lang_id: 'Subhanallahi wa bihamdihi', fr: 'SubhanAllahi wa bihamdihi', de: 'SubhanAllahi wa bihamdihi', es: 'SubhanAllahi wa bihamdihi', translation_ru: 'Пречист Аллах, и хвала Ему', translation_en: 'Glory and praise be to Allah', translation_tr: 'Allah eksiklikten münezzehtir, hamd O’nadır', translation_id: 'Mahasuci Allah dan segala puji bagi-Nya', translation_fr: 'Gloire et louange à Allah', translation_de: 'Preis und Lob sei Allah', translation_es: 'Gloria y alabanza a Allah', target: 33 },
+  { id: 'subhanallahil_azim', arabic: 'سُبْحَانَ اللَّهِ الْعَظِيمِ', ru: 'Субханаллахиль-Азым', en: 'SubhanAllahil-Azim', tr: 'Sübhanallahil-Azim', lang_id: 'Subhanallahil Azhim', fr: 'SubhanAllahil-Azim', de: 'SubhanAllahil-Azim', es: 'SubhanAllahil-Azim', translation_ru: 'Пречист Аллах Великий', translation_en: 'Glory be to Allah the Magnificent', translation_tr: 'Yüce Allah her eksiklikten münezzehtir', translation_id: 'Mahasuci Allah Yang Maha Agung', translation_fr: 'Gloire à Allah, le Magnifique', translation_de: 'Preis sei Allah, dem Gewaltigen', translation_es: 'Gloria a Allah, el Magnífico', target: 33 },
+  { id: 'la_hawla', arabic: 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', ru: 'Ля хауля ва ля куввата илля билЛях', en: 'La hawla wa la quwwata illa billah', tr: 'La havle ve la kuvvete illa billah', lang_id: 'La haula wa la quwwata illa billah', fr: 'La hawla wa la quwwata illa billah', de: 'La hawla wa la quwwata illa billah', es: 'La hawla wa la quwwata illa billah', translation_ru: 'Нет мощи и силы, кроме как у Аллаха', translation_en: 'There is no power nor strength except with Allah', translation_tr: 'Güç ve kuvvet ancak Allah’ladır', translation_id: 'Tiada daya dan kekuatan kecuali dengan pertolongan Allah', translation_fr: 'Il n’y a de puissance ni de force qu’en Allah', translation_de: 'Es gibt keine Macht und keine Kraft außer bei Allah', translation_es: 'No hay poder ni fuerza sino en Allah', target: 33 },
+  { id: 'salawat', arabic: 'اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ', ru: 'Аллахумма салли аля Мухаммад', en: 'Allahumma salli ala Muhammad', tr: 'Allahümme salli ala Muhammed', lang_id: 'Allahumma shalli ala Muhammad', fr: 'Allahumma salli ala Muhammad', de: 'Allahumma salli ala Muhammad', es: 'Allahumma salli ala Muhammad', translation_ru: 'О Аллах, благослови Мухаммада', translation_en: 'O Allah, send blessings upon Muhammad', translation_tr: 'Allah’ım, Muhammed’e salât eyle', translation_id: 'Ya Allah, limpahkanlah shalawat kepada Muhammad', translation_fr: 'Ô Allah, prie sur Muhammad', translation_de: 'O Allah, sende Segen auf Muhammad herab', translation_es: 'Oh Allah, bendice a Muhammad', target: 33 },
   // Азкары после намаза (Муслим): просьба о прощении, слова о мире и завершающее
   // единобожие. Они стоят в списке рядом с остальными, а целиком собираются в набор
   // AZKAR_AFTER_PRAYER ниже.
-  { id: 'allahumma_antas_salam', arabic: 'اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ', ru: 'Аллахумма антас-саляму', en: 'Allahumma antas-salam', full_ru: 'Аллахумма антас-саляму ва минкас-салям, табаракта йа зал-джаляли валь-икрам', full_en: 'Allahumma antas-salamu wa minkas-salam, tabarakta ya dhal-jalali wal-ikram', translation_ru: 'О Аллах, Ты — Мир, и от Тебя мир; благословенен Ты, о Обладатель величия и щедрости', translation_en: 'O Allah, You are Peace and from You comes peace; blessed are You, Owner of majesty and honour', target: 1 },
-  { id: 'la_ilaha_wahdahu', arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ', ru: 'Ля иляха илляЛлаху вахдаху', en: 'La ilaha illallahu wahdahu', full_ru: 'Ля иляха илляЛлаху вахдаху ля шарика лях, ляхуль-мульку ва ляхуль-хамду ва хува ‘аля кулли шай’ин кадир', full_en: "La ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir", translation_ru: 'Нет божества, кроме Аллаха, Единого, у Которого нет сотоварища; Ему принадлежит власть и хвала, и Он всё может', translation_en: 'There is no god but Allah alone, with no partner; His is the dominion and the praise, and He is able to do all things', target: 1 },
-  { id: 'hasbunallah', arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', ru: 'Хасбуна-Ллаху ва ни‘маль-вакиль', en: "Hasbunallahu wa ni'mal wakil", translation_ru: 'Достаточно нам Аллаха, и Он — лучший Покровитель', translation_en: 'Allah is sufficient for us, and He is the best Disposer of affairs', target: 33 },
+  { id: 'allahumma_antas_salam', arabic: 'اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ', ru: 'Аллахумма антас-саляму', en: 'Allahumma antas-salam', tr: 'Allahümme entesselam', lang_id: 'Allahumma antas-salam', fr: 'Allahumma antas-salam', de: 'Allahumma antas-salam', es: 'Allahumma antas-salam', full_ru: 'Аллахумма антас-саляму ва минкас-салям, табаракта йа зал-джаляли валь-икрам', full_en: 'Allahumma antas-salamu wa minkas-salam, tabarakta ya dhal-jalali wal-ikram', full_tr: 'Allahümme entesselâmü ve minkesselâm, tebarekte ya zel-celâli vel-ikram', full_id: 'Allahumma antas-salamu wa minkas-salam, tabarakta ya dzal-jalali wal-ikram', full_fr: 'Allahumma antas-salamu wa minkas-salam, tabarakta ya dhal-jalali wal-ikram', full_de: 'Allahumma antas-salamu wa minkas-salam, tabarakta ya dhal-jalali wal-ikram', full_es: 'Allahumma antas-salamu wa minkas-salam, tabarakta ya dhal-jalali wal-ikram', translation_ru: 'О Аллах, Ты — Мир, и от Тебя мир; благословенен Ты, о Обладатель величия и щедрости', translation_en: 'O Allah, You are Peace and from You comes peace; blessed are You, Owner of majesty and honour', translation_tr: 'Allah’ım, Sen selâmsın, selâm Sendendir; ey celâl ve ikram sahibi, Sen ne yücesin', translation_id: 'Ya Allah, Engkau adalah As-Salam dan dari-Mu datang keselamatan; Mahasuci Engkau, wahai Pemilik keagungan dan kemuliaan', translation_fr: 'Ô Allah, Tu es la Paix et de Toi vient la paix ; béni sois-Tu, Maître de la majesté et de la générosité', translation_de: 'O Allah, Du bist der Friede, und von Dir kommt der Friede; gesegnet bist Du, Herr der Erhabenheit und Ehre', translation_es: 'Oh Allah, Tú eres la Paz y de Ti proviene la paz; bendito eres, Dueño de la majestad y el honor', target: 1 },
+  { id: 'la_ilaha_wahdahu', arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ', ru: 'Ля иляха илляЛлаху вахдаху', en: 'La ilaha illallahu wahdahu', tr: 'La ilahe illallahu vahdehu', lang_id: 'La ilaha illallahu wahdahu', fr: 'La ilaha illallahu wahdahu', de: 'La ilaha illallahu wahdahu', es: 'La ilaha illallahu wahdahu', full_ru: 'Ля иляха илляЛлаху вахдаху ля шарика лях, ляхуль-мульку ва ляхуль-хамду ва хува ‘аля кулли шай’ин кадир', full_en: "La ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir", full_tr: 'La ilahe illallahu vahdehu la şerike leh, lehül-mülkü ve lehül-hamdü ve hüve ala külli şey’in kadir', full_id: 'La ilaha illallahu wahdahu la syarika lah, lahul-mulku wa lahul-hamdu wa huwa ala kulli syai’in qadir', full_fr: "La ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir", full_de: "La ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir", full_es: "La ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir", translation_ru: 'Нет божества, кроме Аллаха, Единого, у Которого нет сотоварища; Ему принадлежит власть и хвала, и Он всё может', translation_en: 'There is no god but Allah alone, with no partner; His is the dominion and the praise, and He is able to do all things', translation_tr: 'Allah’tan başka ilah yoktur; O tektir, ortağı yoktur. Mülk O’nundur, hamd O’nadır ve O her şeye güç yetirendir', translation_id: 'Tiada tuhan selain Allah semata, tiada sekutu bagi-Nya; milik-Nya segala kerajaan dan bagi-Nya segala puji, dan Dia Mahakuasa atas segala sesuatu', translation_fr: 'Il n’y a de divinité qu’Allah, seul, sans associé ; à Lui la royauté et la louange, et Il est capable de toute chose', translation_de: 'Es gibt keinen Gott außer Allah allein, ohne Teilhaber; Sein ist die Herrschaft und das Lob, und Er hat Macht über alle Dinge', translation_es: 'No hay más dios que Allah, único y sin asociado; suyo es el dominio y suya la alabanza, y Él tiene poder sobre todas las cosas', target: 1 },
+  { id: 'hasbunallah', arabic: 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', ru: 'Хасбуна-Ллаху ва ни‘маль-вакиль', en: "Hasbunallahu wa ni'mal wakil", tr: 'Hasbünallahü ve ni’mel vekil', lang_id: 'Hasbunallahu wa ni’mal wakil', fr: "Hasbunallahu wa ni'mal wakil", de: "Hasbunallahu wa ni'mal wakil", es: "Hasbunallahu wa ni'mal wakil", translation_ru: 'Достаточно нам Аллаха, и Он — лучший Покровитель', translation_en: 'Allah is sufficient for us, and He is the best Disposer of affairs', translation_tr: 'Allah bize yeter, O ne güzel vekildir', translation_id: 'Cukuplah Allah bagi kami, dan Dia sebaik-baik pelindung', translation_fr: 'Allah nous suffit, et quel excellent garant', translation_de: 'Allah genügt uns, und Er ist der beste Sachwalter', translation_es: 'Allah nos basta, y Él es el mejor protector', target: 33 },
 ];
 // «Последовательность» — шаги { id, target } по кругу; по умолчанию три первых
 // поминания по 33. Задаётся явными id, а не длиной DHIKR: список поминаний
@@ -49,8 +49,8 @@ export const AZKAR_FRIDAY = [
 // последовательность человека: раньше «азкары одним нажатием» записывались
 // поверх неё, и собранное вручную пропадало.
 export const SETS = [
-  { id: 'set:after_prayer', ru: 'После намаза', en: 'After prayer', steps: AZKAR_AFTER_PRAYER },
-  { id: 'set:friday', ru: 'Пятница', en: 'Friday', steps: AZKAR_FRIDAY },
+  { id: 'set:after_prayer', ru: 'После намаза', en: 'After prayer', tr: 'Namaz sonrası', lang_id: 'Setelah shalat', fr: 'Après la prière', de: 'Nach dem Gebet', es: 'Después de la oración', steps: AZKAR_AFTER_PRAYER },
+  { id: 'set:friday', ru: 'Пятница', en: 'Friday', tr: 'Cuma', lang_id: 'Jumat', fr: 'Vendredi', de: 'Freitag', es: 'Viernes', steps: AZKAR_FRIDAY },
 ];
 const SET_IDS = new Set(SETS.map(s => s.id));
 export function isSequenceMode(state) {
@@ -87,24 +87,24 @@ export const HARVEST_EVERY = 1000;
 // которые сейчас не выбраны. Выбранное дерево растёт как обычно.
 export const FRIDAY_WATERING = 0.1;
 export const STAGE_NAMES = [
-  { ru: 'Зерно', en: 'Seed' },
-  { ru: 'Росток', en: 'Sprout' },
-  { ru: 'Побег', en: 'Shoot' },
-  { ru: 'Саженец', en: 'Sapling' },
-  { ru: 'Молодое дерево', en: 'Young tree' },
-  { ru: 'Крепкое дерево', en: 'Growing tree' },
-  { ru: 'Взрослое дерево', en: 'Mature tree' },
-  { ru: 'Плодоносящее', en: 'Fruiting' },
+  { ru: 'Зерно', en: 'Seed', tr: 'Tohum', lang_id: 'Biji', fr: 'Graine', de: 'Samen', es: 'Semilla' },
+  { ru: 'Росток', en: 'Sprout', tr: 'Filiz', lang_id: 'Tunas', fr: 'Pousse', de: 'Keimling', es: 'Brote' },
+  { ru: 'Побег', en: 'Shoot', tr: 'Sürgün', lang_id: 'Pucuk', fr: 'Jeune pousse', de: 'Trieb', es: 'Retoño' },
+  { ru: 'Саженец', en: 'Sapling', tr: 'Fidan', lang_id: 'Bibit', fr: 'Jeune plant', de: 'Setzling', es: 'Arbolito' },
+  { ru: 'Молодое дерево', en: 'Young tree', tr: 'Genç ağaç', lang_id: 'Pohon muda', fr: 'Jeune arbre', de: 'Junger Baum', es: 'Árbol joven' },
+  { ru: 'Крепкое дерево', en: 'Growing tree', tr: 'Güçlü ağaç', lang_id: 'Pohon kokoh', fr: 'Arbre robuste', de: 'Kräftiger Baum', es: 'Árbol fuerte' },
+  { ru: 'Взрослое дерево', en: 'Mature tree', tr: 'Yetişkin ağaç', lang_id: 'Pohon dewasa', fr: 'Arbre adulte', de: 'Ausgewachsener Baum', es: 'Árbol adulto' },
+  { ru: 'Плодоносящее', en: 'Fruiting', tr: 'Meyve veren', lang_id: 'Berbuah', fr: 'En fruits', de: 'Fruchttragend', es: 'Fructificando' },
 ];
 
 // Drop weight doubles for a species the player does not yet own; sidr additionally requires
 // at least 3 distinct owned species (see pickSpecies below).
 export const SPECIES = [
-  { id: 'olive', ru: 'Олива', en: 'Olive', rarity: 'common', weight: 30 },
-  { id: 'fig', ru: 'Инжир', en: 'Fig', rarity: 'common', weight: 25 },
-  { id: 'pomegranate', ru: 'Гранат', en: 'Pomegranate', rarity: 'common', weight: 25 },
-  { id: 'date_palm', ru: 'Финиковая пальма', en: 'Date palm', rarity: 'common', weight: 20 },
-  { id: 'sidr', ru: 'Сидр', en: 'Lote tree', rarity: 'rare', weight: 6 },
+  { id: 'olive', ru: 'Олива', en: 'Olive', tr: 'Zeytin', lang_id: 'Zaitun', fr: 'Olivier', de: 'Olivenbaum', es: 'Olivo', rarity: 'common', weight: 30 },
+  { id: 'fig', ru: 'Инжир', en: 'Fig', tr: 'İncir', lang_id: 'Ara', fr: 'Figuier', de: 'Feigenbaum', es: 'Higuera', rarity: 'common', weight: 25 },
+  { id: 'pomegranate', ru: 'Гранат', en: 'Pomegranate', tr: 'Nar', lang_id: 'Delima', fr: 'Grenadier', de: 'Granatapfelbaum', es: 'Granado', rarity: 'common', weight: 25 },
+  { id: 'date_palm', ru: 'Финиковая пальма', en: 'Date palm', tr: 'Hurma ağacı', lang_id: 'Pohon kurma', fr: 'Palmier dattier', de: 'Dattelpalme', es: 'Palmera datilera', rarity: 'common', weight: 20 },
+  { id: 'sidr', ru: 'Сидр', en: 'Lote tree', tr: 'Sidr ağacı', lang_id: 'Bidara (Sidr)', fr: 'Jujubier (sidr)', de: 'Sidrbaum', es: 'Azufaifo (sidr)', rarity: 'rare', weight: 6 },
 ];
 const SPECIES_IDS = new Set(SPECIES.map(s => s.id));
 
@@ -135,7 +135,7 @@ function dhikrDefinition(state, id, target) {
   if (typeof id === 'string' && id.startsWith('custom:')) {
     const custom = customDhikrById(state, id);
     if (!custom) return null;
-    return { id, arabic: custom.arabic || '', ru: custom.text, en: custom.text,
+    return { id, arabic: custom.arabic || '', ru: custom.text, en: custom.text, lang_id: custom.text,
       translation_ru: custom.translation || '', translation_en: custom.translation || '', target };
   }
   const found = DHIKR.find(d => d.id === id);
@@ -161,8 +161,8 @@ export function sequenceSteps(state) {
 // ignores circleLimit entirely — every step has its own target.
 export function definition(state) {
   if (state.selectedDhikr === 'free') {
-    return { id: 'free', arabic: '', ru: 'Свободный зикр', en: 'Free dhikr',
-      translation_ru: 'Любые поминания — просто считайте', translation_en: 'Any remembrance — just count',
+    return { id: 'free', arabic: '', ru: 'Свободный зикр', en: 'Free dhikr', tr: 'Serbest zikir', lang_id: 'Dzikir bebas', fr: 'Dhikr libre', de: 'Freier Dhikr', es: 'Dhikr libre',
+      translation_ru: 'Любые поминания — просто считайте', translation_en: 'Any remembrance — just count', translation_tr: 'Herhangi bir zikir — yalnızca sayın', translation_id: 'Dzikir apa saja — cukup hitung', translation_fr: 'N’importe quel rappel — comptez simplement', translation_de: 'Beliebiges Gedenken — einfach zählen', translation_es: 'Cualquier recuerdo de Allah: solo cuente',
       target: state.circleLimit ? 33 : null };
   }
   if (!isSequenceMode(state)) {

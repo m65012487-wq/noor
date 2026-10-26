@@ -567,6 +567,15 @@ test('on iOS 26 the Fajr alarm uses system alarms, and waking cancels only that 
   await alarm.scheduleFajrDays(days, { title: 'Fajr', body: 'Wake', stop: 'Stop' });
   assert.equal(kit.size, 8);
 });
+test('the letter name is voiced in the interface language; other recordings are shared', () => {
+  const course = loader()('src/constants/alphabetCourse.js');
+  const file = (key, lang) => course.audioFor(key, lang).uri;
+  assert.ok(file('8-0', 'de').endsWith('/names/de-8.m4a'));
+  assert.ok(file('1-0', 'tr').endsWith('/names/tr-1.m4a'));
+  assert.ok(file('8-0', 'ru').endsWith('/alphabet/8-0.m4a'));
+  assert.ok(file('8-1', 'de').endsWith('/alphabet/8-1.m4a'));
+  assert.equal(course.audioFor(null, 'de'), null);
+});
 test('growthRatio reports progress toward the next stage, by growth alone', () => {
   const tree = (stage, progress, activeDays = 0) => ({ stage, progress, activeDays });
   // Stage 0 → 1 needs 40, stage 2 → 3 goes from 160 to 360.
@@ -1734,7 +1743,10 @@ test('the country method table is complete: every number has a local twin from t
 test('the Auto source is the first and the only one in use; an unknown id still means the League, not Auto', async () => {
   const { source, calls } = autoWorld();
   const first = source.TIME_SOURCES[0];
-  assert.deepEqual(first, { id: 'auto', label_en: 'Auto: your region’s muftiate', label_ru: 'Авто: ДУМ вашего региона', method: null });
+  assert.equal(first.id, 'auto');
+  assert.equal(first.label_en, 'Auto: your region’s muftiate');
+  assert.equal(first.label_ru, 'Авто: ДУМ вашего региона');
+  assert.equal(first.method, null);
   assert.equal(source.TIME_SOURCES.filter((s) => s.id === 'auto').length, 1);
   const urls = [];
   await withFetch(aladhanOnline(urls), () => source.getPrayerTimes2({ lat: 41, lng: 29, country: 'TR', sourceId: 'retired-source' }));

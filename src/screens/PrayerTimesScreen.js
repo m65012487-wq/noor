@@ -172,7 +172,7 @@ export default function PrayerTimesScreen() {
       .then(day => {
         if (cancelled) return [];
         setTimings(day.timings);
-        if (day.offlineFallback) setError(lang === 'ru' ? 'Нет ответа источника: используется локальный расчёт выбранного метода.' : 'Source unavailable: using the selected method offline.');
+        if (day.offlineFallback) setError(t('prayer_source_offline'));
         setLoading(false);
         return getPrayerWindow(options);
       })
@@ -202,16 +202,16 @@ export default function PrayerTimesScreen() {
         reminders, sound: notifSoundFile(notifSound), atTimeSound: adhanNotifSoundFile(adhanNotifSound),
         label: p => prayerName(p, lang),
         body: (p, minutes) => p === 'Sunrise' ? t('notif_sunrise')
-          : minutes === 0 ? (lang === 'ru' ? 'Время ' : 'Time for ') + prayerName(p, lang)
-          : (lang === 'ru' ? minutes + ' минут до ' : minutes + ' minutes until ') + prayerName(p, lang),
+          : minutes === 0 ? t('prayer_notif_time_for', { name: prayerName(p, lang) })
+          : t('prayer_notif_minutes_until', { n: minutes, name: prayerName(p, lang) }),
       });
       await scheduleFajrDays(days, {
-        title: lang === 'ru' ? 'Фаджр — время проснуться' : 'Fajr — time to wake up',
-        body: lang === 'ru' ? 'Подтвердите «Я проснулся» в приложении.' : 'Confirm “I’m awake” in the app.',
-        stop: lang === 'ru' ? 'Стоп' : 'Stop',
+        title: t('fajr_alarm_title'),
+        body: t('fajr_alarm_body'),
+        stop: t('stop'),
       });
       if (!cancelled) setAlarmWindow(await isInAlarmWindow() && (await getFajrAlarmSettings()).enabled);
-    }).catch(() => { if (!cancelled) setError(lang === 'ru' ? 'Не удалось обновить уведомления. Проверьте разрешения.' : 'Could not update notifications. Check permissions.'); });
+    }).catch(() => { if (!cancelled) setError(t('prayer_notif_update_failed')); });
     return () => { cancelled = true; };
   }, [days, reminders, notifSound, adhanNotifSound, lang, t]);
 
@@ -233,7 +233,7 @@ export default function PrayerTimesScreen() {
   const friday = isFridayNow(clock);
   const festive = friday && festiveFriday;
   const jumuah = clock.getDay() === 5;
-  const pname = (p) => (p === 'Dhuhr' && jumuah ? (lang === 'ru' ? 'Джума' : "Jumu'ah") : prayerName(p, lang));
+  const pname = (p) => (p === 'Dhuhr' && jumuah ? t('prayer_jumuah') : prayerName(p, lang));
   useEffect(() => {
     if (!focused || !friday) return undefined;
     let cancelled = false;

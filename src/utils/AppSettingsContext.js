@@ -114,13 +114,13 @@ export const useAppSettings = () => useContext(AppSettingsContext);
 // и только в несжатом виде. Записи азанов лежат в сети и идут минутами,
 // поэтому азан звучит в приложении, а не в уведомлении.
 export const NOTIF_SOUNDS = [
-  { id: 'default', label_en: 'System',  label_ru: 'Системный',   file: undefined },
-  { id: 'chime',   label_en: 'Chime',   label_ru: 'Колокольчик', file: 'chime.wav' },
-  { id: 'bell',    label_en: 'Bell',    label_ru: 'Колокол',     file: 'bell.wav' },
-  { id: 'soft',    label_en: 'Soft',    label_ru: 'Тихий',       file: 'soft.wav' },
+  { id: 'default', label_en: 'System', label_tr: 'Sistem', label_id: 'Sistem', label_fr: 'Système', label_de: 'System', label_es: 'Sistema',  label_ru: 'Системный',   file: undefined },
+  { id: 'chime',   label_en: 'Chime', label_tr: 'Çan sesi', label_id: 'Denting', label_fr: 'Carillon', label_de: 'Glockenspiel', label_es: 'Campanilla',   label_ru: 'Колокольчик', file: 'chime.wav' },
+  { id: 'bell',    label_en: 'Bell', label_tr: 'Çan', label_id: 'Lonceng', label_fr: 'Cloche', label_de: 'Glocke', label_es: 'Campana',    label_ru: 'Колокол',     file: 'bell.wav' },
+  { id: 'soft',    label_en: 'Soft', label_tr: 'Yumuşak', label_id: 'Lembut', label_fr: 'Doux', label_de: 'Sanft', label_es: 'Suave',    label_ru: 'Тихий',       file: 'soft.wav' },
   // Запись с Pixabay (Pixabay Content License, без указания автора), см.
   // assets/sounds/SOURCES.md: переведена в WAV, громкость выровнена до −1 дБ.
-  { id: 'thunderBig', label_en: 'Thunder', label_ru: 'Гром', file: 'thunder_big.wav' },
+  { id: 'thunderBig', label_en: 'Thunder', label_tr: 'Gök gürültüsü', label_id: 'Guntur', label_fr: 'Tonnerre', label_de: 'Donner', label_es: 'Trueno', label_ru: 'Гром', file: 'thunder_big.wav' },
 ];
 
 // Убранные варианты грома сводятся к оставшемуся, а не к системному звуку.

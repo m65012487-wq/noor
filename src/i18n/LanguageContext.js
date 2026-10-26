@@ -1,12 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getLocales } from 'expo-localization';
 import { STRINGS } from './strings';
+import { LANG_IDS } from './languages';
 import { loadJSON, saveJSON } from '../utils/helpers';
+
+// Строка словаря на языке интерфейса: нет перевода — английская, затем ключ.
+// vars подставляются вместо {имя}: t('min_until', { n: 5 }) → «5 минут до…».
+function translate(lang, key, vars) {
+  let text = STRINGS[lang]?.[key] ?? STRINGS.en[key] ?? key;
+  if (vars) for (const [name, value] of Object.entries(vars)) text = text.split(`{${name}}`).join(String(value));
+  return text;
+}
 
 const LangContext = createContext({
   lang: 'en',
   setLang: () => {},
-  t: (k) => k,
+  t: (k, vars) => translate('en', k, vars),
 });
 
 export function LanguageProvider({ children }) {
@@ -16,12 +25,12 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     (async () => {
       const saved = await loadJSON('appLang', null);
-      if (saved) {
+      if (saved && LANG_IDS.includes(saved)) {
         setLangState(saved);
       } else {
-        // Detect from phone language, default English otherwise.
+        // Язык телефона, если он среди наших; иначе английский.
         const sys = getLocales()?.[0]?.languageCode;
-        setLangState(sys === 'ru' ? 'ru' : 'en');
+        setLangState(LANG_IDS.includes(sys) ? sys : 'en');
       }
       setReady(true);
     })();
@@ -32,7 +41,7 @@ export function LanguageProvider({ children }) {
     await saveJSON('appLang', l);
   };
 
-  const t = (key) => STRINGS[lang][key] ?? STRINGS.en[key] ?? key;
+  const t = (key, vars) => translate(lang, key, vars);
 
   if (!ready) return null;
 

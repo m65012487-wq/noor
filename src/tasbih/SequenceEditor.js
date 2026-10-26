@@ -4,6 +4,7 @@ import Text from '../components/AppText';
 import Icon from '../components/Icon';
 import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
+import { localized, pick } from '../i18n/languages';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
 import { DEFAULT_SEQUENCE, DHIKR, SEQUENCE_MAX_STEPS, SEQUENCE_MAX_TARGET, ownSequenceSteps } from './model';
@@ -20,7 +21,7 @@ const sameSteps = (a, b) => a.length === b.length && a.every((step, i) => step.i
 // сразу, на каждое нажатие, — у number-pad на iOS нет Return, и blur мог бы не
 // случиться. Пустое поле и 0 живут черновиком, а на blur возвращается текущее число.
 // Строка знает свой устойчивый ключ rowKey: правки адресуются им, а не позицией.
-function StepRow({ rowKey, index, step, name, first, last, only, ru, accent, onTarget, onMove, onRemove, onFocusRow }) {
+function StepRow({ rowKey, index, step, name, first, last, only, t, accent, onTarget, onMove, onRemove, onFocusRow }) {
   const [draft, setDraft] = useState(null);
   const top = useRef(0);
   const typed = raw => {
@@ -37,32 +38,32 @@ function StepRow({ rowKey, index, step, name, first, last, only, ru, accent, onT
       </View>
       <View style={styles.stepControls}>
         <View style={styles.stepper}>
-          <Pressable accessibilityRole="button" accessibilityLabel={ru ? `Меньше: ${name}` : `Decrease: ${name}`}
+          <Pressable accessibilityRole="button" accessibilityLabel={t('seq_decrease', { name })}
             accessibilityState={{ disabled: step.target <= 1 }} disabled={step.target <= 1}
             onPress={() => bump(-1)} style={[styles.iconButton, step.target <= 1 && styles.disabled]}>
             <Icon name="remove" size={18} color={accent} />
           </Pressable>
           <TextInput style={styles.countInput} keyboardType="number-pad" returnKeyType="done" maxLength={3} selectTextOnFocus
-            accessibilityLabel={ru ? `Число повторений: ${name}` : `Repeat count: ${name}`}
+            accessibilityLabel={t('seq_repeat_count', { name })}
             value={draft ?? String(step.target)} onChangeText={typed}
             onFocus={() => onFocusRow?.(top.current)} onBlur={() => setDraft(null)} />
-          <Pressable accessibilityRole="button" accessibilityLabel={ru ? `Больше: ${name}` : `Increase: ${name}`}
+          <Pressable accessibilityRole="button" accessibilityLabel={t('seq_increase', { name })}
             accessibilityState={{ disabled: step.target >= SEQUENCE_MAX_TARGET }} disabled={step.target >= SEQUENCE_MAX_TARGET}
             onPress={() => bump(1)} style={[styles.iconButton, step.target >= SEQUENCE_MAX_TARGET && styles.disabled]}>
             <Icon name="add" size={18} color={accent} />
           </Pressable>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel={ru ? `Выше: ${name}` : `Move up: ${name}`}
+        <Pressable accessibilityRole="button" accessibilityLabel={t('seq_move_up', { name })}
           accessibilityState={{ disabled: first }} disabled={first}
           onPress={() => { hapticLight(); onMove(rowKey, -1); }} style={[styles.iconButton, first && styles.disabled]}>
           <Icon name="up" size={18} color={COLORS.text} />
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={ru ? `Ниже: ${name}` : `Move down: ${name}`}
+        <Pressable accessibilityRole="button" accessibilityLabel={t('seq_move_down', { name })}
           accessibilityState={{ disabled: last }} disabled={last}
           onPress={() => { hapticLight(); onMove(rowKey, 1); }} style={[styles.iconButton, last && styles.disabled]}>
           <Icon name="down" size={18} color={COLORS.text} />
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={ru ? `Убрать из последовательности: ${name}` : `Remove from sequence: ${name}`}
+        <Pressable accessibilityRole="button" accessibilityLabel={t('seq_remove', { name })}
           accessibilityState={{ disabled: only }} disabled={only}
           onPress={() => { hapticLight(); onRemove(rowKey); }} style={[styles.iconButton, only && styles.disabled]}>
           <Icon name="close" size={16} color={COLORS.textMuted} />
@@ -77,8 +78,7 @@ function StepRow({ rowKey, index, step, name, first, last, only, ru, accent, onT
 // в setSequence и сохраняется; «Готово» возвращает к списку режимов.
 // Шаги берутся из ownSequenceSteps: так редактор показывает ровно то, что считается.
 export default function SequenceEditor({ state, setSequence, onDone, onFocusRow }) {
-  const { lang } = useLang();
-  const ru = lang === 'ru';
+  const { t, lang } = useLang();
   const { accent } = useAppearance();
   const [picking, setPicking] = useState(false);
 
@@ -136,7 +136,7 @@ export default function SequenceEditor({ state, setSequence, onDone, onFocusRow 
   };
 
   const pickable = [
-    ...DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en, sub: ru ? d.translation_ru : d.translation_en })),
+    ...DHIKR.map(d => ({ id: d.id, label: pick(d, lang), sub: localized(d, 'translation', lang) })),
     ...(state.customDhikr || []).map(d => ({ id: `custom:${d.id}`, label: d.text, sub: d.translation })),
   ];
 
@@ -148,7 +148,7 @@ export default function SequenceEditor({ state, setSequence, onDone, onFocusRow 
           const label = preset.map(step => step.target).join(' · ');
           return (
             <Pressable key={label} accessibilityRole="button" accessibilityState={{ selected }}
-              accessibilityLabel={ru ? `Набор ${label}` : `Preset ${label}`}
+              accessibilityLabel={t('seq_preset', { label })}
               onPress={() => choosePreset(preset)}
               style={[styles.chip, selected && { borderColor: accent }]}>
               <Text style={[styles.chipText, selected && { color: accent, fontWeight: '600' }]}>{label}</Text>
@@ -158,23 +158,23 @@ export default function SequenceEditor({ state, setSequence, onDone, onFocusRow 
       </View>
 
       {resolved.map((d, index) => (
-        <StepRow key={keysRef.current[index]} rowKey={keysRef.current[index]} index={index} step={steps[index]} name={ru ? d.ru : d.en}
-          first={index === 0} last={index === steps.length - 1} only={steps.length <= 1} ru={ru} accent={accent}
+        <StepRow key={keysRef.current[index]} rowKey={keysRef.current[index]} index={index} step={steps[index]} name={pick(d, lang)}
+          first={index === 0} last={index === steps.length - 1} only={steps.length <= 1} t={t} accent={accent}
           onTarget={setTarget} onMove={move} onRemove={remove} onFocusRow={onFocusRow} />
       ))}
 
       {full ? (
-        <Text style={styles.limit}>{ru ? `Предел — ${SEQUENCE_MAX_STEPS} шагов.` : `Limit reached — ${SEQUENCE_MAX_STEPS} steps.`}</Text>
+        <Text style={styles.limit}>{t('seq_limit', { n: SEQUENCE_MAX_STEPS })}</Text>
       ) : (
         <>
           <Pressable accessibilityRole="button" accessibilityState={{ expanded: picking }}
             onPress={() => { hapticLight(); setPicking(v => !v); }} style={styles.addButton}>
             <Icon name={picking ? 'up' : 'add'} size={18} color={accent} />
-            <Text style={[styles.addText, { color: accent }]}>{ru ? 'Добавить поминание' : 'Add dhikr'}</Text>
+            <Text style={[styles.addText, { color: accent }]}>{t('seq_add_dhikr')}</Text>
           </Pressable>
           {picking && pickable.map(option => (
             <Pressable key={option.id} accessibilityRole="button"
-              accessibilityLabel={ru ? `Добавить: ${option.label}` : `Add: ${option.label}`}
+              accessibilityLabel={t('seq_add', { name: option.label })}
               onPress={() => add(option.id)} style={styles.pickRow}>
               <Text style={styles.pickText} numberOfLines={1}>{option.label}</Text>
               {!!option.sub && <Text style={styles.pickSub} numberOfLines={1}>{option.sub}</Text>}
@@ -185,7 +185,7 @@ export default function SequenceEditor({ state, setSequence, onDone, onFocusRow 
 
       <Pressable accessibilityRole="button" onPress={() => { hapticLight(); onDone(); }}
         style={[styles.doneButton, { backgroundColor: accent }]}>
-        <Text style={styles.doneText}>{ru ? 'Готово' : 'Done'}</Text>
+        <Text style={styles.doneText}>{t('done_btn')}</Text>
       </Pressable>
     </View>
   );

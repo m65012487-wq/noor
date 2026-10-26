@@ -14,7 +14,7 @@ const AppearanceContext = createContext(null);
 // tintColor, поэтому «узор × цвет» не размножается файлами.
 export const PATTERNS = [
   // Однотонный градиент схемы — для тех, кому рисунок под текстом мешает.
-  { id: 'none',     label_en: 'Plain',    label_ru: 'Без рисунка', kind: 'none' },
+  { id: 'none',     label_en: 'Plain', label_tr: 'Sade', label_id: 'Polos', label_fr: 'Uni', label_de: 'Schlicht', label_es: 'Liso',    label_ru: 'Без рисунка', kind: 'none' },
 
   // Сцены — растягиваются на весь экран и разложены на три плана, которые
   // сдвигаются при наклоне телефона; цвет задаёт схема. Убраны по просьбе:
@@ -22,18 +22,18 @@ export const PATTERNS = [
   // «Цветок», «Гирих», сцены «Полумесяц», «Скакуны», «Скалы», «Оливы»,
   // «Миндаль», «Тюльпаны», «Розы», «Кувшинки», «Сабля», «Знамя», «Кедры»,
   // «Всадник», «Табун», «Клинки».
-  { id: 'desert',   label_en: 'Desert',   label_ru: 'Пустыня',  kind: 'scene' },
+  { id: 'desert',   label_en: 'Desert', label_tr: 'Çöl', label_id: 'Gurun', label_fr: 'Désert', label_de: 'Wüste', label_es: 'Desierto',   label_ru: 'Пустыня',  kind: 'scene' },
   // Сцены Krea-2 (scripts/tasbih_assets/build_scenes_v5.py).
-  { id: 'caravan',  label_en: 'Caravan',  label_ru: 'Караван',  kind: 'scene' },
-  { id: 'blossom',  label_en: 'Blossom',  label_ru: 'Цветение', kind: 'scene' },
-  { id: 'gallop',   label_en: 'Gallop',   label_ru: 'Скачка',   kind: 'scene' },
-  { id: 'rest',     label_en: 'Rest',     label_ru: 'Привал',   kind: 'scene' },
+  { id: 'caravan',  label_en: 'Caravan', label_tr: 'Kervan', label_id: 'Kafilah', label_fr: 'Caravane', label_de: 'Karawane', label_es: 'Caravana',  label_ru: 'Караван',  kind: 'scene' },
+  { id: 'blossom',  label_en: 'Blossom', label_tr: 'Çiçeklenme', label_id: 'Mekar', label_fr: 'Floraison', label_de: 'Blüte', label_es: 'Floración',  label_ru: 'Цветение', kind: 'scene' },
+  { id: 'gallop',   label_en: 'Gallop', label_tr: 'Dörtnala', label_id: 'Berderap', label_fr: 'Galop', label_de: 'Galopp', label_es: 'Galope',   label_ru: 'Скачка',   kind: 'scene' },
+  { id: 'rest',     label_en: 'Rest', label_tr: 'Mola', label_id: 'Istirahat', label_fr: 'Halte', label_de: 'Rast', label_es: 'Descanso',     label_ru: 'Привал',   kind: 'scene' },
 
   // Живые абстрактные темы (src/components/LiveBackground.js): рисуются кодом
   // в цветах схемы и медленно движутся.
-  { id: 'waves',    label_en: 'Waves',    label_ru: 'Волны',    kind: 'live' },
-  { id: 'orbits',   label_en: 'Orbits',   label_ru: 'Орбиты',   kind: 'live' },
-  { id: 'dust',     label_en: 'Dust',     label_ru: 'Пылинки',  kind: 'live' },
+  { id: 'waves',    label_en: 'Waves', label_tr: 'Dalgalar', label_id: 'Gelombang', label_fr: 'Vagues', label_de: 'Wellen', label_es: 'Olas',    label_ru: 'Волны',    kind: 'live' },
+  { id: 'orbits',   label_en: 'Orbits', label_tr: 'Yörüngeler', label_id: 'Orbit', label_fr: 'Orbites', label_de: 'Umlaufbahnen', label_es: 'Órbitas',   label_ru: 'Орбиты',   kind: 'live' },
+  { id: 'dust',     label_en: 'Dust', label_tr: 'Toz zerreleri', label_id: 'Debu', label_fr: 'Poussière', label_de: 'Staub', label_es: 'Polvo',     label_ru: 'Пылинки',  kind: 'live' },
 ];
 
 // Убранные живые темы переходят на ближайшие по духу, а не на тему по умолчанию.
@@ -90,21 +90,21 @@ export function patternKind(id) {
 // стиль, свою графику ворот и сада и спорила с узорами. Остались плоские
 // схемы — цвет из них задаёт и фон, и узор, и дерево тасбиха.
 export const SCHEMES = [
-  { id: 'ink',   label_en: 'Ink',    label_ru: 'Тушь',
+  { id: 'ink',   label_en: 'Ink', label_tr: 'Mürekkep', label_id: 'Tinta', label_fr: 'Encre', label_de: 'Tinte', label_es: 'Tinta',    label_ru: 'Тушь',
     bg: ['#1b2430', '#0d131b'], tint: '190,205,220', accent: '#c8d6e2' },
-  { id: 'night', label_en: 'Night',  label_ru: 'Ночь',
+  { id: 'night', label_en: 'Night', label_tr: 'Gece', label_id: 'Malam', label_fr: 'Nuit', label_de: 'Nacht', label_es: 'Noche',  label_ru: 'Ночь',
     bg: ['#1a1d33', '#0c0d19'], tint: '180,190,235', accent: '#b6c0ec' },
-  { id: 'sea',   label_en: 'Sea',    label_ru: 'Море',
+  { id: 'sea',   label_en: 'Sea', label_tr: 'Deniz', label_id: 'Laut', label_fr: 'Mer', label_de: 'Meer', label_es: 'Mar',    label_ru: 'Море',
     bg: ['#162a2e', '#0a1517'], tint: '160,210,210', accent: '#a3d4d2' },
-  { id: 'moss',  label_en: 'Moss',   label_ru: 'Мох',
+  { id: 'moss',  label_en: 'Moss', label_tr: 'Yosun', label_id: 'Lumut', label_fr: 'Mousse', label_de: 'Moos', label_es: 'Musgo',   label_ru: 'Мох',
     bg: ['#1a2620', '#0c130f'], tint: '165,205,180', accent: '#a6cfb6' },
-  { id: 'sand',  label_en: 'Sand',   label_ru: 'Песок',
+  { id: 'sand',  label_en: 'Sand', label_tr: 'Kum', label_id: 'Pasir', label_fr: 'Sable', label_de: 'Sand', label_es: 'Arena',   label_ru: 'Песок',
     bg: ['#2a241c', '#15110c'], tint: '215,195,160', accent: '#d8c49c' },
-  { id: 'plum',  label_en: 'Plum',   label_ru: 'Слива',
+  { id: 'plum',  label_en: 'Plum', label_tr: 'Erik', label_id: 'Prem', label_fr: 'Prune', label_de: 'Pflaume', label_es: 'Ciruela',   label_ru: 'Слива',
     bg: ['#241c2b', '#110d15'], tint: '200,180,215', accent: '#c4aed6' },
-  { id: 'blush', label_en: 'Blush',  label_ru: 'Румянец',
+  { id: 'blush', label_en: 'Blush', label_tr: 'Gül pembesi', label_id: 'Merona', label_fr: 'Rose poudré', label_de: 'Rosé', label_es: 'Rubor',  label_ru: 'Румянец',
     bg: ['#664a55', '#2f2228'], tint: '248,222,232', accent: '#f6dbe6' },
-  { id: 'lavender', label_en: 'Lavender', label_ru: 'Лаванда',
+  { id: 'lavender', label_en: 'Lavender', label_tr: 'Lavanta', label_id: 'Lavender', label_fr: 'Lavande', label_de: 'Lavendel', label_es: 'Lavanda', label_ru: 'Лаванда',
     bg: ['#4e4d6c', '#25243a'], tint: '228,226,248', accent: '#e2e0f8' },
 ];
 
@@ -122,28 +122,28 @@ export const SCHEMES = [
 // Rounded и SF Mono): React Native на iOS отдаёт их по родовым именам
 // ui-rounded и ui-monospace. Ничего не скачивается, кириллица в них полная.
 export const UI_FONTS = [
-  { id: 'pixel',   label_en: 'Pixel',   label_ru: 'Пиксельный',  family: 'Departure Mono' },
-  { id: 'system',  label_en: 'System',  label_ru: 'Системный',   family: undefined },
-  { id: 'rounded', label_en: 'Rounded', label_ru: 'Скруглённый', family: 'ui-rounded' },
-  { id: 'mono',    label_en: 'Mono',    label_ru: 'Моно',        family: 'ui-monospace' },
+  { id: 'pixel',   label_en: 'Pixel', label_tr: 'Piksel', label_id: 'Piksel', label_fr: 'Pixel', label_de: 'Pixel', label_es: 'Píxel',   label_ru: 'Пиксельный',  family: 'Departure Mono' },
+  { id: 'system',  label_en: 'System', label_tr: 'Sistem', label_id: 'Sistem', label_fr: 'Système', label_de: 'System', label_es: 'Sistema',  label_ru: 'Системный',   family: undefined },
+  { id: 'rounded', label_en: 'Rounded', label_tr: 'Yuvarlak', label_id: 'Membulat', label_fr: 'Arrondie', label_de: 'Abgerundet', label_es: 'Redondeada', label_ru: 'Скруглённый', family: 'ui-rounded' },
+  { id: 'mono',    label_en: 'Mono', label_tr: 'Mono', label_id: 'Mono', label_fr: 'Mono', label_de: 'Mono', label_es: 'Mono',    label_ru: 'Моно',        family: 'ui-monospace' },
 ];
 
 export const READING_FONTS = [
-  { id: 'system',  label_en: 'System',  label_ru: 'Системный',   family: undefined },
-  { id: 'ptsans',  label_en: 'Grotesk', label_ru: 'Гротеск',     family: 'PT Sans' },
-  { id: 'ptserif', label_en: 'Book',    label_ru: 'Книжный',     family: 'PT Serif' },
-  { id: 'georgia', label_en: 'Serif',   label_ru: 'С засечками', family: 'Georgia' },
+  { id: 'system',  label_en: 'System', label_tr: 'Sistem', label_id: 'Sistem', label_fr: 'Système', label_de: 'System', label_es: 'Sistema',  label_ru: 'Системный',   family: undefined },
+  { id: 'ptsans',  label_en: 'Grotesk', label_tr: 'Grotesk', label_id: 'Grotesk', label_fr: 'Grotesque', label_de: 'Grotesk', label_es: 'Grotesca', label_ru: 'Гротеск',     family: 'PT Sans' },
+  { id: 'ptserif', label_en: 'Book', label_tr: 'Kitap', label_id: 'Buku', label_fr: 'Livre', label_de: 'Buch', label_es: 'Libro',    label_ru: 'Книжный',     family: 'PT Serif' },
+  { id: 'georgia', label_en: 'Serif', label_tr: 'Serifli', label_id: 'Serif', label_fr: 'Serif', label_de: 'Serife', label_es: 'Serif',   label_ru: 'С засечками', family: 'Georgia' },
 ];
 
 // Арабские начертания. Все встроены в iOS, поэтому ничего не скачивается.
 // Насх — привычная форма для мусхафа, куфи — угловатая, для заголовков.
 export const ARABIC_FONTS = [
-  { id: 'system',  label_en: 'System',    label_ru: 'Системный',  family: 'System' },
-  { id: 'geeza',   label_en: 'Geeza Pro', label_ru: 'Гиза',       family: 'Geeza Pro' },
-  { id: 'nile',    label_en: 'Al Nile',   label_ru: 'Ан-Ниль',    family: 'Al Nile' },
-  { id: 'damascus',label_en: 'Damascus',  label_ru: 'Дамаск',     family: 'Damascus' },
-  { id: 'mishafi', label_en: 'Mishafi',   label_ru: 'Мусхаф',     family: 'Mishafi' },
-  { id: 'baghdad', label_en: 'Baghdad',   label_ru: 'Багдад',     family: 'Baghdad' },
+  { id: 'system',  label_en: 'System', label_tr: 'Sistem', label_id: 'Sistem', label_fr: 'Système', label_de: 'System', label_es: 'Sistema',    label_ru: 'Системный',  family: 'System' },
+  { id: 'geeza',   label_en: 'Geeza Pro', label_tr: 'Geeza Pro', label_id: 'Geeza Pro', label_fr: 'Geeza Pro', label_de: 'Geeza Pro', label_es: 'Geeza Pro', label_ru: 'Гиза',       family: 'Geeza Pro' },
+  { id: 'nile',    label_en: 'Al Nile', label_tr: 'Al Nile', label_id: 'Al Nile', label_fr: 'Al Nile', label_de: 'Al Nile', label_es: 'Al Nile',   label_ru: 'Ан-Ниль',    family: 'Al Nile' },
+  { id: 'damascus',label_en: 'Damascus', label_tr: 'Şam', label_id: 'Damaskus', label_fr: 'Damas', label_de: 'Damaskus', label_es: 'Damasco',  label_ru: 'Дамаск',     family: 'Damascus' },
+  { id: 'mishafi', label_en: 'Mishafi', label_tr: 'Mishafi', label_id: 'Mishafi', label_fr: 'Mishafi', label_de: 'Mishafi', label_es: 'Mishafi',   label_ru: 'Мусхаф',     family: 'Mishafi' },
+  { id: 'baghdad', label_en: 'Baghdad', label_tr: 'Bağdat', label_id: 'Baghdad', label_fr: 'Bagdad', label_de: 'Bagdad', label_es: 'Bagdad',   label_ru: 'Багдад',     family: 'Baghdad' },
 ];
 
 export function arabicFontFor(id) {
@@ -190,7 +190,7 @@ export function makeScheme(hex) {
   const bgS = grey ? s : clamp01(s * 0.55, 0.12, 0.4);
   const lightS = grey ? s : clamp01(s, 0.3, 0.6);
   return {
-    id: 'custom', label_en: 'Custom', label_ru: 'Свой цвет',
+    id: 'custom', label_en: 'Custom', label_tr: 'Özel', label_id: 'Kustom', label_fr: 'Personnalisé', label_de: 'Eigene', label_es: 'Personalizado', label_ru: 'Свой цвет',
     bg: [toHex(hslToRgb(h, bgS, 0.135)), toHex(hslToRgb(h, bgS, 0.065))],
     tint: hslToRgb(h, lightS, 0.8).join(','),
     // У серого акцент тоже серый: иначе нулевой тон дал бы розоватый оттенок.
@@ -209,10 +209,10 @@ const readingFontFor = (id) => READING_FONTS.find((f) => f.id === id) || READING
 // Спутник на таб-баре и в обучении (рисунки — в tasbih/sproutArt.js).
 // Семечко без лица — по умолчанию; росток с глазами оставлен на выбор.
 export const CHARACTERS = [
-  { id: 'seed', label_ru: 'Семечко', label_en: 'Seed' },
-  { id: 'sprout', label_ru: 'Росток', label_en: 'Sprout' },
+  { id: 'seed', label_ru: 'Семечко', label_en: 'Seed', label_tr: 'Çekirdek', label_id: 'Biji', label_fr: 'Graine', label_de: 'Samen', label_es: 'Semilla' },
+  { id: 'sprout', label_ru: 'Росток', label_en: 'Sprout', label_tr: 'Filiz', label_id: 'Tunas', label_fr: 'Pousse', label_de: 'Keimling', label_es: 'Brote' },
   // Предмет: стоит на кромке, а не ходит.
-  { id: 'lantern', label_ru: 'Фонарь', label_en: 'Lantern' },
+  { id: 'lantern', label_ru: 'Фонарь', label_en: 'Lantern', label_tr: 'Fener', label_id: 'Lentera', label_fr: 'Lanterne', label_de: 'Laterne', label_es: 'Linterna' },
 ];
 
 export function AppearanceProvider({ children }) {

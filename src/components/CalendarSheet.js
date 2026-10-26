@@ -5,10 +5,11 @@ import Icon from './Icon';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
+import { pick } from '../i18n/languages';
 import { useAppearance } from '../utils/AppearanceContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { useLocation } from '../utils/LocationContext';
-import { toHijri, formatHijri, monthName, HIJRI_MONTHS_RU, HIJRI_MONTHS_EN } from '../utils/hijri';
+import { toHijri, formatHijri, monthName, HIJRI_MONTHS } from '../utils/hijri';
 import { getPrayerDay } from '../utils/prayerSchedule';
 import { useTablesVersion } from '../utils/useOfficialTables';
 import { prayerName } from '../constants/prayerNames';
@@ -17,8 +18,15 @@ import { localDateKey } from '../utils/calendarDate';
 import useTasbih from '../tasbih/useTasbih';
 
 const PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-const WEEK_RU = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-const WEEK_EN = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+const WEEK = {
+  ru: ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'],
+  en: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+  tr: ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'],
+  id: ['Sn', 'Sl', 'Rb', 'Km', 'Jm', 'Sb', 'Mg'],
+  fr: ['lu', 'ma', 'me', 'je', 've', 'sa', 'di'],
+  de: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
+  es: ['lu', 'ma', 'mi', 'ju', 'vi', 'sá', 'do'],
+};
 
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear()
   && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -69,7 +77,7 @@ export default function CalendarSheet({ visible, onClose }) {
   // Заголовок по хиджре: месяц почти всегда накрывает два лунных, поэтому
   // показываем оба, а не только тот, что выпал на первое число.
   const hijriSpan = useMemo(() => {
-    const months = lang === 'ru' ? HIJRI_MONTHS_RU : HIJRI_MONTHS_EN;
+    const months = pick(HIJRI_MONTHS, lang);
     const a = toHijri(new Date(cursor.getFullYear(), cursor.getMonth(), 1), hijriOffset);
     const b = toHijri(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0), hijriOffset);
     const na = months[a.month - 1];
@@ -77,7 +85,7 @@ export default function CalendarSheet({ visible, onClose }) {
     return a.month === b.month ? `${na} ${a.year}` : `${na} — ${nb} ${b.year}`;
   }, [cursor, hijriOffset, lang]);
 
-  const week = lang === 'ru' ? WEEK_RU : WEEK_EN;
+  const week = pick(WEEK, lang);
   const activeBg = { backgroundColor: `rgba(255,255,255,0.10)` };
 
   return (

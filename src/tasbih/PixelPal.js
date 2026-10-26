@@ -558,8 +558,7 @@ const Pal = memo(function Pal({ place, colors, character, hasGift, friday, activ
 // сколько при закрытии край поднимается выше макушки. Считает экран.
 export default memo(function PixelPal({ squashed = false, pressDelay = 320, pressMs = 100, releaseMs = 110 }) {
   const { state, error } = useTasbih();
-  const { lang } = useLang();
-  const ru = lang === 'ru';
+  const { t } = useLang();
   const reduceMotion = useReduceMotion();
   const focused = useIsFocused();
   const [open, setOpen] = useState(false);
@@ -638,10 +637,10 @@ export default memo(function PixelPal({ squashed = false, pressDelay = 320, pres
     Animated.timing(slide, { toValue: width, duration: reduceMotion ? 120 : 240,
       easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setShown(false));
   }, [slide, width, reduceMotion]);
-  const label = ru ? 'Сад тасбиха' : 'Tasbih garden';
-  const hint = (ru ? 'Открывает счётчик зикра и дерево' : 'Opens the dhikr counter and the tree')
-    + (hasGift ? (ru ? '. Есть зёрна для посадки.' : '. Seeds are ready to plant.') : '')
-    + (friday ? (ru ? '. Пятница: умножайте салават.' : '. Friday: send more salawat.') : '');
+  const label = t('pixelpal_label');
+  const hint = t('pixelpal_hint')
+    + (hasGift ? t('pixelpal_hint_seeds') : '')
+    + (friday ? t('pixelpal_hint_friday') : '');
 
   return (
     <View ref={layer} onLayout={measure} pointerEvents="box-none" style={StyleSheet.absoluteFill}>

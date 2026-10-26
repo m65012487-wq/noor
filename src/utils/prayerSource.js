@@ -78,15 +78,15 @@ function isRussia() {
 // в настройках читается сверху вниз. Её method пуст — она сама решает, чем
 // считать (planAuto); у остальных method — номер метода Aladhan.
 export const TIME_SOURCES = [
-  { id: 'auto', label_en: "Auto: your region’s muftiate", label_ru: 'Авто: ДУМ вашего региона', method: null },
-  { id: 'mwl_intl', label_en: 'Muslim World League (Intl.)', label_ru: 'Лига исламского мира (межд.)', method: 3 },
-  { id: 'russia', label_en: 'Caucasus (DUM KBR)', label_ru: 'Кавказ (ДУМ КБР)', method: 14 },
-  { id: 'turkey', label_en: 'Turkey (Diyanet)', label_ru: 'Турция (Диянет)', method: 13 },
-  { id: 'egypt', label_en: 'Egyptian Authority', label_ru: 'Египетская организация', method: 5 },
-  { id: 'makkah', label_en: 'Umm al-Qura (Makkah)', label_ru: 'Умм аль-Кура (Мекка)', method: 4 },
-  { id: 'karachi', label_en: 'Karachi', label_ru: 'Карачи', method: 1 },
-  { id: 'isna', label_en: 'ISNA (N. America)', label_ru: 'ISNA (Сев. Америка)', method: 2 },
-  { id: 'local', label_en: 'Offline (device calc)', label_ru: 'Офлайн (на устройстве)', method: null },
+  { id: 'auto', label_en: "Auto: your region’s muftiate", label_tr: 'Otomatik: bölgenizin müftülüğü', label_id: 'Otomatis: muftiat wilayah Anda', label_fr: 'Auto : le muftiat de votre région', label_de: 'Automatisch: Muftiat Ihrer Region', label_es: 'Auto: muftiato de su región', label_ru: 'Авто: ДУМ вашего региона', method: null },
+  { id: 'mwl_intl', label_en: 'Muslim World League (Intl.)', label_tr: 'Müslüman Dünya Birliği (Uluslararası)', label_id: 'Liga Dunia Muslim (Internasional)', label_fr: 'Ligue islamique mondiale (int.)', label_de: 'Muslimische Weltliga (intern.)', label_es: 'Liga Musulmana Mundial (intl.)', label_ru: 'Лига исламского мира (межд.)', method: 3 },
+  { id: 'russia', label_en: 'Caucasus (DUM KBR)', label_tr: 'Kafkasya (DUM KBR)', label_id: 'Kaukasus (DUM KBR)', label_fr: 'Caucase (DUM KBR)', label_de: 'Kaukasus (DUM KBR)', label_es: 'Cáucaso (DUM KBR)', label_ru: 'Кавказ (ДУМ КБР)', method: 14 },
+  { id: 'turkey', label_en: 'Turkey (Diyanet)', label_tr: 'Türkiye (Diyanet)', label_id: 'Turki (Diyanet)', label_fr: 'Turquie (Diyanet)', label_de: 'Türkei (Diyanet)', label_es: 'Turquía (Diyanet)', label_ru: 'Турция (Диянет)', method: 13 },
+  { id: 'egypt', label_en: 'Egyptian Authority', label_tr: 'Mısır Otoritesi', label_id: 'Otoritas Mesir', label_fr: 'Autorité égyptienne', label_de: 'Ägyptische Behörde', label_es: 'Autoridad egipcia', label_ru: 'Египетская организация', method: 5 },
+  { id: 'makkah', label_en: 'Umm al-Qura (Makkah)', label_tr: 'Ümmü’l-Kura (Mekke)', label_id: 'Ummul Qura (Makkah)', label_fr: 'Oumm al-Qura (La Mecque)', label_de: 'Umm al-Qura (Mekka)', label_es: 'Umm al-Qura (La Meca)', label_ru: 'Умм аль-Кура (Мекка)', method: 4 },
+  { id: 'karachi', label_en: 'Karachi', label_tr: 'Karaçi', label_id: 'Karachi', label_fr: 'Karachi', label_de: 'Karatschi', label_es: 'Karachi', label_ru: 'Карачи', method: 1 },
+  { id: 'isna', label_en: 'ISNA (N. America)', label_tr: 'ISNA (K. Amerika)', label_id: 'ISNA (Am. Utara)', label_fr: 'ISNA (Am. du Nord)', label_de: 'ISNA (N.-Amerika)', label_es: 'ISNA (N. América)', label_ru: 'ISNA (Сев. Америка)', method: 2 },
+  { id: 'local', label_en: 'Offline (device calc)', label_tr: 'Çevrimdışı (cihazda hesap)', label_id: 'Luring (dihitung di perangkat)', label_fr: 'Hors ligne (calcul sur l’appareil)', label_de: 'Offline (Berechnung auf dem Gerät)', label_es: 'Sin conexión (cálculo en el dispositivo)', label_ru: 'Офлайн (на устройстве)', method: null },
 ];
 
 const asSchool = (value, fallback) => (value === 'hanafi' || value === 'shafi' ? value : fallback);

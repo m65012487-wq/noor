@@ -7,6 +7,8 @@
 // поправка. Полагаться на Intl нельзя: в Hermes набор календарей неполон,
 // и на устройстве это молча даёт григорианскую дату.
 
+import { pick } from '../i18n/languages';
+
 function gregorianToJdn(y, m, d) {
   const a = Math.floor((m - 14) / 12);
   return Math.floor((1461 * (y + 4800 + a)) / 4)
@@ -45,27 +47,78 @@ export const HIJRI_MONTHS_EN = [
   'Jumada al-Ula', 'Jumada al-Thani', 'Rajab', 'Shaban',
   'Ramadan', 'Shawwal', 'Dhul-Qadah', 'Dhul-Hijjah',
 ];
+export const HIJRI_MONTHS_TR = [
+  'Muharrem', 'Safer', 'Rebiülevvel', 'Rebiülahir',
+  'Cemaziyelevvel', 'Cemaziyelahir', 'Recep', 'Şaban',
+  'Ramazan', 'Şevval', 'Zilkade', 'Zilhicce',
+];
+export const HIJRI_MONTHS_ID = [
+  'Muharam', 'Safar', 'Rabiulawal', 'Rabiulakhir',
+  'Jumadilawal', 'Jumadilakhir', 'Rajab', 'Syakban',
+  'Ramadan', 'Syawal', 'Zulkaidah', 'Zulhijah',
+];
+export const HIJRI_MONTHS_FR = [
+  'Mouharram', 'Safar', 'Rabi al-awwal', 'Rabi ath-thani',
+  'Joumada al-oula', 'Joumada ath-thania', 'Rajab', 'Chaabane',
+  'Ramadan', 'Chawwal', 'Dhou al-qi’da', 'Dhou al-hijja',
+];
+export const HIJRI_MONTHS_DE = [
+  'Muharram', 'Safar', 'Rabi al-awwal', 'Rabi ath-thani',
+  'Dschumada al-ula', 'Dschumada ath-thaniya', 'Radschab', 'Schaban',
+  'Ramadan', 'Schawwal', 'Dhu l-qada', 'Dhu l-hiddscha',
+];
+export const HIJRI_MONTHS_ES = [
+  'Muharram', 'Safar', 'Rabi al-awwal', 'Rabi al-zani',
+  'Yumada al-ula', 'Yumada al-zania', 'Rayab', 'Shaabán',
+  'Ramadán', 'Shawwal', 'Dul Qada', 'Dul Hiyya',
+];
+// Названия месяцев по языкам — для pick().
+export const HIJRI_MONTHS = {
+  ru: HIJRI_MONTHS_RU, en: HIJRI_MONTHS_EN, tr: HIJRI_MONTHS_TR, id: HIJRI_MONTHS_ID,
+  fr: HIJRI_MONTHS_FR, de: HIJRI_MONTHS_DE, es: HIJRI_MONTHS_ES,
+};
 
 export function formatHijri(date = new Date(), offsetDays = 0, lang = 'ru') {
   const h = toHijri(date, offsetDays);
-  const months = lang === 'ru' ? HIJRI_MONTHS_RU : HIJRI_MONTHS_EN;
+  const months = pick(HIJRI_MONTHS, lang);
   const name = months[Math.min(11, Math.max(0, h.month - 1))];
-  return lang === 'ru'
-    ? `${h.day} ${name} ${h.year}`
-    : `${h.day} ${name} ${h.year} AH`;
+  const base = `${h.day} ${name} ${h.year}`;
+  return pick({
+    ru: base, en: `${base} AH`, tr: base, id: `${base} H`, fr: `${base} H`, de: `${base} n. H.`, es: `${base} H`,
+  }, lang);
 }
 
 const MONTHS_RU = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+const MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const MONTHS_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MONTHS = { ru: MONTHS_RU, en: MONTHS_EN, tr: MONTHS_TR, id: MONTHS_ID, fr: MONTHS_FR, de: MONTHS_DE, es: MONTHS_ES };
 
 export function formatGregorian(date = new Date(), lang = 'ru') {
-  return lang === 'ru'
-    ? `${date.getDate()} ${MONTHS_RU[date.getMonth()]} ${date.getFullYear()}`
-    : `${MONTHS_EN[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  const d = date.getDate();
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  return pick({
+    ru: `${d} ${MONTHS_RU[m]} ${y}`,
+    en: `${MONTHS_EN[m]} ${d}, ${y}`,
+    tr: `${d} ${MONTHS_TR[m]} ${y}`,
+    id: `${d} ${MONTHS_ID[m]} ${y}`,
+    fr: `${d} ${MONTHS_FR[m]} ${y}`,
+    de: `${d}. ${MONTHS_DE[m]} ${y}`,
+    es: `${d} de ${MONTHS_ES[m]} de ${y}`,
+  }, lang);
 }
 
 export function monthName(index, lang = 'ru') {
-  return (lang === 'ru' ? MONTHS_RU : MONTHS_EN)[index];
+  return pick(MONTHS, lang)[index];
 }

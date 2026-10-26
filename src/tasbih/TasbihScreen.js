@@ -9,6 +9,7 @@ import Icon from '../components/Icon';
 import { ARABIC, COLORS, FONTS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useAppearance, patternKind } from '../utils/AppearanceContext';
 import { useLang } from '../i18n/LanguageContext';
+import { localized, pick } from '../i18n/languages';
 import { hapticCircle, hapticComplete, hapticLight } from '../utils/haptics';
 import TreeView from './TreeView';
 import LeafBurst from './LeafBurst';
@@ -36,13 +37,13 @@ const ARABIC_BLOCK_LONG = 150;
 // Pill label for the current mode — 'sequence'/'free' aren't in DHIKR, and a
 // custom dhikr's label is its own text, so this can't just look the id up
 // in the options list definition() would return for the active dhikr.
-function modeLabel(state, ru) {
-  if (state.selectedDhikr === 'sequence') return ru ? 'Моя последовательность' : 'My sequence';
+function modeLabel(state, t, lang) {
+  if (state.selectedDhikr === 'sequence') return t('dhikr_my_sequence');
   const set = SETS.find(s => s.id === state.selectedDhikr);
-  if (set) return ru ? set.ru : set.en;
-  if (state.selectedDhikr === 'free') return ru ? 'Свободный зикр' : 'Free dhikr';
+  if (set) return pick(set, lang);
+  if (state.selectedDhikr === 'free') return t('dhikr_free_mode');
   const single = DHIKR.find(d => d.id === state.selectedDhikr);
-  if (single) return ru ? single.ru : single.en;
+  if (single) return pick(single, lang);
   const custom = (state.customDhikr || []).find(d => `custom:${d.id}` === state.selectedDhikr);
   return custom ? custom.text : '';
 }
@@ -53,8 +54,7 @@ function modeLabel(state, ru) {
 // в счётчик, то висело в пустоте.
 export default function TasbihScreen({ onClose }) {
   const { state, error, tap, select, retry, plant, setActive, ackDrop, addCustom, removeCustom, setCircleLimit, setSequence } = useTasbih();
-  const { lang } = useLang();
-  const ru = lang === 'ru';
+  const { t, lang } = useLang();
   const appearance = useAppearance();
   const { accent } = appearance;
   const reduceMotion = useReduceMotion();
@@ -109,8 +109,8 @@ export default function TasbihScreen({ onClose }) {
     Animated.timing(textFade, { toValue: 1, duration: reduceMotion ? 150 : 350, useNativeDriver: true }).start();
   }, [item.id, textFade, reduceMotion]);
   // У длинных азкаров ru/en — короткое имя для списков, full_* — вся транскрипция.
-  const phrase = ru ? (item.full_ru || item.ru) : (item.full_en || item.en);
-  const translation = ru ? item.translation_ru : item.translation_en;
+  const phrase = item[`full_${lang}`] || pick(item, lang);
+  const translation = localized(item, 'translation', lang);
   const [arabicLines, setArabicLines] = useState(1);
   const onTap = (e) => {
     const event = tap();
@@ -129,9 +129,9 @@ export default function TasbihScreen({ onClose }) {
   const drop = state?.pendingDrops?.[0] || null;
   const dropKey = drop ? `${state.pendingDrops.length}:${drop.species}:${drop.reason}` : null;
   const seedTotal = state ? Object.values(state.seeds || {}).reduce((sum, n) => sum + n, 0) : 0;
-  const stageLabel = tree ? (ru ? STAGE_NAMES[tree.stage]?.ru : STAGE_NAMES[tree.stage]?.en) : '';
+  const stageLabel = tree ? pick(STAGE_NAMES[tree.stage], lang) : '';
   const treeSpecies = tree ? SPECIES.find(s => s.id === tree.species) : null;
-  const speciesLabel = treeSpecies ? (ru ? treeSpecies.ru : treeSpecies.en) : '';
+  const speciesLabel = treeSpecies ? pick(treeSpecies, lang) : '';
   const ratio = tree ? growthRatio(tree) : 0;
   // Окно «после намаза»: проверяется на каждой отрисовке, а они идут на каждое
   // нажатие и на смену подсказки, поэтому отдельный таймер не нужен.
@@ -146,9 +146,9 @@ export default function TasbihScreen({ onClose }) {
   const friday = isFridayNow();
   const slot = !state ? null
     : friday && state.selectedDhikr !== 'set:friday'
-      ? { id: 'set:friday', label: ru ? 'Пятница · умножайте салават ﷺ  ›' : 'Friday · send more salawat ﷺ  ›' }
+      ? { id: 'set:friday', label: t('tasbih_slot_friday') }
       : afterPrayer && state.selectedDhikr !== 'set:after_prayer'
-        ? { id: 'set:after_prayer', label: ru ? 'После намаза · азкары, рост ×1,5  ›' : 'After prayer · adhkar, growth ×1.5  ›' }
+        ? { id: 'set:after_prayer', label: t('tasbih_slot_after_prayer') }
         : null;
   // Длинный азкар («Аллахумма антас-салям», завершающее единобожие) не помещается
   // в две строки над счётчиком: он показывается карточкой целиком, а дерево
@@ -182,17 +182,17 @@ export default function TasbihScreen({ onClose }) {
         {/* Шапка: закрыть — режим — сад. Названия экрана нет: о том, где
             человек находится, говорит дерево, а строка режима нужнее. */}
         <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel={ru ? 'Закрыть Тасбих' : 'Close Tasbih'}
+          <Pressable accessibilityRole="button" accessibilityLabel={t('tasbih_close')}
             onPress={onClose} style={styles.iconButton} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
             <Icon name="close" size={22} color={COLORS.text} />
           </Pressable>
 
           {state ? (
             <Pressable style={styles.pillWrap} accessibilityRole="button" accessibilityState={{ expanded: selector }}
-              accessibilityLabel={ru ? `Режим: ${modeLabel(state, ru)}. Открыть выбор` : `Mode: ${modeLabel(state, ru)}. Open picker`}
+              accessibilityLabel={t('tasbih_mode_label', { name: modeLabel(state, t, lang) })}
               onPress={() => setSelector(true)}>
               <GlassView radius={RADIUS.pill} style={styles.pill}>
-                <Text style={[styles.pillText, { color: accent }]} numberOfLines={1}>{modeLabel(state, ru)}</Text>
+                <Text style={[styles.pillText, { color: accent }]} numberOfLines={1}>{modeLabel(state, t, lang)}</Text>
                 <Icon name="down" size={14} color={accent} />
               </GlassView>
             </Pressable>
@@ -200,8 +200,8 @@ export default function TasbihScreen({ onClose }) {
 
           <Pressable accessibilityRole="button"
             accessibilityLabel={seedTotal > 0
-              ? (ru ? `Сад, зёрен: ${seedTotal}` : `Garden, seeds: ${seedTotal}`)
-              : (ru ? 'Сад' : 'Garden')}
+              ? t('tasbih_garden_seeds', { n: seedTotal })
+              : t('garden_title')}
             onPress={() => setGarden(true)} style={styles.iconButton} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
             <Icon name="leaf" size={22} color={COLORS.text} />
             {seedTotal > 0 && <View style={[styles.badge, { backgroundColor: accent }]}>
@@ -220,7 +220,7 @@ export default function TasbihScreen({ onClose }) {
         )}
 
         {error && <Pressable onPress={retry} accessibilityRole="button" style={styles.error}>
-          <Text style={styles.caption}>{ru ? 'Не удалось сохранить или прочитать прогресс. Нажмите, чтобы повторить.' : 'Could not save or load progress. Tap to retry.'}</Text>
+          <Text style={styles.caption}>{t('tasbih_error')}</Text>
         </Pressable>}
 
         {!state || !tree ? <ActivityIndicator style={{ flex: 1 }} color={accent} /> : (
@@ -261,8 +261,8 @@ export default function TasbihScreen({ onClose }) {
 
             <Pressable onPress={onTap} style={[styles.treeArea, longText && styles.treeAreaLong]} onLayout={onTreeLayout}
               accessibilityRole="button"
-              accessibilityLabel={`${ru ? 'Тасбих' : 'Tasbih'}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${ru ? 'из' : 'of'} ${item.target}` : ''}`}
-              accessibilityHint={ru ? 'Нажмите дважды, чтобы засчитать одно поминание' : 'Double tap to count one remembrance'}>
+              accessibilityLabel={`${t('tasbih_name')}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${t('tasbih_of')} ${item.target}` : ''}`}
+              accessibilityHint={t('tasbih_tap_hint')}>
               <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, reduceMotion ? null : breathStyle]}>
                 <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />
               </Animated.View>
@@ -273,14 +273,14 @@ export default function TasbihScreen({ onClose }) {
 
             <View style={styles.footer}>
               {!state.hasSeenTasbihHint ? (
-                <Text style={styles.hint}>{ru ? 'Нажимайте на дерево, чтобы считать зикр' : 'Tap the tree to count dhikr'}</Text>
+                <Text style={styles.hint}>{t('tasbih_first_hint')}</Text>
               ) : (
                 <>
                   <Text style={styles.stageLine}>
-                    {speciesLabel} · {fruiting ? (ru ? `${harvests}-й урожай` : `harvest ${harvests}`) : stageLabel}
+                    {speciesLabel} · {fruiting ? t('garden_harvest', { n: harvests }) : stageLabel}
                   </Text>
                   {seedTotal > 0 ? (
-                    <Text style={styles.plantHint} numberOfLines={1}>{ru ? 'Есть зерно — посадите его в «Саду»' : 'You have a seed — plant it in the Garden'}</Text>
+                    <Text style={styles.plantHint} numberOfLines={1}>{t('tasbih_plant_hint')}</Text>
                   ) : (
                     <View style={styles.growthTrack}>
                       <View style={[styles.growthFill, { width: `${(fruiting ? harvestRatio : ratio) * 100}%`, backgroundColor: accent }]} />

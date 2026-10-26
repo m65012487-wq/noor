@@ -7,6 +7,7 @@ import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme
 import { VERSES_OF_THE_DAY } from '../constants/content';
 import { loadJSON, saveJSON, todayKey } from '../utils/helpers';
 import { useLang } from '../i18n/LanguageContext';
+import { pick } from '../i18n/languages';
 import { speakArabic } from '../utils/speech';
 
 const GOAL_OPTIONS = [1, 3, 5, 10, 20];
@@ -65,7 +66,7 @@ export default function ReadScreen({ onProgress }) {
           <Card style={styles.verseCard}>
             <Text style={styles.vodLabel}>{t('verse_of_day')}  🔊</Text>
             <Text style={styles.ar}>{verse.ar}</Text>
-            <Text style={styles.en}>{lang === 'ru' ? verse.ru : verse.en}</Text>
+            <Text style={styles.en}>{pick(verse, lang)}</Text>
             <Text style={styles.ref}>Quran {verse.ref}</Text>
           </Card>
         </TouchableOpacity>

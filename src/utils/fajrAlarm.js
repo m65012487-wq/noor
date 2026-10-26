@@ -40,7 +40,7 @@ export async function cancelFajrAlarm() {
   if (alarmKitSupported()) { try { NoorAlarm.cancelAll(); } catch { /* нечего снимать */ } }
 }
 
-// Что вышло при последнем планировании — для строки состояния в настройках:
+// Что вышло при последнем планировании — для разбора, если будильник не придёт:
 // сколько сигналов стоит, когда ближайший и почему нет ни одного.
 const STATUS_KEY = 'fajrAlarmStatus';
 async function saveStatus(status) { await saveJSON(STATUS_KEY, { ...status, at: Date.now() }); }
@@ -64,21 +64,6 @@ async function scheduleNotification(content, date) {
     await Notifications.scheduleNotificationAsync({ content, trigger: { type: SchedulableTriggerInputTypes.DATE, date } });
     return 'active';
   }
-}
-
-/** Пробный сигнал через 10 секунд — тем же способом, что и сам будильник. */
-export async function testFajrAlarm(labels) {
-  const at = new Date(Date.now() + 10000);
-  if (await kitAuthorized()) {
-    try {
-      await NoorAlarm.schedule(at.getTime(), labels.title, labels.stop, SOUND);
-      return 'alarmkit';
-    } catch (e) { return String(e?.message || e); }
-  }
-  if (!(await ensurePermission())) return 'denied';
-  try {
-    return await scheduleNotification({ title: labels.title, body: labels.body, sound: SOUND, data: { tag: 'fajr-alarm-test' } }, at);
-  } catch (e) { return String(e?.message || e); }
 }
 
 export async function scheduleFajrDays(days, labels) {

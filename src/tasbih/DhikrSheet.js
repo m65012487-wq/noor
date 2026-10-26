@@ -5,6 +5,7 @@ import DraggableSheet from '../components/DraggableSheet';
 import Icon from '../components/Icon';
 import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
+import { localized, pick } from '../i18n/languages';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
 import SequenceEditor from './SequenceEditor';
@@ -25,8 +26,7 @@ import { isFridayNow } from '../utils/prayerWindow';
 // `keyboardAvoiding` lifts the whole sheet above the keyboard so the form's
 // fields stay visible.
 export default function DhikrSheet({ visible, onClose, state, select, addCustom, removeCustom, setCircleLimit, setSequence }) {
-  const { lang } = useLang();
-  const ru = lang === 'ru';
+  const { t, lang } = useLang();
   const { accent } = useAppearance();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -59,23 +59,23 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
 
   const stepsLine = steps => steps.map(step => {
     const d = DHIKR.find(x => x.id === step.id);
-    const name = d ? (ru ? d.ru : d.en) : step.id;
+    const name = d ? (pick(d, lang)) : step.id;
     return `${name} ${step.target}`;
   }).join(' · ');
   const friday = isFridayNow();
   const groups = {
     sets: [
-      { id: 'sequence', label: ru ? 'Моя последовательность' : 'My sequence',
-        sub: ownSequenceSteps(state).map(step => `${ru ? step.ru : step.en} ${step.target}`).join(' · '), editSequence: true },
-      ...SETS.map(set => ({ id: set.id, label: ru ? set.ru : set.en, sub: stepsLine(set.steps),
-        tag: set.id === 'set:friday' && friday ? (ru ? 'сегодня' : 'today') : null })),
-      { id: 'free', label: ru ? 'Свободный счёт' : 'Free count', sub: state.circleLimit ? (ru ? 'Любые поминания, кругами по 33' : 'Any remembrance, in circles of 33') : (ru ? 'Без цели — просто считать' : 'No target — just count') },
+      { id: 'sequence', label: t('dhikr_my_sequence'),
+        sub: ownSequenceSteps(state).map(step => `${pick(step, lang)} ${step.target}`).join(' · '), editSequence: true },
+      ...SETS.map(set => ({ id: set.id, label: pick(set, lang), sub: stepsLine(set.steps),
+        tag: set.id === 'set:friday' && friday ? t('dhikr_today') : null })),
+      { id: 'free', label: t('dhikr_free_count'), sub: state.circleLimit ? t('dhikr_free_circles_sub') : t('dhikr_free_plain_sub') },
     ],
-    single: DHIKR.map(d => ({ id: d.id, label: ru ? d.ru : d.en, sub: ru ? d.translation_ru : d.translation_en })),
+    single: DHIKR.map(d => ({ id: d.id, label: pick(d, lang), sub: localized(d, 'translation', lang) })),
     own: (state.customDhikr || []).map(d => ({ id: `custom:${d.id}`, label: d.text, customId: d.id })),
   };
   const options = groups[tab];
-  const TABS = [['sets', ru ? 'Наборы' : 'Sets'], ['single', ru ? 'Поминания' : 'Single'], ['own', ru ? 'Свои' : 'Mine']];
+  const TABS = [['sets', t('dhikr_tab_sets')], ['single', t('dhikr_tab_single')], ['own', t('dhikr_tab_own')]];
 
   const save = () => {
     const trimmed = text.trim();
@@ -87,7 +87,7 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
 
   return (
     <DraggableSheet visible={visible} onClose={close} keyboardAvoiding scrollRef={scrollRef}
-      title={editing ? (ru ? 'Последовательность' : 'Sequence') : (ru ? 'Зикр' : 'Dhikr')}>
+      title={editing ? t('dhikr_title_sequence') : t('dhikr_title')}>
       {editing ? <SequenceEditor state={state} setSequence={setSequence} onDone={() => setEditing(false)} onFocusRow={showRow} /> : <>
       <View style={styles.tabs} accessibilityRole="tablist">
         {TABS.map(([id, label]) => (
@@ -99,7 +99,7 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
         ))}
       </View>
       {tab === 'own' && options.length === 0 && !adding && (
-        <Text style={styles.empty}>{ru ? 'Здесь будут ваши поминания.' : 'Your own remembrances will appear here.'}</Text>
+        <Text style={styles.empty}>{t('dhikr_own_empty')}</Text>
       )}
       {options.map(option => (
         <View key={option.id} style={styles.row}>
@@ -115,7 +115,7 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
             </View>
           </Pressable>
           {!!option.editSequence && (
-            <Pressable accessibilityRole="button" accessibilityLabel={ru ? 'Настроить последовательность' : 'Edit sequence'}
+            <Pressable accessibilityRole="button" accessibilityLabel={t('dhikr_edit_sequence')}
               onPress={() => { hapticLight(); setEditing(true); }}
               style={styles.deleteButton} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
               <Icon name="options" size={18} color={accent} />
@@ -123,7 +123,7 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
           )}
           {!!option.customId && (
             <Pressable accessibilityRole="button"
-              accessibilityLabel={ru ? `Удалить «${option.label}»` : `Delete "${option.label}"`}
+              accessibilityLabel={t('dhikr_delete_custom', { name: option.label })}
               onPress={() => { hapticLight(); removeCustom(option.customId); }}
               style={styles.deleteButton} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
               <Icon name="close" size={16} color={COLORS.textMuted} />
@@ -133,7 +133,7 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
       ))}
 
       {tab !== 'sets' || state.selectedDhikr === 'free' ? <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>{ru ? 'Считать кругами по 33' : 'Count in circles of 33'}</Text>
+        <Text style={styles.switchLabel}>{t('dhikr_circles_33')}</Text>
         <Switch value={!!state.circleLimit} onValueChange={value => { hapticLight(); setCircleLimit(value); }}
           trackColor={{ false: COLORS.hairline, true: accent }} thumbColor={COLORS.text} />
       </View> : null}
@@ -141,23 +141,23 @@ export default function DhikrSheet({ visible, onClose, state, select, addCustom,
       {tab !== 'own' ? null : !adding ? (
         <Pressable accessibilityRole="button" onPress={() => { hapticLight(); setAdding(true); }} style={styles.addButton}>
           <Icon name="add" size={18} color={accent} />
-          <Text style={[styles.addText, { color: accent }]}>{ru ? 'Своё поминание' : 'Custom dhikr'}</Text>
+          <Text style={[styles.addText, { color: accent }]}>{t('dhikr_custom')}</Text>
         </Pressable>
       ) : (
         <View style={styles.form}>
-          <TextInput style={styles.input} placeholder={ru ? 'Текст поминания' : 'Dhikr text'}
+          <TextInput style={styles.input} placeholder={t('dhikr_text_ph')}
             placeholderTextColor={COLORS.textMuted} value={text} onChangeText={setText} maxLength={80} />
-          <TextInput style={styles.input} placeholder={ru ? 'Арабский (необязательно)' : 'Arabic (optional)'}
+          <TextInput style={styles.input} placeholder={t('dhikr_arabic_ph')}
             placeholderTextColor={COLORS.textMuted} value={arabic} onChangeText={setArabic} maxLength={120} />
-          <TextInput style={styles.input} placeholder={ru ? 'Перевод (необязательно)' : 'Translation (optional)'}
+          <TextInput style={styles.input} placeholder={t('dhikr_translation_ph')}
             placeholderTextColor={COLORS.textMuted} value={translation} onChangeText={setTranslation} maxLength={120} />
           <View style={styles.formButtons}>
             <Pressable accessibilityRole="button" onPress={resetForm} style={styles.cancelButton}>
-              <Text style={styles.cancelText}>{ru ? 'Отмена' : 'Cancel'}</Text>
+              <Text style={styles.cancelText}>{t('cancel')}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" disabled={!text.trim()} onPress={save}
               style={[styles.saveButton, { backgroundColor: accent, opacity: text.trim() ? 1 : 0.5 }]}>
-              <Text style={styles.saveText}>{ru ? 'Сохранить' : 'Save'}</Text>
+              <Text style={styles.saveText}>{t('save')}</Text>
             </Pressable>
           </View>
         </View>

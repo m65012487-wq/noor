@@ -13,6 +13,7 @@ import { useAppearance } from '../utils/AppearanceContext';
 import { playAsset, stopAudio } from '../utils/audioPlayer';
 import { hapticLight, hapticSuccess, hapticError } from '../utils/haptics';
 import { useLang } from '../i18n/LanguageContext';
+import { localized, pick } from '../i18n/languages';
 import { ThemedBackground } from '../components/ScreenWrapper';
 import { Sprout, SproutPerch, SproutSays, talkTime } from '../components/SproutGuide';
 import ArabicFitText from '../components/ArabicFitText';
@@ -40,9 +41,13 @@ function LessonBg({ children }) {
   );
 }
 
+// Язык интерфейса для записей с названием буквы: его выставляет экран урока при
+// каждой отрисовке, чтобы не протаскивать lang через все вызовы playKey.
+let audioLang = 'ru';
+
 // Запись элемента из бандла; если её нет, ничего не звучит.
 function playKey(key, onFinish) {
-  const mod = audioFor(key);
+  const mod = audioFor(key, audioLang);
   if (mod) playAsset(mod, onFinish);
 }
 
@@ -109,7 +114,7 @@ function Points({ items, lang, accent }) {
       {items.map((p, i) => (
         <View key={i} style={styles.pointRow}>
           <View style={[styles.pointDot, { backgroundColor: accent }]} />
-          <Text style={styles.pointText}>{lang === 'ru' ? p.ru : p.en}</Text>
+          <Text style={styles.pointText}>{pick(p, lang)}</Text>
         </View>
       ))}
     </View>
@@ -126,10 +131,10 @@ function MarksTable({ marks, lang, accent, onPlay }) {
           style={[styles.markRow, i > 0 && styles.markDivider]}>
           <Text style={styles.markAr}>{m.ar}</Text>
           <View style={styles.markMid}>
-            <Text style={styles.markName}>{lang === 'ru' ? m.name_ru : m.name_en}</Text>
-            <Text style={styles.markWhere}>{lang === 'ru' ? m.where_ru : m.where_en}</Text>
+            <Text style={styles.markName}>{localized(m, 'name', lang)}</Text>
+            <Text style={styles.markWhere}>{localized(m, 'where', lang)}</Text>
           </View>
-          <Text style={[styles.markSound, { color: accent }]}>{lang === 'ru' ? m.sound : m.sound_en}</Text>
+          <Text style={[styles.markSound, { color: accent }]}>{pick({ ru: m.sound, en: m.sound_en, tr: m.sound_tr, id: m.sound_id, fr: m.sound_fr, de: m.sound_de, es: m.sound_es }, lang)}</Text>
         </TouchableOpacity>
       ))}
     </GlassView>
@@ -147,9 +152,11 @@ const ordinalEn = (n) => {
 
 // Карточка буквы: признаки плашками, затем «Звук» и «Как произносить».
 function LetterInfo({ letter, lang, t, accent }) {
-  const ru = lang === 'ru';
-  const tip = ru ? letter.tip_ru : letter.tip_en;
-  const chips = [ru ? `${letter.order}-я буква алфавита` : `${ordinalEn(letter.order)} letter of the alphabet`];
+  const tip = localized(letter, 'tip', lang);
+  const chips = [t('lesson_letter_order', { ord: pick({
+    ru: `${letter.order}-я`, en: ordinalEn(letter.order), tr: `${letter.order}.`, de: `${letter.order}.`,
+    id: `ke-${letter.order}`, fr: letter.order === 1 ? '1re' : `${letter.order}e`, es: `${letter.order}.ª`,
+  }, lang) })];
   if (!letter.joinsNext) chips.push(t('chip_no_join'));
   if (letter.heavy) chips.push(t('chip_heavy'));
   return (
@@ -162,7 +169,7 @@ function LetterInfo({ letter, lang, t, accent }) {
         ))}
       </View>
       <Text style={styles.infoLabel}>{t('info_sound')}</Text>
-      <Text style={styles.infoSound}>{capitalize(ru ? letter.sound_ru : letter.sound_en)}</Text>
+      <Text style={styles.infoSound}>{capitalize(localized(letter, 'sound', lang))}</Text>
       {!!tip && (
         <>
           <View style={styles.infoDivider} />
@@ -199,6 +206,7 @@ function DoneScreen({ badge, title, children, accent, onExit, t, action, mood = 
 }
 
 export default function LessonPlayerScreen({ step, onExit }) {
+  audioLang = useLang().lang;
   // Звук обрывается при закрытии плеера.
   useEffect(() => () => { stopAudio(); }, []);
 
@@ -222,12 +230,12 @@ function IntroPlayer({ onExit }) {
   // Всё во вступлении озвучено записями диктора (alphabetCourse.js); синтезатор
   // речи больше не читает. Без записи нажатие ничего не делает.
   function play(audio) {
-    if (!audioFor(audio)) return;
+    if (!audioFor(audio, audioLang)) return;
     hapticLight();
     playKey(audio);
   }
-  const title = lang === 'ru' ? s.title_ru : s.title_en;
-  const text = lang === 'ru' ? s.text_ru : s.text_en;
+  const title = localized(s, 'title', lang);
+  const text = localized(s, 'text', lang);
 
   function onNext() {
     if (idx + 1 < INTRO.length) { setIdx(idx + 1); return; }
@@ -264,7 +272,7 @@ function IntroPlayer({ onExit }) {
       </ScrollView>
       <View style={styles.footer}>
         <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: accent }]} onPress={onNext}>
-          <Text style={styles.primaryText}>{lang === 'ru' ? s.button_ru : s.button_en}</Text>
+          <Text style={styles.primaryText}>{localized(s, 'button', lang)}</Text>
         </TouchableOpacity>
       </View>
     </LessonBg>
@@ -317,7 +325,7 @@ function LetterPlayer({ letterId, onExit }) {
               </GlassView>
             </TouchableOpacity>
             {/* Как звучит буква и как её произносить — рассказывает росток. */}
-            <SproutPerch talkKey={letter.id} talkMs={talkTime(lang === 'ru' ? letter.tip_ru : letter.tip_en)}>
+            <SproutPerch talkKey={letter.id} talkMs={talkTime(localized(letter, 'tip', lang))}>
               <LetterInfo letter={letter} lang={lang} t={t} accent={accent} />
             </SproutPerch>
           </>

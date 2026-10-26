@@ -6,6 +6,7 @@ import { Card, SectionTitle, Subtitle } from '../components/ui';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, ARABIC } from '../constants/theme';
 import { ARABIC_LETTERS, HARAKAT, SYLLABLES, TAJWEED_BASICS, SURAHS } from '../constants/content';
 import { useLang } from '../i18n/LanguageContext';
+import { localized, pick } from '../i18n/languages';
 import { speakArabic } from '../utils/speech';
 
 export default function LearnScreen() {
@@ -55,7 +56,7 @@ export default function LearnScreen() {
             {HARAKAT.map((h) => (
               <TouchableOpacity key={h.name_en} style={styles.cellWide} onPress={() => speakArabic(h.say)}>
                 <Text style={styles.cellAr}>{h.mark}</Text>
-                <Text style={styles.cellName}>{lang === 'ru' ? h.name_ru : h.name_en}</Text>
+                <Text style={styles.cellName}>{localized(h, 'name', lang)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -78,8 +79,8 @@ export default function LearnScreen() {
           <View>
             {TAJWEED_BASICS.map((item, i) => (
               <Card key={i}>
-                <Text style={styles.tjTitle}>{lang === 'ru' ? item.title_ru : item.title_en}</Text>
-                <Text style={styles.tjText}>{lang === 'ru' ? item.text_ru : item.text_en}</Text>
+                <Text style={styles.tjTitle}>{localized(item, 'title', lang)}</Text>
+                <Text style={styles.tjText}>{localized(item, 'text', lang)}</Text>
               </Card>
             ))}
           </View>
@@ -90,12 +91,12 @@ export default function LearnScreen() {
             {SURAHS.map((s) => (
               <Card key={s.id}>
                 <Text style={styles.surahName}>{s.name}</Text>
-                <Text style={styles.surahMeaning}>{lang === 'ru' ? s.meaning_ru : s.meaning_en}</Text>
+                <Text style={styles.surahMeaning}>{localized(s, 'meaning', lang)}</Text>
                 {s.ayahs.map((a, i) => (
                   <TouchableOpacity key={i} onPress={() => speakArabic(a.ar)} style={styles.ayah}>
                     <Text style={styles.ayahAr}>{a.ar}</Text>
-                    <Text style={styles.ayahTr}>{a.tr}  🔊</Text>
-                    <Text style={styles.ayahEn}>{lang === 'ru' ? a.ru : a.en}</Text>
+                    <Text style={styles.ayahTr}>{a.translit}  🔊</Text>
+                    <Text style={styles.ayahEn}>{pick(a, lang)}</Text>
                   </TouchableOpacity>
                 ))}
               </Card>

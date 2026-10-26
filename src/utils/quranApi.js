@@ -33,6 +33,31 @@ export const TRANSLATIONS = {
     { id: 'ru.muntahab', label: 'Аль-Мунтахаб' },
     { id: 'ru.abuadel', label: 'Абу Адель' },
   ],
+  // Остальные языки — издания AlQuran Cloud, загружаются из сети. Первое в
+  // списке ставится по умолчанию. Переводы кораниитов (Edip Yüksel, Öztürk) не
+  // предлагаем.
+  tr: [
+    { id: 'tr.diyanet', label: 'Diyanet İşleri' },
+    { id: 'tr.vakfi', label: 'Diyanet Vakfı' },
+    { id: 'tr.yazir', label: 'Elmalılı Hamdi Yazır' },
+    { id: 'tr.ates', label: 'Süleyman Ateş' },
+  ],
+  id: [
+    { id: 'id.indonesian', label: 'Kementerian Agama RI' },
+    { id: 'id.muntakhab', label: 'Quraish Shihab (Al-Muntakhab)' },
+  ],
+  fr: [
+    { id: 'fr.hamidullah', label: 'Muhammad Hamidullah' },
+  ],
+  de: [
+    { id: 'de.bubenheim', label: 'Bubenheim & Elyas' },
+    { id: 'de.aburida', label: 'Abu Rida' },
+    { id: 'de.zaidan', label: 'Amir Zaidan' },
+  ],
+  es: [
+    { id: 'es.cortes', label: 'Julio Cortés' },
+    { id: 'es.garcia', label: 'Isa García' },
+  ],
 };
 
 // Popular reciters for the audio picker (verified AlQuran Cloud editions).

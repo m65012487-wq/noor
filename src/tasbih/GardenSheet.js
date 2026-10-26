@@ -5,6 +5,7 @@ import DraggableSheet from '../components/DraggableSheet';
 import Icon from '../components/Icon';
 import { COLORS, RADIUS, SPACING, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
+import { pick } from '../i18n/languages';
 import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
 import SeedIcon from './SeedIcon';
@@ -17,21 +18,20 @@ import { growthRatio, harvestCount, HARVEST_EVERY, isFruiting, SPECIES, STAGE_NA
 // первый урожай и всегда новой породы, поэтому зёрен за всё время четыре.
 
 const RULES = [
-  { ru: 'Каждое поминание растит выбранное дерево, первые 33 за день — вдвое.', en: 'Every remembrance grows the chosen tree; the first 33 each day count double.' },
-  { ru: 'В первые полчаса после намаза дерево растёт в полтора раза быстрее.', en: 'In the half hour after prayer the tree grows one and a half times faster.' },
-  { ru: 'В пятницу поминания понемногу поливают весь сад, а не только выбранное дерево.', en: 'On Friday remembrance waters the whole garden a little, not just the chosen tree.' },
-  { ru: 'Первый урожай дерева приносит зерно новой породы — пока в саду есть место.', en: 'A tree\'s first harvest brings a seed of a new species while the garden has room.' },
-  { ru: 'Выросшее дерево не уходит: оно даёт урожай за урожаем, пока о нём заботятся.', en: 'A grown tree stays: it keeps giving harvests while you tend it.' },
+  { ru: 'Каждое поминание растит выбранное дерево, первые 33 за день — вдвое.', en: 'Every remembrance grows the chosen tree; the first 33 each day count double.', tr: 'Her zikir seçilen ağacı büyütür; günün ilk 33’ü iki katı sayılır.', id: 'Setiap dzikir menumbuhkan pohon yang dipilih; 33 pertama setiap hari dihitung dua kali lipat.', fr: 'Chaque dhikr fait grandir l’arbre choisi ; les 33 premiers de la journée comptent double.', de: 'Jeder Dhikr lässt den gewählten Baum wachsen; die ersten 33 am Tag zählen doppelt.', es: 'Cada dhikr hace crecer el árbol elegido; los primeros 33 de cada día cuentan doble.' },
+  { ru: 'В первые полчаса после намаза дерево растёт в полтора раза быстрее.', en: 'In the half hour after prayer the tree grows one and a half times faster.', tr: 'Namazdan sonraki yarım saatte ağaç bir buçuk kat hızlı büyür.', id: 'Dalam setengah jam setelah shalat, pohon tumbuh satu setengah kali lebih cepat.', fr: 'Dans la demi-heure qui suit la prière, l’arbre pousse une fois et demie plus vite.', de: 'In der halben Stunde nach dem Gebet wächst der Baum anderthalbmal so schnell.', es: 'En la media hora posterior a la oración, el árbol crece una vez y media más rápido.' },
+  { ru: 'В пятницу поминания понемногу поливают весь сад, а не только выбранное дерево.', en: 'On Friday remembrance waters the whole garden a little, not just the chosen tree.', tr: 'Cuma günü zikir yalnızca seçilen ağacı değil, tüm bahçeyi biraz sular.', id: 'Pada hari Jumat, dzikir menyiram seluruh kebun sedikit demi sedikit, bukan hanya pohon yang dipilih.', fr: 'Le vendredi, le dhikr arrose un peu tout le jardin, et pas seulement l’arbre choisi.', de: 'Freitags bewässert der Dhikr den ganzen Garten ein wenig, nicht nur den gewählten Baum.', es: 'El viernes, el dhikr riega un poco todo el jardín, no solo el árbol elegido.' },
+  { ru: 'Первый урожай дерева приносит зерно новой породы — пока в саду есть место.', en: 'A tree\'s first harvest brings a seed of a new species while the garden has room.', tr: 'Ağacın ilk hasadı, bahçede yer olduğu sürece yeni bir türün tohumunu getirir.', id: 'Panen pertama sebuah pohon membawa biji jenis baru selama kebun masih punya ruang.', fr: 'La première récolte d’un arbre apporte une graine d’une nouvelle espèce tant que le jardin a de la place.', de: 'Die erste Ernte eines Baums bringt einen Samen einer neuen Art, solange im Garten Platz ist.', es: 'La primera cosecha de un árbol trae una semilla de una especie nueva mientras haya sitio en el jardín.' },
+  { ru: 'Выросшее дерево не уходит: оно даёт урожай за урожаем, пока о нём заботятся.', en: 'A grown tree stays: it keeps giving harvests while you tend it.', tr: 'Büyümüş ağaç gitmez: ona baktığınız sürece hasat vermeye devam eder.', id: 'Pohon yang sudah tumbuh tetap ada: ia terus berpanen selama Anda merawatnya.', fr: 'Un arbre adulte reste : il continue de donner des récoltes tant que vous en prenez soin.', de: 'Ein ausgewachsener Baum bleibt: Er trägt weiter Ernten, solange Sie ihn pflegen.', es: 'Un árbol crecido se queda: sigue dando cosechas mientras lo cuide.' },
 ];
 
-const speciesLabel = (id, ru) => {
+const speciesLabel = (id, lang) => {
   const found = SPECIES.find(s => s.id === id);
-  return found ? (ru ? found.ru : found.en) : id;
+  return found ? pick(found, lang) : id;
 };
 
 export default function GardenSheet({ visible, onClose, state, plant, setActive }) {
-  const { lang } = useLang();
-  const ru = lang === 'ru';
+  const { t, lang } = useLang();
   const { accent } = useAppearance();
   const [picked, setPicked] = useState(null);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -47,12 +47,12 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
     ? ((shown.progress - STAGES[finalStage].requiredProgress) % HARVEST_EVERY) / HARVEST_EVERY
     : growthRatio(shown);
   const nextLabel = isFruiting(shown)
-    ? (ru ? `до ${harvests + 1}-го урожая` : `to harvest ${harvests + 1}`)
-    : (ru ? `до стадии «${STAGE_NAMES[shown.stage + 1]?.ru}»` : `to “${STAGE_NAMES[shown.stage + 1]?.en}”`);
+    ? t('garden_to_harvest', { n: harvests + 1 })
+    : t('garden_to_stage', { name: pick(STAGE_NAMES[shown.stage + 1], lang) });
 
   return (
-    <DraggableSheet visible={visible} onClose={() => { setPicked(null); onClose(); }} title={ru ? 'Сад' : 'Garden'}>
-      <Text style={styles.subtitle}>{ru ? 'Пять мест — по одному на каждую породу' : 'Five places — one for each species'}</Text>
+    <DraggableSheet visible={visible} onClose={() => { setPicked(null); onClose(); }} title={t('garden_title')}>
+      <Text style={styles.subtitle}>{t('garden_subtitle')}</Text>
 
       {/* Панорама сада: пять мест в ряд. Пустое место — холмик: с зерном его
           можно засадить, без зерна там вопрос. */}
@@ -63,15 +63,15 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
           const isActive = tree && tree.id === state.activeTreeId;
           const isShown = tree && tree.id === shown.id;
           const status = tree
-            ? (isFruiting(tree) ? (ru ? `${harvestCount(tree)}-й урожай` : `harvest ${harvestCount(tree)}`)
-              : (ru ? STAGE_NAMES[tree.stage]?.ru : STAGE_NAMES[tree.stage]?.en))
-            : hasSeed ? (ru ? 'посадить' : 'plant') : (ru ? 'закрыто' : 'locked');
+            ? (isFruiting(tree) ? t('garden_harvest', { n: harvestCount(tree) })
+              : pick(STAGE_NAMES[tree.stage], lang))
+            : hasSeed ? t('garden_plant') : t('garden_locked');
           return (
             <Pressable key={s.id} style={styles.place} accessibilityRole="button"
               accessibilityState={{ selected: !!isShown }}
-              accessibilityLabel={tree ? `${speciesLabel(s.id, ru)}, ${status}${isActive ? (ru ? ', растёт сейчас' : ', growing now') : ''}`
-                : hasSeed ? (ru ? `Посадить: ${speciesLabel(s.id, ru)}` : `Plant ${speciesLabel(s.id, ru)}`)
-                : (ru ? 'Место ещё закрыто' : 'Place still locked')}
+              accessibilityLabel={tree ? `${speciesLabel(s.id, lang)}, ${status}${isActive ? t('garden_growing_suffix') : ''}`
+                : hasSeed ? t('garden_plant_label', { name: speciesLabel(s.id, lang) })
+                : t('garden_place_locked')}
               onPress={() => {
                 hapticLight();
                 if (tree) setPicked(tree.id);
@@ -83,7 +83,7 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
                   : <Text style={styles.question}>?</Text>}
                 {isActive && <View style={[styles.activeDot, { backgroundColor: accent }]} />}
               </View>
-              <Text style={styles.placeName} numberOfLines={1}>{tree || hasSeed ? speciesLabel(s.id, ru) : '—'}</Text>
+              <Text style={styles.placeName} numberOfLines={1}>{tree || hasSeed ? speciesLabel(s.id, lang) : '—'}</Text>
               <Text style={[styles.placeStatus, hasSeed && !tree && { color: accent, fontWeight: '600' }]} numberOfLines={1}>{status}</Text>
             </Pressable>
           );
@@ -93,17 +93,17 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
       {/* Выбранное дерево: сколько выросло и что дальше. Ухаживать можно за любым. */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>
-          {speciesLabel(shown.species, ru)} · {isFruiting(shown) ? (ru ? `${harvests}-й урожай` : `harvest ${harvests}`) : (ru ? STAGE_NAMES[shown.stage]?.ru : STAGE_NAMES[shown.stage]?.en)}
+          {speciesLabel(shown.species, lang)} · {isFruiting(shown) ? t('garden_harvest', { n: harvests }) : pick(STAGE_NAMES[shown.stage], lang)}
         </Text>
         <View style={styles.track}><View style={[styles.fill, { width: `${Math.max(0, Math.min(1, ratio)) * 100}%`, backgroundColor: accent }]} /></View>
         <View style={styles.cardRow}>
           <Text style={styles.cardSub}>{Math.round(ratio * 100)}% · {nextLabel}</Text>
           {shown.id === state.activeTreeId ? (
-            <Text style={[styles.cardSub, { color: accent }]}>{ru ? 'растёт сейчас' : 'growing now'}</Text>
+            <Text style={[styles.cardSub, { color: accent }]}>{t('garden_growing_now')}</Text>
           ) : (
             <Pressable accessibilityRole="button" onPress={() => { hapticLight(); setActive(shown.id); }}
               style={[styles.tendButton, { backgroundColor: accent }]} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-              <Text style={styles.tendText}>{ru ? 'Ухаживать' : 'Tend'}</Text>
+              <Text style={styles.tendText}>{t('garden_tend')}</Text>
             </Pressable>
           )}
         </View>
@@ -113,20 +113,19 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
         <View style={styles.seedRow}>
           <SeedIcon size={28} color={accent} />
           <Text style={styles.seedText}>
-            {ru ? `Зерно: ${seeds.map(s => speciesLabel(s, ru)).join(', ')} — коснитесь его места, чтобы посадить`
-              : `Seed: ${seeds.map(s => speciesLabel(s, ru)).join(', ')} — tap its place to plant`}
+            {t('garden_seed_hint', { names: seeds.map(s => speciesLabel(s, lang)).join(', ') })}
           </Text>
         </View>
       )}
 
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: rulesOpen }} style={styles.rulesHead}
         onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setRulesOpen(v => !v); }}>
-        <Text style={styles.rulesTitle}>{ru ? 'Как растёт сад' : 'How the garden grows'}</Text>
+        <Text style={styles.rulesTitle}>{t('garden_rules_title')}</Text>
         <Icon name={rulesOpen ? 'up' : 'down'} size={18} color={COLORS.textMuted} />
       </Pressable>
       {rulesOpen && (
         <View style={styles.rules}>
-          {RULES.map((rule, i) => <Text key={i} style={styles.ruleText}>{ru ? rule.ru : rule.en}</Text>)}
+          {RULES.map((rule, i) => <Text key={i} style={styles.ruleText}>{pick(rule, lang)}</Text>)}
         </View>
       )}
     </DraggableSheet>

@@ -4,6 +4,8 @@
 // или убывает, и насколько. Средний синодический месяц даёт расхождение с
 // истинными новолуниями до полусуток — на глаз это доли процента диска.
 
+import { pick } from '../i18n/languages';
+
 const SYNODIC = 29.530588853;
 // Новолуние 6 января 2000, 18:14 UTC — общепринятая точка отсчёта.
 const NEW_MOON_JD = 2451550.09766;
@@ -59,5 +61,15 @@ export function phaseName(phase, lang = 'ru') {
     'Полнолуние', 'Убывающая луна', 'Последняя четверть', 'Убывающий серп'];
   const en = ['New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous',
     'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'];
-  return (lang === 'ru' ? ru : en)[i];
+  const tr = ['Yeni ay', 'Büyüyen hilal', 'İlk dördün', 'Büyüyen şişkin ay',
+    'Dolunay', 'Küçülen şişkin ay', 'Son dördün', 'Küçülen hilal'];
+  const id = ['Bulan baru', 'Sabit awal', 'Kuartal pertama', 'Cembung awal',
+    'Bulan purnama', 'Cembung akhir', 'Kuartal terakhir', 'Sabit akhir'];
+  const fr = ['Nouvelle lune', 'Premier croissant', 'Premier quartier', 'Gibbeuse croissante',
+    'Pleine lune', 'Gibbeuse décroissante', 'Dernier quartier', 'Dernier croissant'];
+  const de = ['Neumond', 'Zunehmende Sichel', 'Erstes Viertel', 'Zunehmender Mond',
+    'Vollmond', 'Abnehmender Mond', 'Letztes Viertel', 'Abnehmende Sichel'];
+  const es = ['Luna nueva', 'Luna creciente', 'Cuarto creciente', 'Gibosa creciente',
+    'Luna llena', 'Gibosa menguante', 'Cuarto menguante', 'Luna menguante'];
+  return pick({ ru, en, tr, id, fr, de, es }, lang)[i];
 }

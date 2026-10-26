@@ -4,6 +4,7 @@ import Text from './AppText';
 import DraggableSheet from './DraggableSheet';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
 import { useLang } from '../i18n/LanguageContext';
+import { localized } from '../i18n/languages';
 import { useQuranPrefs } from '../utils/QuranPrefsContext';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { useAppearance } from '../utils/AppearanceContext';
@@ -106,7 +107,7 @@ export default function QuranSettingsSheet({ visible, onClose }) {
                 بِسْمِ ٱللَّٰه
               </Text>
               <Text style={[styles.fontName, arabicFont === f.id && styles.fontNameActive]}>
-                {lang === "ru" ? f.label_ru : f.label_en}
+                {localized(f, 'label', lang)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -120,10 +121,10 @@ export default function QuranSettingsSheet({ visible, onClose }) {
             <TouchableOpacity key={f.id} onPress={() => chooseReadingFont(f.id)}
               style={[styles.fontChip, readingFont === f.id && styles.fontChipActive]}>
               <Text style={[styles.readingSample, { fontFamily: f.family }]}>
-                {lang === "ru" ? "Во имя Аллаха" : "In the name of Allah"}
+                {t('quran_font_sample')}
               </Text>
               <Text style={[styles.fontName, readingFont === f.id && styles.fontNameActive]}>
-                {lang === "ru" ? f.label_ru : f.label_en}
+                {localized(f, 'label', lang)}
               </Text>
             </TouchableOpacity>
           ))}
