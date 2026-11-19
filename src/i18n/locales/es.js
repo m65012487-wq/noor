@@ -68,7 +68,7 @@ export default {
   streak_freezes: 'Escudos de racha',
   freeze_used: 'Un escudo salvó tu racha',
   freeze_earned: 'Nuevo escudo: 7 días seguidos',
-  freeze_hint: 'Un escudo cubre un día perdido además del gratuito. Se gana uno cada 7 días seguidos, hasta 2.',
+  freeze_hint: 'Un escudo cubre un día perdido. Se gana uno cada 7 días seguidos, hasta 2.',
   notif_now: 'Es hora de orar',
   notif_in: 'En {n} min',
   notif_sunrise: 'El tiempo de Fayr ha terminado',

@@ -72,6 +72,7 @@ export default function PrayerTimesScreen() {
   const [nextName, setNextName] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [alarmSettingsOpen, setAlarmSettingsOpen] = useState(false);
   const [reminderPrayer, setReminderPrayer] = useState(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -259,7 +260,8 @@ export default function PrayerTimesScreen() {
   const openKahf = async () => {
     let surah = KAHF;
     try { surah = (await getSurahList()).find(x => x.number === KAHF.number) || KAHF; } catch {}
-    const at = kahf && !kahf.done && kahf.ayah > 1 ? kahf.ayah : undefined;
+    const saved = await loadKahf();
+    const at = !saved.done ? saved.ayah || undefined : undefined;
     // initial: false — под читалкой остаётся список сур, «назад» ведёт к нему.
     navigation.navigate('Quran', { screen: 'SurahReader', initial: false, params: { surah, jumpToAyah: at, friday: true } });
   };
@@ -284,9 +286,16 @@ export default function PrayerTimesScreen() {
         )}
         <View style={styles.header}>
           <SectionTitle>{t('prayer_title')}</SectionTitle>
-          <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gear}>
-            <Icon name="settings" size={24} color={COLORS.text} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => setAlarmSettingsOpen(true)} style={styles.gear}
+              accessibilityRole="button" accessibilityLabel={t('fajr_alarm')}>
+              <Icon name="alarm" size={24} color={accent} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setSettingsOpen(true)} style={styles.gear}
+              accessibilityRole="button" accessibilityLabel={t('settings')}>
+              <Icon name="settings" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Две даты рядом: григорианская привычна, по хиджре живёт всё
@@ -433,7 +442,9 @@ export default function PrayerTimesScreen() {
         </View>
 
         <LocationPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
-        <SettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onFajrAlarmChange={() => setRefresh(v => v + 1)} />
+        <SettingsModal visible={settingsOpen || alarmSettingsOpen} alarmOnly={alarmSettingsOpen}
+          onClose={() => { setSettingsOpen(false); setAlarmSettingsOpen(false); }}
+          onFajrAlarmChange={() => setRefresh(v => v + 1)} />
         <PrayerReminderSheet prayer={reminderPrayer} onClose={() => setReminderPrayer(null)} />
         <CalendarSheet visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
       </ScreenWrapper>
@@ -495,7 +506,8 @@ const SHADOW = {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  gear: { padding: SPACING.sm },
+  headerActions: { flexDirection: 'row', flexShrink: 0 },
+  gear: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: SPACING.md },
   locChip: { alignSelf: 'flex-start' },

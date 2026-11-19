@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { KAHF_TAG } from './src/utils/kahfReminder';
-import { KAHF } from './src/utils/fridayKahf';
+import { KAHF, loadKahf } from './src/utils/fridayKahf';
 import { getSurahList } from './src/utils/quranApi';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as Notifications from 'expo-notifications';
@@ -31,7 +31,9 @@ async function openKahfFromNotification(response) {
   if (response?.notification?.request?.content?.data?.tag !== KAHF_TAG || !navigationRef.isReady()) return;
   let surah = KAHF;
   try { surah = (await getSurahList()).find(x => x.number === KAHF.number) || KAHF; } catch {}
-  navigationRef.navigate('Quran', { screen: 'SurahReader', initial: false, params: { surah, friday: true } });
+  const progress = await loadKahf();
+  navigationRef.navigate('Quran', { screen: 'SurahReader', initial: false,
+    params: { surah, friday: true, jumpToAyah: !progress.done ? progress.ayah || undefined : undefined } });
 }
 async function openFromLastNotification() {
   try { await openKahfFromNotification(await Notifications.getLastNotificationResponseAsync()); } catch {}

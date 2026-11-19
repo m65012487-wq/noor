@@ -74,7 +74,7 @@ export default {
   streak_freezes: 'Seri kalkanları',
   freeze_used: 'Bir kalkan serinizi kurtardı',
   freeze_earned: 'Yeni kalkan: üst üste 7 gün',
-  freeze_hint: 'Bir kalkan, ücretsiz olandan sonraki bir kaçırılan günü kapatır. Üst üste her 7 günde bir kazanılır, en fazla 2.',
+  freeze_hint: 'Bir kalkan, kaçırılan bir günü telafi eder. Üst üste her 7 günde bir kazanılır, en fazla 2.',
   notif_now: 'Namaz vakti',
   notif_in: '{n} dk sonra',
   notif_sunrise: 'Sabah vakti çıktı',

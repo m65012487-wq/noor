@@ -56,9 +56,8 @@ struct StreakStatus {
                                 week: Array(repeating: false, count: 7))
         }
         let gap = data.lastGoalDay.flatMap { daysBetween($0, now) }
-        // Правило то же, что в приложении (streakFreeze.js): двое суток бесплатно,
-        // дальше — по одной броне на лишние сутки.
-        let limit = 2 + min(2, max(0, data.freezes ?? 0))
+        // За каждый завершившийся день пропуска расходуется один щит.
+        let limit = 1 + min(2, max(0, data.freezes ?? 0))
         let alive = gap.map { $0 <= limit } ?? false
         let done = data.lastGoalDay == today
         let week = (0..<7).reversed().map { offset -> Bool in

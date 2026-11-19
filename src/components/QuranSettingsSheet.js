@@ -26,7 +26,8 @@ function Row({ label, active, onPress, right }) {
 
 function ToggleRow({ label, value, onToggle }) {
   return (
-    <TouchableOpacity style={styles.toggleRow} onPress={onToggle} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.toggleRow} onPress={onToggle} activeOpacity={0.8}
+      accessibilityRole="switch" accessibilityState={{ checked: value }}>
       <Text style={styles.toggleLabel}>{label}</Text>
       <View style={[styles.switch, value && styles.switchOn]}>
         <View style={[styles.knob, value && styles.knobOn]} />
@@ -35,7 +36,7 @@ function ToggleRow({ label, value, onToggle }) {
   );
 }
 
-export default function QuranSettingsSheet({ visible, onClose }) {
+export default function QuranSettingsSheet({ visible, onClose, displayOnly = false }) {
   const { arabicFont, chooseArabicFont, ARABIC_FONTS, readingFont, chooseReadingFont, READING_FONTS } = useAppearance();
   const { t, lang } = useLang();
   const { translationId, reciterId, chooseTranslation, chooseReciter,
@@ -51,6 +52,7 @@ export default function QuranSettingsSheet({ visible, onClose }) {
   const [recDownloaded, setRecDownloaded] = useState({});
 
   React.useEffect(() => {
+    if (!visible || displayOnly) return;
     (async () => {
       const map = {};
       for (const tr of translations) map[tr.id] = await isTranslationDownloaded(tr.id);
@@ -59,7 +61,7 @@ export default function QuranSettingsSheet({ visible, onClose }) {
       for (const r of RECITERS) rmap[r.id] = await isReciterDownloaded(r.id);
       setRecDownloaded(rmap);
     })();
-  }, [visible, lang]);
+  }, [visible, translations, displayOnly]);
 
   async function toggleReciterDownload(id) {
     if (recDownloaded[id]) {
@@ -85,11 +87,22 @@ export default function QuranSettingsSheet({ visible, onClose }) {
     }
   }
 
+  const textToggles = (
+    <>
+        <ToggleRow label={t('show_arabic')} value={showArabic} onToggle={() => toggleArabic(!showArabic)} />
+        <ToggleRow label={t('show_translit')} value={showTranslit} onToggle={() => toggleTranslit(!showTranslit)} />
+    </>
+  );
+  if (displayOnly) {
+    return <DraggableSheet visible={visible} onClose={onClose} title={t('display')}>
+      {textToggles}
+    </DraggableSheet>;
+  }
+
   return (
     <DraggableSheet visible={visible} onClose={onClose} title={t('quran_title')}>
       <Text style={styles.section}>{t('display')}</Text>
-        <ToggleRow label={t('show_arabic')} value={showArabic} onToggle={() => toggleArabic(!showArabic)} />
-        <ToggleRow label={t('show_translit')} value={showTranslit} onToggle={() => toggleTranslit(!showTranslit)} />
+        {textToggles}
         <ToggleRow label={t('show_translation')} value={showTranslation} onToggle={() => toggleTranslation(!showTranslation)} />
         <ToggleRow label={t('wbw')} value={wordByWord} onToggle={() => toggleWordByWord(!wordByWord)} />
 

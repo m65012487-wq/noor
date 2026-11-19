@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, TouchableOpacity, ActivityIndicator, Animated, Image, PanResponder, ScrollView } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ActivityIndicator, Animated, Image, PanResponder, ScrollView, Pressable, AppState, useWindowDimensions } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import Text from '../components/AppText';
 import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
+import QuranSettingsSheet from '../components/QuranSettingsSheet';
 import { SectionTitle } from '../components/ui';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, READER } from '../constants/theme';
 import { getSurahList, getSurah, getSurahAudio } from '../utils/quranApi';
@@ -16,7 +18,7 @@ import { surahMeaning } from '../constants/surahNames';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { publishStreak } from '../utils/widgetBridge';
-import { advanceStreak, FREEZE_MAX } from '../utils/streakFreeze';
+import { advanceStreak, consecutiveGoalDays, streakStatus, FREEZE_MAX } from '../utils/streakFreeze';
 import { useTabSwipe } from '../utils/useTabSwipe';
 
 const TOTAL_AYAHS = 6236;
@@ -26,6 +28,10 @@ export default function ReadingScreen() {
   const { t, lang } = useLang();
   const { translationId, reciterId, showArabic, showTranslit, showTranslation, fontScale } = useQuranPrefs();
   const { dailyGoal } = useAppSettings();
+  const focused = useIsFocused();
+  const { width } = useWindowDimensions();
+  const [day, setDay] = useState(todayKey);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const tabSwipe = useTabSwipe('Read');
   const [goalDone, setGoalDone] = useState(false);
   const [list, setList] = useState(null);
@@ -37,6 +43,8 @@ export default function ReadingScreen() {
   // Короткая строка о том, что сделала бронь: потратилась или выдана новая.
   const [freezeNote, setFreezeNote] = useState(null);
   const countingRef = useRef(false);
+  const pagingRef = useRef(false);
+  const finalAyahDay = useRef(null);
   // Заметка гаснет сама: висящая до следующего касания она двигала карточку аята.
   useEffect(() => {
     if (!freezeNote) return undefined;
@@ -48,8 +56,6 @@ export default function ReadingScreen() {
   const fade = useRef(new Animated.Value(1)).current;
   const posRef = useRef(pos);
   posRef.current = pos;
-  const dataRef = useRef(surahData);
-  dataRef.current = surahData;
 
   useEffect(() => {
     (async () => {
@@ -58,26 +64,48 @@ export default function ReadingScreen() {
         setList(l);
         const saved = await loadJSON('readingPos', { surah: 1, ayah: 1 });
         setPos(saved);
-        setStreak(await loadJSON('streakCount', 0));
-        setFreezes(await loadJSON('streakFreezes', 0));
-        const prog = await loadJSON('readProgress', {});
-        const todayCount = prog[todayKey()] || 0;
-        setReadToday(todayCount);
-        const dg = await loadJSON('dailyGoal', 5);
-        if (todayCount >= dg) setGoalDone(true);
-      } catch (e) {}
+      } catch {}
     })();
   }, []);
+
+  useEffect(() => {
+    if (!focused) return undefined;
+    const syncDate = () => setDay(todayKey());
+    syncDate();
+    const timer = setInterval(syncDate, 1000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') syncDate();
+    });
+    return () => { clearInterval(timer); subscription.remove(); };
+  }, [focused]);
+
+  useEffect(() => {
+    if (!focused) return undefined;
+    let active = true;
+    Promise.all([
+      loadJSON('streakCount', 0), loadJSON('lastGoalDay', null),
+      loadJSON('streakFreezes', 0), loadJSON('readProgress', {}),
+    ]).then(([count, last, savedFreezes, progress]) => {
+      if (!active || countingRef.current || day !== todayKey()) return;
+      const status = streakStatus({ streak: count, gap: last ? dayDiff(day, last) : null, freezes: savedFreezes });
+      setStreak(status.streak);
+      setFreezes(status.freezes);
+      setReadToday(progress[day] || 0);
+      setGoalDone((progress[day] || 0) >= dailyGoal);
+    });
+    return () => { active = false; };
+  }, [day, dailyGoal, focused]);
 
   useEffect(() => {
     if (!list) return;
     let mounted = true;
     setLoading(true);
+    setSurahData(null);
     (async () => {
       try {
         const d = await getSurah(pos.surah, translationId, true);
         if (mounted) setSurahData(d);
-      } catch (e) {}
+      } catch {}
       if (mounted) setLoading(false);
     })();
     return () => { mounted = false; stopAudio(); setPlaying(false); };
@@ -88,10 +116,10 @@ export default function ReadingScreen() {
     : null;
 
   function animateSwap(fn) {
-    Animated.timing(fade, { toValue: 0, duration: 110, useNativeDriver: true }).start(() => {
+    return new Promise(resolve => Animated.timing(fade, { toValue: 0, duration: 110, useNativeDriver: true }).start(() => {
       fn();
-      Animated.timing(fade, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-    });
+      Animated.timing(fade, { toValue: 1, duration: 150, useNativeDriver: true }).start(resolve);
+    }));
   }
 
   async function countAyah() {
@@ -104,26 +132,28 @@ export default function ReadingScreen() {
 
   async function countAyahLocked() {
     hapticLight();
+    const readingDay = todayKey();
     const prog = await loadJSON('readProgress', {});
-    const newCount = (prog[todayKey()] || 0) + 1;
-    prog[todayKey()] = newCount;
+    const newCount = (prog[readingDay] || 0) + 1;
+    prog[readingDay] = newCount;
     await saveJSON('readProgress', prog);
     setReadToday(newCount);
     // Daily goal reached exactly now?
     if (newCount === dailyGoal) { setGoalDone(true); hapticSuccess(); }
     const history = await loadJSON('goalHistory', {});
-    if (!history[todayKey()] && newCount >= dailyGoal) {
-      history[todayKey()] = true;
+    if (!history[readingDay] && newCount >= dailyGoal) {
+      history[readingDay] = true;
       await saveJSON('goalHistory', history);
       const last = await loadJSON('lastGoalDay', null);
       const result = advanceStreak({
         streak: await loadJSON('streakCount', 0),
-        gap: last ? dayDiff(todayKey(), last) : null,
+        gap: last ? dayDiff(readingDay, last) : null,
         freezes: await loadJSON('streakFreezes', 0),
+        consecutiveDays: consecutiveGoalDays(history, readingDay),
       });
       await saveJSON('streakCount', result.streak);
       await saveJSON('streakFreezes', result.freezes);
-      await saveJSON('lastGoalDay', todayKey());
+      await saveJSON('lastGoalDay', readingDay);
       setStreak(result.streak);
       setFreezes(result.freezes);
       // Потратилась и выдалась в один день — показываем обе строки.
@@ -134,39 +164,52 @@ export default function ReadingScreen() {
     publishStreak();
   }
 
-  async function goNext() {
-    await stopAudio(); setPlaying(false);
-    await countAyah();
-    const p = posRef.current; const d = dataRef.current;
-    const total = d?.ayahs?.length || 1;
-    let np;
-    if (p.ayah < total) np = { surah: p.surah, ayah: p.ayah + 1 };
-    else if (p.surah < 114) np = { surah: p.surah + 1, ayah: 1 };
-    else np = { surah: 114, ayah: total };
-    animateSwap(() => setPos(np));
-    await saveJSON('readingPos', np);
+  async function turnPage(next, credit = false) {
+    if (pagingRef.current || loading || !ayah) return;
+    pagingRef.current = true;
+    try {
+      await stopAudio();
+      setPlaying(false);
+      const staysAtEnd = next === pos;
+      const readingDay = todayKey();
+      if (credit && (!staysAtEnd || finalAyahDay.current !== readingDay)) await countAyah();
+      if (staysAtEnd) {
+        finalAyahDay.current = readingDay;
+        return;
+      }
+      await animateSwap(() => {
+        if (next.surah !== pos.surah) setLoading(true);
+        setPos(next);
+      });
+      await saveJSON('readingPos', next);
+    } finally { pagingRef.current = false; }
   }
 
-  async function goPrev() {
-    await stopAudio(); setPlaying(false);
-    const p = posRef.current;
-    let np;
-    if (p.ayah > 1) np = { surah: p.surah, ayah: p.ayah - 1 };
-    else if (p.surah > 1) {
-      const ps = list.find((s) => s.number === p.surah - 1);
-      np = { surah: p.surah - 1, ayah: ps ? ps.numberOfAyahs : 1 };
-    } else np = { surah: 1, ayah: 1 };
-    animateSwap(() => setPos(np));
-    await saveJSON('readingPos', np);
+  function goNext() {
+    if (pos.ayah < (surahData?.ayahs?.length || 0)) {
+      return turnPage({ surah: pos.surah, ayah: pos.ayah + 1 }, true);
+    }
+    if (pos.surah < 114) return turnPage({ surah: pos.surah + 1, ayah: 1 }, true);
+    return turnPage(pos, true);
+  }
+
+  function goPrev() {
+    if (pos.ayah > 1) return turnPage({ surah: pos.surah, ayah: pos.ayah - 1 });
+    if (pos.surah > 1) {
+      const previous = list?.find(s => s.number === pos.surah - 1);
+      return turnPage({ surah: pos.surah - 1, ayah: previous?.numberOfAyahs || 1 });
+    }
   }
 
   // Swipe: left -> next, right -> prev
+  const pageActions = useRef(null);
+  pageActions.current = { goNext, goPrev };
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderRelease: (_, g) => {
-        if (g.dx < -40) goNext();
-        else if (g.dx > 40) goPrev();
+        if (g.dx < -40) pageActions.current.goNext();
+        else if (g.dx > 40) pageActions.current.goPrev();
       },
     })
   ).current;
@@ -177,7 +220,7 @@ export default function ReadingScreen() {
       const map = await getSurahAudio(posRef.current.surah, reciterId);
       const url = map[posRef.current.ayah];
       if (url) { setPlaying(true); await playUrl(url, () => setPlaying(false)); }
-    } catch (e) {}
+    } catch {}
   }
 
   const globalRead = (() => {
@@ -190,7 +233,13 @@ export default function ReadingScreen() {
 
   return (
     <ScreenWrapper swipeHandlers={tabSwipe}>
-      <SectionTitle>{t('reading_title')}</SectionTitle>
+      <View style={styles.headingRow}>
+        <SectionTitle>{t('reading_title')}</SectionTitle>
+        <TouchableOpacity style={styles.options} onPress={() => setSettingsOpen(true)}
+          accessibilityRole="button" accessibilityLabel={t('settings')}>
+          <Icon name="options" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
 
       {/* Surah name + ayah ref — always visible at top */}
       <GlassView azure radius={RADIUS.md} style={{ marginBottom: SPACING.md }}>
@@ -241,7 +290,14 @@ export default function ReadingScreen() {
         ) : (
           <Animated.View style={{ opacity: fade, flex: 1 }}>
             <GlassView radius={RADIUS.lg} style={{ flex: 1 }}>
-              <ScrollView contentContainerStyle={styles.ayahScroll} showsVerticalScrollIndicator={false}>
+              <ScrollView key={`${pos.surah}:${pos.ayah}`} contentContainerStyle={styles.ayahScroll}
+                showsVerticalScrollIndicator={false}>
+                <Pressable accessible={false} style={styles.verseTouch}
+                  onPress={({ nativeEvent }) => {
+                    if (nativeEvent.pageX >= width / 2 && pos.surah < 114) {
+                      turnPage({ surah: pos.surah + 1, ayah: 1 });
+                    }
+                  }}>
                 {showArabic && <Text style={[styles.ar, { fontSize: READER.ayah.fontSize * fontScale, lineHeight: READER.ayah.lineHeight * fontScale }]}>{ayah.ar}</Text>}
                 {showTranslit && !!ayah.tr && (
                   <Text style={[styles.tr, { fontSize: READER.translit.fontSize * fontScale, fontFamily: fonts?.reading }]}>{ayah.tr}</Text>
@@ -249,6 +305,7 @@ export default function ReadingScreen() {
                 {showTranslation && (
                   <Text style={[styles.en, { fontSize: READER.trans.fontSize * fontScale, lineHeight: READER.trans.lineHeight * fontScale, fontFamily: fonts?.reading }]}>{ayah.en}</Text>
                 )}
+                </Pressable>
                 <TouchableOpacity style={styles.listenBtn} onPress={listen}>
                   <Icon name={playing ? 'pause' : 'play'} size={16} color={COLORS.text} />
                   <Text style={styles.listenText}>  {playing ? t('stop') : t('preview')}</Text>
@@ -274,11 +331,15 @@ export default function ReadingScreen() {
         </TouchableOpacity>
       </View>
       <Text style={styles.todayHint}>{readToday} / {dailyGoal} · ← →</Text>
+      {settingsOpen && <QuranSettingsSheet visible onClose={() => setSettingsOpen(false)} displayOnly />}
     </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
+  headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  options: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  verseTouch: { minHeight: 44, justifyContent: 'center' },
   refRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md },
   refName: { ...TYPE.subhead, color: COLORS.white, fontWeight: '700', flex: 1 },
   refAyah: { ...TYPE.callout, color: COLORS.accentSoft, marginLeft: SPACING.sm },

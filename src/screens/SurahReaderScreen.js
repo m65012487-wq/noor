@@ -92,11 +92,13 @@ export default function SurahReaderScreen({ route, navigation }) {
     return () => { mounted = false; stopAudio(); };
   }, [translationId, reciterId]);
 
-  useEffect(() => {
-    if (data && jumpToAyah && ayahYs.current[jumpToAyah] != null) {
-      setTimeout(() => scrollRef.current?.scrollTo({ y: ayahYs.current[jumpToAyah] - 80, animated: true }), 300);
-    }
-  }, [data]);
+  const restoredAyah = useRef(null);
+  function restoreAyah() {
+    const y = ayahYs.current[jumpToAyah];
+    if (!jumpToAyah || y == null || restoredAyah.current === jumpToAyah) return;
+    restoredAyah.current = jumpToAyah;
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: false }));
+  }
 
   async function playAyah(n) {
     let map = audioMap;
@@ -164,13 +166,17 @@ export default function SurahReaderScreen({ route, navigation }) {
           {error && <Text style={styles.error}>{t('quran_load_error')}</Text>}
 
           {data && (
-            <ScrollView ref={scrollRef} contentContainerStyle={{ padding: SPACING.md, paddingBottom: 140 }}
+            <ScrollView ref={scrollRef} onContentSizeChange={restoreAyah}
+              contentContainerStyle={{ padding: SPACING.md, paddingBottom: 140 }}
               showsVerticalScrollIndicator={false} scrollEventThrottle={250}
               onLayout={(e) => { viewH.current = e.nativeEvent.layout.height; }}
               onScroll={(e) => trackKahf(e.nativeEvent.contentOffset.y)}>
               {data.ayahs.map((a) => (
                 <View key={a.number}
-                  onLayout={(e) => { ayahYs.current[a.number] = e.nativeEvent.layout.y; }}>
+                  onLayout={(e) => {
+                    ayahYs.current[a.number] = e.nativeEvent.layout.y;
+                    if (a.number === jumpToAyah) restoreAyah();
+                  }}>
                   {/* Без стеклянной плитки: при длинном чтении подложка
                       под каждым аятом дробит текст на карточки и мешает
                       вести взгляд по странице. Активный аят выделяется

@@ -130,7 +130,7 @@ function Cell({ active, onPress, style, children }) {
   );
 }
 
-export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
+export default function SettingsModal({ visible, onClose, onFajrAlarmChange, alarmOnly = false }) {
   const { t, lang, setLang } = useLang();
   const { adhanSound, chooseAdhan, notifSound, chooseNotifSound,
     adhanNotifSound, chooseAdhanNotifSound, hijriOffset, chooseHijriOffset,
@@ -228,6 +228,41 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
   }
   function close() { stopAudio(); setPreviewing(null); setLoadingId(null); onClose(); }
 
+  const alarmControls = (
+    <>
+    <View style={styles.row}>
+      <TouchableOpacity style={{ flex: 1 }}
+        onPress={async () => {
+          const v = !alarmOn; setAlarmOn(v); await setFajrAlarmEnabled(v);
+          if (!v) await cancelFajrAlarm();
+          onFajrAlarmChange && onFajrAlarmChange();
+        }}>
+        <Text style={styles.rowText}>{t('fajr_alarm')}</Text>
+        <Text style={styles.hintText}>{t('fajr_alarm_hint')}</Text>
+      </TouchableOpacity>
+      {alarmOn && <Icon name="check" size={17} color={COLORS.white} />}
+    </View>
+    {alarmOn && (
+      <View style={styles.intervalRow}>
+        <Text style={styles.hintText}>{t('fajr_interval')}: </Text>
+        {[3, 5, 10, 15].map((m) => (
+          <TouchableOpacity key={m}
+            style={[styles.intChip, alarmInt === m && styles.intChipActive]}
+            onPress={async () => { setAlarmInt(m); await setFajrAlarmInterval(m); onFajrAlarmChange && onFajrAlarmChange(); }}>
+            <Text style={[styles.intText, alarmInt === m && styles.intTextActive]}>{m} {t('min_short')}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    )}
+    </>
+  );
+
+  if (alarmOnly) {
+    return <DraggableSheet visible={visible} onClose={close} title={t('fajr_alarm')}>
+      {alarmControls}
+    </DraggableSheet>;
+  }
+
   return (
     <DraggableSheet visible={visible} onClose={close} title={t('general_settings')}>
       {/* ===== PRAYER ===== */}
@@ -305,32 +340,8 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange }) {
             </View>
           ))}
 
-          {/* Smart Fajr alarm */}
           <Text style={styles.subhead}>{t('fajr_alarm')}</Text>
-          <View style={styles.row}>
-            <TouchableOpacity style={{ flex: 1 }}
-              onPress={async () => {
-                const v = !alarmOn; setAlarmOn(v); await setFajrAlarmEnabled(v);
-                if (!v) await cancelFajrAlarm();
-                onFajrAlarmChange && onFajrAlarmChange();
-              }}>
-              <Text style={styles.rowText}>{t('fajr_alarm')}</Text>
-              <Text style={styles.hintText}>{t('fajr_alarm_hint')}</Text>
-            </TouchableOpacity>
-            {alarmOn && <Icon name="check" size={17} color={COLORS.white} />}
-          </View>
-          {alarmOn && (
-            <View style={styles.intervalRow}>
-              <Text style={styles.hintText}>{t('fajr_interval')}: </Text>
-              {[3, 5, 10, 15].map((m) => (
-                <TouchableOpacity key={m}
-                  style={[styles.intChip, alarmInt === m && styles.intChipActive]}
-                  onPress={async () => { setAlarmInt(m); await setFajrAlarmInterval(m); onFajrAlarmChange && onFajrAlarmChange(); }}>
-                  <Text style={[styles.intText, alarmInt === m && styles.intTextActive]}>{m} {t('min_short')}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          {alarmControls}
         </Section>
 
         {/* ===== APPEARANCE ===== */}

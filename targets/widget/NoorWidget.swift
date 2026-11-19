@@ -24,7 +24,7 @@ func makeEntry(_ date: Date, day: PrayerDay, streak: StreakStatus, theme: ThemeD
     var probe = date
     if Calendar.current.component(.weekday, from: date) == 5 { probe = Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date }
     let key = dayKey(probe)
-    let kahf = data.flatMap { $0.friday == key ? $0 : nil } ?? FridayData(festive: true, friday: key, ayah: 0, done: false)
+    let kahf = data.flatMap { $0.friday == key || !$0.done ? $0 : nil } ?? FridayData(festive: true, friday: key, ayah: 0, done: false)
     return NoorEntry(date: date, day: day, streak: streak, theme: festive ? theme.fridayTheme() : theme,
                      friday: festive, kahf: festive ? kahf : nil)
 }

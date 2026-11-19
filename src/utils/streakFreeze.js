@@ -1,42 +1,40 @@
+import { localDateKey } from './calendarDate';
+
 // Ударный режим чтения и брони.
 //
-// Правило без брони уже было мягким: серия живёт, пока с прошлого дня с
-// выполненной целью прошло не больше двух суток, то есть один пропущенный день
-// прощается бесплатно. Бронь прощает ещё по одному дню сверх этого. Расходуется
-// она не заранее, а в момент, когда серия иначе оборвалась бы: человек вернулся
-// и выполнил цель, а за дни без чтения платят бронями, сколько их не хватило.
-//
-// Заработать бронь можно только серией: каждые 7 дней подряд — одна, не больше
-// двух сразу. Покупать, копить впрок и дарить их нельзя — это страховка за
-// ровное чтение, а не валюта.
-export const FREE_GAP = 2;
+// Остаток хранится на дату последней выполненной цели. Прошедшие
+// пропуски вычитаются при отображении, а при новой цели фиксируются.
 export const FREEZE_MAX = 2;
 export const FREEZE_EVERY = 7;
 
 // Сколько суток серия ещё жива без чтения, с учётом броней.
 export function aliveGap(freezes) {
-  return FREE_GAP + Math.max(0, Math.min(FREEZE_MAX, Math.floor(freezes || 0)));
+  return 1 + Math.max(0, Math.min(FREEZE_MAX, Math.floor(freezes || 0)));
+}
+
+export function streakStatus({ streak, gap, freezes }) {
+  const have = aliveGap(freezes) - 1;
+  const missed = Number.isFinite(gap) ? Math.max(0, gap - 1) : 0;
+  const used = Math.min(have, missed);
+  return { streak: Number.isFinite(gap) && missed <= have ? streak : 0, freezes: have - used, used };
+}
+
+export function consecutiveGoalDays(history, day) {
+  const date = new Date(day + 'T12:00:00');
+  let count = 0;
+  while (history[localDateKey(date)]) {
+    count += 1;
+    date.setDate(date.getDate() - 1);
+  }
+  return count;
 }
 
 // Цель выполнена впервые за сегодня. gap — сколько суток прошло с прошлого
 // выполненного дня (null, если такого не было).
 // Возвращает новую серию, остаток броней, сколько потрачено и заработано.
-export function advanceStreak({ streak, gap, freezes }) {
-  const have = Math.max(0, Math.min(FREEZE_MAX, Math.floor(freezes || 0)));
-  let next;
-  let left = have;
-  let used = 0;
-  if (gap == null) next = 1;
-  else if (gap <= FREE_GAP) next = streak + 1;
-  else if (gap - FREE_GAP <= have) {
-    used = gap - FREE_GAP;
-    left = have - used;
-    next = streak + 1;
-  } else next = 1;
-  let earned = 0;
-  if (next > 1 && next % FREEZE_EVERY === 0 && left < FREEZE_MAX) {
-    left += 1;
-    earned = 1;
-  }
-  return { streak: next, freezes: left, used, earned };
+export function advanceStreak({ streak, gap, freezes, consecutiveDays }) {
+  const status = streakStatus({ streak, gap, freezes });
+  const earned = consecutiveDays >= FREEZE_EVERY && consecutiveDays % FREEZE_EVERY === 0
+    && status.freezes < FREEZE_MAX ? 1 : 0;
+  return { streak: status.streak + 1, freezes: status.freezes + earned, used: status.used, earned };
 }

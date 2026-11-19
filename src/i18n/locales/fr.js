@@ -74,7 +74,7 @@ export default {
   streak_freezes: 'Boucliers de série',
   freeze_used: 'Un bouclier a sauvé votre série',
   freeze_earned: 'Nouveau bouclier : 7 jours d’affilée',
-  freeze_hint: 'Un bouclier couvre un jour manqué en plus du jour gratuit. On en gagne un tous les 7 jours d’affilée, jusqu’à 2.',
+  freeze_hint: 'Un bouclier couvre un jour manqué. On en gagne un tous les 7 jours d’affilée, jusqu’à 2.',
   notif_now: 'C’est l’heure de la prière',
   notif_in: 'Dans {n} min',
   notif_sunrise: 'L’heure du Fajr est passée',

@@ -2156,29 +2156,21 @@ test('sync is not locked by a clock set back, and checks a downloaded table agai
 }));
 
 // ---------- Брони серии, пятничное зерно, роща, окно после намаза ----------
-test('streak: a free missed day, then shields for further missed days; 7 days in a row earn a shield', () => {
-  const { advanceStreak, aliveGap, FREEZE_MAX } = load('src/utils/streakFreeze.js');
-  assert.deepEqual(advanceStreak({ streak: 0, gap: null, freezes: 0 }), { streak: 1, freezes: 0, used: 0, earned: 0 });
-  // вчера и позавчера — по правилу прежнему, без брони
-  assert.equal(advanceStreak({ streak: 4, gap: 1, freezes: 0 }).streak, 5);
-  assert.deepEqual(advanceStreak({ streak: 4, gap: 2, freezes: 0 }), { streak: 5, freezes: 0, used: 0, earned: 0 });
-  // три дня без чтения: без брони серия сгорает, с бронью — тратится одна
-  assert.equal(advanceStreak({ streak: 4, gap: 3, freezes: 0 }).streak, 1);
-  assert.deepEqual(advanceStreak({ streak: 4, gap: 3, freezes: 1 }), { streak: 5, freezes: 0, used: 1, earned: 0 });
-  // четыре дня: одной брони мало, двух хватает; серия не сгорает наполовину
-  assert.equal(advanceStreak({ streak: 4, gap: 4, freezes: 1 }).streak, 1);
-  assert.equal(advanceStreak({ streak: 4, gap: 4, freezes: 1 }).freezes, 1);
-  assert.deepEqual(advanceStreak({ streak: 4, gap: 4, freezes: 2 }), { streak: 5, freezes: 0, used: 2, earned: 0 });
-  // седьмой день подряд дарит бронь, но не больше двух
-  assert.deepEqual(advanceStreak({ streak: 6, gap: 1, freezes: 0 }), { streak: 7, freezes: 1, used: 0, earned: 1 });
-  assert.equal(advanceStreak({ streak: 13, gap: 1, freezes: FREEZE_MAX }).freezes, FREEZE_MAX);
-  assert.equal(advanceStreak({ streak: 13, gap: 1, freezes: FREEZE_MAX }).earned, 0);
-  // жизнь серии без чтения — столько же, сколько считает виджет
-  assert.equal(aliveGap(0), 2);
-  assert.equal(aliveGap(2), 4);
-  assert.equal(aliveGap(99), 4);
-  // мусор вместо числа броней не ломает расчёт
-  assert.equal(advanceStreak({ streak: 3, gap: 1, freezes: NaN }).freezes, 0);
+test('each elapsed missed goal spends a shield and rewards require seven consecutive goals', () => {
+  const { advanceStreak, streakStatus, consecutiveGoalDays, aliveGap } = load('src/utils/streakFreeze.js');
+  assert.deepEqual(streakStatus({ streak: 12, gap: 1, freezes: 2 }), { streak: 12, freezes: 2, used: 0 });
+  assert.deepEqual(streakStatus({ streak: 12, gap: 2, freezes: 2 }), { streak: 12, freezes: 1, used: 1 });
+  assert.deepEqual(streakStatus({ streak: 12, gap: 3, freezes: 2 }), { streak: 12, freezes: 0, used: 2 });
+  assert.deepEqual(streakStatus({ streak: 12, gap: 4, freezes: 2 }), { streak: 0, freezes: 0, used: 2 });
+  assert.deepEqual(advanceStreak({ streak: 6, gap: 2, freezes: 1, consecutiveDays: 1 }),
+    { streak: 7, freezes: 0, used: 1, earned: 0 });
+  assert.deepEqual(advanceStreak({ streak: 12, gap: 1, freezes: 0, consecutiveDays: 7 }),
+    { streak: 13, freezes: 1, used: 0, earned: 1 });
+  assert.equal(advanceStreak({ streak: 13, gap: 1, freezes: 2, consecutiveDays: 14 }).freezes, 2);
+  const history = Object.fromEntries([1, 3, 4, 5, 6, 7, 8, 9].map(d => [`2026-11-0${d}`, true]));
+  assert.equal(consecutiveGoalDays(history, '2026-11-09'), 7);
+  assert.equal(aliveGap(0), 1);
+  assert.equal(aliveGap(2), 3);
 });
 
 test('old gardens fold into one tree per species: the biggest stays and takes the others\' growth', () => {
@@ -2285,7 +2277,7 @@ test('sets are their own modes: choosing one never overwrites the person\'s sequ
   assert.equal(model.restoreState(JSON.parse(JSON.stringify(after))).selectedDhikr, 'set:after_prayer');
 });
 
-test('the Friday al-Kahf progress is its own record: it never moves back and starts over next Friday', async () => {
+test('unfinished al-Kahf carries over, preserves the furthest ayah, and resets after completion', async () => {
   const store = new Map();
   const storage = { getItem: async k => store.get(k) ?? null, setItem: async (k, v) => store.set(k, v), removeItem: async k => store.delete(k) };
   const published = [];
@@ -2298,11 +2290,15 @@ test('the Friday al-Kahf progress is its own record: it never moves back and sta
   await kahf.saveKahfAyah(34, thu);
   await kahf.saveKahfAyah(12, thu);
   assert.equal((await kahf.loadKahf(new Date(2026, 9, 9, 11, 0))).ayah, 34);
-  const done = await kahf.saveKahfAyah(110, new Date(2026, 9, 9, 12, 0));
+  const following = new Date(2026, 9, 16, 10, 0);
+  assert.deepEqual(await kahf.loadKahf(following), { friday: '2026-10-16', ayah: 34, done: false });
+  await Promise.all([kahf.saveKahfAyah(72, following), kahf.saveKahfAyah(54, following)]);
+  assert.equal((await kahf.loadKahf(following)).ayah, 72);
+  const done = await kahf.saveKahfAyah(110, following);
   assert.equal(done.done, true);
   assert.equal(published.at(-1).done, true);
   // ежедневное чтение не тронуто
   for (const key of ['readingPos', 'readProgress', 'goalHistory', 'streakCount', 'lastGoalDay']) assert.ok(!store.has(key), key);
   // следующая пятница — с нуля
-  assert.deepEqual(await kahf.loadKahf(new Date(2026, 9, 16, 10, 0)), { friday: '2026-10-16', ayah: 0, done: false });
+  assert.deepEqual(await kahf.loadKahf(new Date(2026, 9, 23, 10, 0)), { friday: '2026-10-23', ayah: 0, done: false });
 });

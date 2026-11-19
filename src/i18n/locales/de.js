@@ -74,7 +74,7 @@ export default {
   streak_freezes: 'Serien-Schilde',
   freeze_used: 'Ein Schild hat deine Serie gerettet',
   freeze_earned: 'Neues Schild: 7 Tage in Folge',
-  freeze_hint: 'Ein Schild deckt einen verpassten Tag zusätzlich zum freien ab. Alle 7 Tage in Folge gibt es eins, maximal 2.',
+  freeze_hint: 'Ein Schild deckt einen verpassten Tag ab. Alle 7 Tage in Folge gibt es ein neues, maximal 2.',
   notif_now: 'Zeit zum Beten',
   notif_in: 'In {n} Min.',
   notif_sunrise: 'Die Fadschr-Zeit ist vorbei',

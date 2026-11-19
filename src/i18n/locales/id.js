@@ -74,7 +74,7 @@ export default {
   streak_freezes: 'Perisai beruntun',
   freeze_used: 'Perisai menyelamatkan rangkaian Anda',
   freeze_earned: 'Perisai baru: 7 hari berturut-turut',
-  freeze_hint: 'Satu perisai menutupi satu hari terlewat di luar jatah gratis. Didapat setiap 7 hari berturut-turut, maksimal 2.',
+  freeze_hint: 'Satu perisai melindungi satu hari yang terlewat. Dapatkan satu setiap 7 hari berturut-turut, maksimal 2.',
   notif_now: 'Waktunya shalat',
   notif_in: '{n} menit lagi',
   notif_sunrise: 'Waktu Subuh telah berakhir',
