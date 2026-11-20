@@ -71,7 +71,8 @@
           "backgroundColor": "#0d131b"
         }
       ],
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "./scripts/icon/withAlternateIcons"
     ]
   }
 }

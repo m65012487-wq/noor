@@ -294,9 +294,7 @@ export default function ReadingScreen() {
                 showsVerticalScrollIndicator={false}>
                 <Pressable accessible={false} style={styles.verseTouch}
                   onPress={({ nativeEvent }) => {
-                    if (nativeEvent.pageX >= width / 2 && pos.surah < 114) {
-                      turnPage({ surah: pos.surah + 1, ayah: 1 });
-                    }
+                    if (nativeEvent.pageX >= width / 2) goNext();
                   }}>
                 {showArabic && <Text style={[styles.ar, { fontSize: READER.ayah.fontSize * fontScale, lineHeight: READER.ayah.lineHeight * fontScale }]}>{ayah.ar}</Text>}
                 {showTranslit && !!ayah.tr && (

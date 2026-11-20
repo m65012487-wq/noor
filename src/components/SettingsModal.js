@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
 import Text from './AppText';
 import Icon from './Icon';
+import AppIconPicker from './AppIconPicker';
 import DraggableSheet from './DraggableSheet';
 import ColorPicker from './ColorPicker';
 import { COLORS, SPACING, RADIUS, TYPE } from '../constants/theme';
@@ -27,6 +28,22 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 // Отметка выбора. Галочка в списке из десяти строк читается плохо: она
 // одного веса с текстом и теряется среди букв. Точка в кольце заметна
 // периферийным зрением и сразу говорит «выбрано одно из многих».
+function SettingSwitch({ label, hint, value, onChange, accent, style, disabled = false }) {
+  return (
+    <TouchableOpacity style={[styles.row, style]} onPress={() => onChange(!value)}
+      disabled={disabled} activeOpacity={0.8} accessibilityRole="switch"
+      accessibilityLabel={label} accessibilityHint={hint} accessibilityState={{ checked: value, disabled }}>
+      <View style={styles.switchCopy}>
+        <Text style={styles.rowText}>{label}</Text>
+        <Text style={styles.hintText}>{hint}</Text>
+      </View>
+      <View style={[styles.switchTrack, value && { backgroundColor: accent, alignItems: 'flex-end' }]}>
+        <View style={[styles.switchThumb, value && { backgroundColor: COLORS.navyDeep }]} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function Pick({ active, color }) {
   return (
     <View style={[styles.pick, active && { borderColor: color }]}>
@@ -154,6 +171,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, ala
   // и прятал остальные за прокруткой.
   const [openSection, setOpenSection] = useState(null);
   const [alarmOn, setAlarmOn] = useState(false);
+  const [alarmSaving, setAlarmSaving] = useState(false);
   const [alarmInt, setAlarmInt] = useState(5);
 
   // Источник времени не выбирается: график духовного управления региона и
@@ -230,18 +248,18 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, ala
 
   const alarmControls = (
     <>
-    <View style={styles.row}>
-      <TouchableOpacity style={{ flex: 1 }}
-        onPress={async () => {
-          const v = !alarmOn; setAlarmOn(v); await setFajrAlarmEnabled(v);
-          if (!v) await cancelFajrAlarm();
-          onFajrAlarmChange && onFajrAlarmChange();
-        }}>
-        <Text style={styles.rowText}>{t('fajr_alarm')}</Text>
-        <Text style={styles.hintText}>{t('fajr_alarm_hint')}</Text>
-      </TouchableOpacity>
-      {alarmOn && <Icon name="check" size={17} color={COLORS.white} />}
-    </View>
+    <SettingSwitch label={t('fajr_alarm')} hint={t('fajr_alarm_hint')} value={alarmOn}
+      accent={accentColor} disabled={alarmSaving} onChange={async (value) => {
+        setAlarmSaving(true);
+        setAlarmOn(value);
+        try {
+          await setFajrAlarmEnabled(value);
+          if (!value) await cancelFajrAlarm();
+        } finally {
+          onFajrAlarmChange?.();
+          setAlarmSaving(false);
+        }
+      }} />
     {alarmOn && (
       <View style={styles.intervalRow}>
         <Text style={styles.hintText}>{t('fajr_interval')}: </Text>
@@ -347,6 +365,7 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, ala
         {/* ===== APPEARANCE ===== */}
         <Section id="appearance" icon="options" title={t("sec_appearance")}
           open={openSection === 'appearance'} onToggle={toggle}>
+          {openSection === 'appearance' && visible && <AppIconPicker accent={accentColor} />}
 
           {/* Темы по группам: живые отдельно от картин. Общего заголовка
               «Узор» над ними нет — узоров в приложении больше нет, а группы
@@ -465,22 +484,10 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, ala
           </View>
 
           {/* Пятница: праздничный вид и напоминание о суре аль-Кахф. */}
-          <TouchableOpacity style={[styles.row, { marginTop: SPACING.md }]}
-            onPress={() => toggleFestiveFriday(!festiveFriday)} activeOpacity={0.8}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowText}>{t('festive_friday')}</Text>
-              <Text style={styles.hintText}>{t('festive_friday_hint')}</Text>
-            </View>
-            {festiveFriday && <Icon name="check" size={17} color={COLORS.white} />}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.row}
-            onPress={() => toggleKahfReminder(!kahfReminder)} activeOpacity={0.8}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowText}>{t('kahf_reminder')}</Text>
-              <Text style={styles.hintText}>{t('kahf_reminder_hint')}</Text>
-            </View>
-            {kahfReminder && <Icon name="check" size={17} color={COLORS.white} />}
-          </TouchableOpacity>
+          <SettingSwitch style={{ marginTop: SPACING.md }} label={t('festive_friday')}
+            hint={t('festive_friday_hint')} value={festiveFriday} onChange={toggleFestiveFriday} accent={accentColor} />
+          <SettingSwitch label={t('kahf_reminder')} hint={t('kahf_reminder_hint')}
+            value={kahfReminder} onChange={toggleKahfReminder} accent={accentColor} />
         </Section>
 
       <TouchableOpacity style={styles.doneBtn} onPress={close}>
@@ -491,6 +498,9 @@ export default function SettingsModal({ visible, onClose, onFajrAlarmChange, ala
 }
 
 const styles = StyleSheet.create({
+  switchCopy: { flex: 1, marginRight: SPACING.md },
+  switchTrack: { width: 48, height: 28, borderRadius: 14, padding: 3, backgroundColor: COLORS.surfaceStrong },
+  switchThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: COLORS.text },
   title: { ...TYPE.title, color: COLORS.text, fontWeight: '800', marginBottom: SPACING.md },
   section: { marginBottom: SPACING.sm, borderRadius: RADIUS.md,
     backgroundColor: 'rgba(255,255,255,0.04)', overflow: 'hidden' },
