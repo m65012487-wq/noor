@@ -5,12 +5,26 @@ const sharp = require('sharp');
 // Keep the symbols large enough to recognise at Home Screen size.
 const designs = {
   Crescent: ['#233a57', '#101b31', '#e6f3ff', '<path d="M548 242a275 275 0 1 0 233 418A253 253 0 0 1 548 242Z"/><path d="m702 286 21 55 55 21-55 21-21 55-21-55-55-21 55-21Z"/>'],
-  Arch: ['#744737', '#382324', '#ffdeaf', '<path fill-rule="evenodd" d="M252 770V546c0-130 94-217 260-310 166 93 260 180 260 310v224H252Zm61-61h398V546c0-94-64-166-199-242-135 76-199 148-199 242v163Z"/><path d="m512 425 21 63 63 21-63 21-21 63-21-63-63-21 63-21Z"/>'],
-  Olive: ['#375c48', '#152c27', '#e2efd1', '<path fill="none" stroke="currentColor" stroke-width="39" stroke-linecap="round" d="M315 745c144-76 266-199 385-467"/><path d="M474 625c-124 9-180-72-182-174 101 17 167 72 182 174Zm89-90c-59-99-29-181 62-246 35 96 18 181-62 246Zm-25 94c70-99 154-126 253-88-64 89-156 118-253 88Zm116-171c33-98 96-143 181-143-28 91-92 135-181 143Z"/>'],
+  // Keep the existing icon identifiers so iOS preserves a user's choice on update.
+  // Arch now renders the Minaret and Olive renders the Qibla compass.
+  Arch: ['#40456a', '#1c2038', '#e5ddbc', `
+    <g transform="scale(4.876190476)">
+      <path d="M62 155h86v10H62zM77 145v-41l11-14v55zm45 0V62l7-13 7 13v83z"/>
+      <path d="M89 145v-27c0-12 6-21 16-28 10 7 16 16 16 28v27z" opacity=".76"/>
+      <path d="M0-14 4-4 14 0 4 4 0 14-4 4-14 0-4-4Z" transform="translate(81 62) scale(.72)"/>
+    </g>`],
+  Olive: ['#2a4863', '#172333', '#e4ce9a', `
+    <g transform="scale(4.876190476)">
+      <circle cx="105" cy="105" r="56" fill="none" stroke="#9db5c4" stroke-width="3"/>
+      <path d="m123 69-8 45-29 27 9-45z"/>
+      <path d="m86 141 9-45 20 18z" fill="#8eaecc"/>
+      <path d="M105 42v13m0 100v13M42 105h13m100 0h13" stroke="#dce8ee" stroke-width="4" stroke-linecap="round"/>
+    </g>`],
 };
 
 async function main() {
   for (const [name, [top, bottom, ink, artwork]] of Object.entries(designs)) {
+    if (process.argv.length > 2 && !process.argv.slice(2).includes(name)) continue;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
       <defs><linearGradient id="bg" x2="0" y2="1">
         <stop stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/>

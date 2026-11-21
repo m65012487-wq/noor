@@ -13,13 +13,13 @@ const icons = [
   { name: 'NoorOlive', source: require('../../assets/NoorOlive.png') },
 ];
 const copy = {
-  ru: ['Иконка приложения', 'Noor', 'Полумесяц', 'Арка', 'Олива', 'Не удалось сменить иконку. Попробуйте ещё раз.'],
-  en: ['App icon', 'Noor', 'Crescent', 'Arch', 'Olive', 'Could not change the icon. Try again.'],
-  tr: ['Uygulama simgesi', 'Noor', 'Hilal', 'Kemer', 'Zeytin', 'Simge değiştirilemedi. Tekrar deneyin.'],
-  id: ['Ikon aplikasi', 'Noor', 'Bulan sabit', 'Gerbang', 'Zaitun', 'Ikon gagal diubah. Coba lagi.'],
-  fr: ['Icône de l’application', 'Noor', 'Croissant', 'Arc', 'Olivier', 'Impossible de changer l’icône. Réessayez.'],
-  de: ['App-Symbol', 'Noor', 'Mondsichel', 'Bogen', 'Olive', 'Symbol konnte nicht geändert werden. Versuche es erneut.'],
-  es: ['Icono de la aplicación', 'Noor', 'Luna creciente', 'Arco', 'Olivo', 'No se pudo cambiar el icono. Inténtalo de nuevo.'],
+  ru: ['Иконка приложения', 'Noor', 'Полумесяц', 'Минарет', 'Кибла', 'Не удалось сменить иконку. Попробуйте ещё раз.'],
+  en: ['App icon', 'Noor', 'Crescent', 'Minaret', 'Qibla', 'Could not change the icon. Try again.'],
+  tr: ['Uygulama simgesi', 'Noor', 'Hilal', 'Minare', 'Kıble', 'Simge değiştirilemedi. Tekrar deneyin.'],
+  id: ['Ikon aplikasi', 'Noor', 'Bulan sabit', 'Menara masjid', 'Kiblat', 'Ikon gagal diubah. Coba lagi.'],
+  fr: ['Icône de l’application', 'Noor', 'Croissant', 'Minaret', 'Qibla', 'Impossible de changer l’icône. Réessayez.'],
+  de: ['App-Symbol', 'Noor', 'Mondsichel', 'Minarett', 'Kibla', 'Symbol konnte nicht geändert werden. Versuche es erneut.'],
+  es: ['Icono de la aplicación', 'Noor', 'Luna creciente', 'Minarete', 'Quibla', 'No se pudo cambiar el icono. Inténtalo de nuevo.'],
 };
 
 export default function AppIconPicker({ accent }) {
