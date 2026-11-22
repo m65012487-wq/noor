@@ -15,8 +15,8 @@ const TOAST_MS = 2600;
 
 const REASON_LABEL = {
   week: { ru: '7 дней зикра', en: '7 days of dhikr', tr: '7 gün zikir', id: '7 hari dzikir', fr: '7 jours de dhikr', de: '7 Tage Dhikr', es: '7 días de dhikr' },
-  harvest: { ru: 'Первый урожай — новая порода', en: 'First harvest — a new species', tr: 'İlk hasat — yeni bir tür', id: 'Panen pertama — jenis baru', fr: 'Première récolte — une nouvelle espèce', de: 'Erste Ernte — eine neue Art', es: 'Primera cosecha: una especie nueva' },
   circle: { ru: 'Полный круг 99', en: 'A full circle of 99', tr: '99’luk tam bir tur', id: 'Satu putaran penuh 99', fr: 'Un cercle complet de 99', de: 'Ein voller Kreis von 99', es: 'Una vuelta completa de 99' },
+  harvest: { ru: 'Дерево выросло — новая порода', en: 'Tree matured — a new species', tr: 'Ağaç büyüdü — yeni bir tür', id: 'Pohon dewasa — jenis baru', fr: 'Arbre adulte — une nouvelle espèce', de: 'Baum ausgewachsen — eine neue Art', es: 'Árbol adulto — una especie nueva' },
   growth: { ru: 'Дерево подросло', en: 'The tree has grown', tr: 'Ağaç büyüdü', id: 'Pohon telah tumbuh', fr: 'L’arbre a grandi', de: 'Der Baum ist gewachsen', es: 'El árbol ha crecido' },
   friday: { ru: 'Пятничное зерно', en: 'A Friday seed', tr: 'Cuma tohumu', id: 'Biji hari Jumat', fr: 'Une graine du vendredi', de: 'Ein Freitagssamen', es: 'Una semilla del viernes' },
 };

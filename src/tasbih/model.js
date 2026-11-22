@@ -78,11 +78,6 @@ export const STAGES = [
   { requiredProgress: 1450 },
   { requiredProgress: 2000 },
 ];
-// Сад на пять мест: у каждой породы одно дерево, больше деревьев не бывает.
-// Выросшее дерево не уходит, а плодоносит дальше: каждые HARVEST_EVERY единиц
-// роста сверх плодоношения — ещё один урожай. Так забота о дереве видна и
-// после того, как стадии кончились, а деревья не копятся.
-export const HARVEST_EVERY = 1000;
 // Пятница поливает весь сад: часть каждого поминания достаётся и деревьям,
 // которые сейчас не выбраны. Выбранное дерево растёт как обычно.
 export const FRIDAY_WATERING = 0.1;
@@ -97,16 +92,27 @@ export const STAGE_NAMES = [
   { ru: 'Плодоносящее', en: 'Fruiting', tr: 'Meyve veren', lang_id: 'Berbuah', fr: 'En fruits', de: 'Fruchttragend', es: 'Fructificando' },
 ];
 
-// Drop weight doubles for a species the player does not yet own; sidr additionally requires
-// at least 3 distinct owned species (see pickSpecies below).
+// Each species has one garden slot. Sidr unlocks after three species are claimed.
 export const SPECIES = [
   { id: 'olive', ru: 'Олива', en: 'Olive', tr: 'Zeytin', lang_id: 'Zaitun', fr: 'Olivier', de: 'Olivenbaum', es: 'Olivo', rarity: 'common', weight: 30 },
   { id: 'fig', ru: 'Инжир', en: 'Fig', tr: 'İncir', lang_id: 'Ara', fr: 'Figuier', de: 'Feigenbaum', es: 'Higuera', rarity: 'common', weight: 25 },
   { id: 'pomegranate', ru: 'Гранат', en: 'Pomegranate', tr: 'Nar', lang_id: 'Delima', fr: 'Grenadier', de: 'Granatapfelbaum', es: 'Granado', rarity: 'common', weight: 25 },
   { id: 'date_palm', ru: 'Финиковая пальма', en: 'Date palm', tr: 'Hurma ağacı', lang_id: 'Pohon kurma', fr: 'Palmier dattier', de: 'Dattelpalme', es: 'Palmera datilera', rarity: 'common', weight: 20 },
   { id: 'sidr', ru: 'Сидр', en: 'Lote tree', tr: 'Sidr ağacı', lang_id: 'Bidara (Sidr)', fr: 'Jujubier (sidr)', de: 'Sidrbaum', es: 'Azufaifo (sidr)', rarity: 'rare', weight: 6 },
+  { id: 'apricot', ru: 'Абрикос', en: 'Apricot', tr: 'Kayısı', lang_id: 'Aprikot', fr: 'Abricotier', de: 'Aprikosenbaum', es: 'Albaricoquero', weight: 18 },
+  { id: 'almond', ru: 'Миндаль', en: 'Almond', tr: 'Badem', lang_id: 'Badam', fr: 'Amandier', de: 'Mandelbaum', es: 'Almendro', weight: 18 },
+  { id: 'mulberry', ru: 'Шелковица', en: 'Mulberry', tr: 'Dut', lang_id: 'Murbei', fr: 'Mûrier', de: 'Maulbeerbaum', es: 'Morera', weight: 14 },
+  { id: 'spruce', ru: 'Ель', en: 'Spruce', tr: 'Ladin', lang_id: 'Cemara', fr: 'Épicéa', de: 'Fichte', es: 'Pícea', weight: 12 },
+  { id: 'sequoia', ru: 'Секвойя', en: 'Sequoia', tr: 'Sekoya', lang_id: 'Sequoia', fr: 'Séquoia', de: 'Mammutbaum', es: 'Secuoya', weight: 10 },
 ];
 const SPECIES_IDS = new Set(SPECIES.map(s => s.id));
+const CONIFER_MATURITY = { ru: 'С шишками', en: 'Bearing cones', tr: 'Kozalaklı', lang_id: 'Berpolong',
+  fr: 'Avec des cônes', de: 'Mit Zapfen', es: 'Con piñas' };
+
+export function stageName(species, stage) {
+  return (species === 'spruce' || species === 'sequoia') && stage === STAGES.length - 1
+    ? CONIFER_MATURITY : STAGE_NAMES[stage];
+}
 
 function defaultSequence() {
   return DEFAULT_SEQUENCE.map(step => ({ ...step }));
@@ -120,6 +126,7 @@ export function initialState() {
     trees: [{ id: 't1', species: 'olive', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false }],
     activeTreeId: 't1',
     seeds: {},
+    readingProtection: null,
     pendingDrops: [],
     circleLimit: true,
     customDhikr: [],
@@ -292,12 +299,6 @@ export function growthRatio(tree, stages = STAGES) {
   if (!next) return 1;
   return Math.max(0, Math.min(1, (tree.progress - cur.requiredProgress) / Math.max(1, next.requiredProgress - cur.requiredProgress)));
 }
-// Сколько урожаев дало дерево: первый — когда оно впервые заплодоносило,
-// дальше по одному на каждые HARVEST_EVERY роста. Не хранится, а считается.
-export function harvestCount(tree) {
-  if (!tree || tree.stage !== STAGES.length - 1) return 0;
-  return 1 + Math.floor(Math.max(0, tree.progress - STAGES[STAGES.length - 1].requiredProgress) / HARVEST_EVERY);
-}
 export function isFruiting(tree) {
   return !!tree && tree.stage === STAGES.length - 1;
 }
@@ -307,7 +308,7 @@ function claimedSpecies(state) {
   for (const [species, count] of Object.entries(state.seeds || {})) if (count > 0) claimed.add(species);
   return claimed;
 }
-// Зерно за первый урожай — всегда новой породы: сад заполняется, а не
+// Зерно от зрелого дерева — всегда новой породы: сад заполняется, а не
 // разрастается. Сидр редкий — открывается, когда в саду уже три породы.
 // Если все места заняты, зерна нет: сажать его было бы некуда.
 function pickNewSpecies(state, rng) {
@@ -323,12 +324,13 @@ function pickNewSpecies(state, rng) {
   return fresh[fresh.length - 1].id;
 }
 function growTree(tree, delta) {
+  if (isFruiting(tree) && tree.harvested) return { tree, reachedMaturity: false };
   const finalStage = STAGES.length - 1;
-  const progress = tree.progress + delta;
+  const progress = Math.max(tree.progress, Math.min(tree.progress + delta, STAGES[finalStage].requiredProgress));
   const stage = Math.max(tree.stage, chooseStage(progress));
   const first = stage === finalStage && !tree.harvested;
   const grown = { ...tree, progress, stage, harvested: tree.harvested || stage === finalStage };
-  return { tree: grown, firstHarvest: first };
+  return { tree: grown, reachedMaturity: first };
 }
 // friday — идёт ли сейчас пятница (от магриба четверга до магриба пятницы;
 // считает вызывающий, по графику намаза). afterPrayer — окно после намаза.
@@ -341,21 +343,26 @@ export function registerDhikr(previous, dateKey, { rng = Math.random, afterPraye
   const totalDhikrCount = state.totalDhikrCount + 1;
   const delta = (growthForCount(todayCount + 1) - growthForCount(todayCount)) * (afterPrayer ? AFTER_PRAYER.multiplier : 1);
 
-  const firstHarvests = [];
+  let maturities = 0;
   const trees = state.trees.map(tree => {
     const active = tree.id === state.activeTreeId;
     if (!active && !friday) return tree;
-    const { tree: grown, firstHarvest } = growTree(tree, active ? delta : delta * FRIDAY_WATERING);
-    if (firstHarvest) firstHarvests.push(grown.species);
+    const { tree: grown, reachedMaturity } = growTree(tree, active ? delta : delta * FRIDAY_WATERING);
+    if (reachedMaturity) maturities += 1;
+    if (grown === tree) return tree;
     if (!active) return grown;
     const treeActiveDays = tree.activeDays + (tree.lastGrowDate !== dateKey ? 1 : 0);
     return { ...grown, activeDays: treeActiveDays, lastGrowDate: dateKey };
   });
 
-  // Первый урожай дерева — зерно новой породы, пока в саду есть свободное место.
+  // A tree reaching maturity unlocks a new species. A previously complete garden
+  // can also unlock a seed when an update adds species to the catalogue.
   let seeds = { ...state.seeds };
   const pendingDrops = [...state.pendingDrops];
-  for (let i = 0; i < firstHarvests.length; i += 1) {
+  const legacyGardenFilled = ['olive', 'fig', 'pomegranate', 'date_palm', 'sidr']
+    .every(species => trees.some(tree => tree.species === species && isFruiting(tree)));
+  const needsSeed = legacyGardenFilled && !Object.values(seeds).some(Boolean) && trees.every(isFruiting);
+  for (let i = 0; i < Math.max(maturities, Number(needsSeed)); i += 1) {
     const species = pickNewSpecies({ trees, seeds }, rng);
     if (!species) break;
     seeds = { ...seeds, [species]: 1 };
@@ -368,6 +375,19 @@ export function registerDhikr(previous, dateKey, { rng = Math.random, afterPraye
     lastActiveDate: dateKey, activeDays, trees, seeds, pendingDrops,
     hasSeenTasbihHint: state.hasSeenTasbihHint || totalDhikrCount >= 5 };
 }
+export function offerMatureTree(state, treeId, protection) {
+  const day = protection?.day;
+  const lastGoalDay = protection?.lastGoalDay;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day || '') || !/^\d{4}-\d{2}-\d{2}$/.test(lastGoalDay || '')
+    || day <= lastGoalDay || state.readingProtection?.lastGoalDay === lastGoalDay) return state;
+  const tree = state.trees.find(item => item.id === treeId);
+  if (!isFruiting(tree)) return state;
+  const trees = state.trees.filter(item => item.id !== treeId);
+  return { ...state, trees, seeds: { ...state.seeds, [tree.species]: 1 },
+    activeTreeId: state.activeTreeId === treeId ? (trees.find(item => !isFruiting(item)) ?? trees[0])?.id ?? null : state.activeTreeId,
+    readingProtection: { day, lastGoalDay } };
+}
+
 function nextTreeId(trees) {
   let max = 0;
   for (const tree of trees) {
@@ -463,13 +483,13 @@ function sanitizeGarden(state, base) {
       harvested: main.harvested || extra.harvested });
     renamed.set(extra.id, main.id);
   }
-  // harvested не подтягиваем: дерево, дошедшее до плодов по новым порогам, ещё
-  // не отдавало зерна — оно выпадет на ближайшем касании.
-  let trees = [...bySpecies.values()];
-  if (trees.length === 0) trees = base.trees;
-  next.trees = trees;
+  // Сохраняем признак выдачи семени из прежних версий.
+  const trees = [...bySpecies.values()];
+  const protection = next.readingProtection;
+  next.readingProtection = /^\d{4}-\d{2}-\d{2}$/.test(protection?.day || '')
+    && /^\d{4}-\d{2}-\d{2}$/.test(protection?.lastGoalDay || '') && protection.day > protection.lastGoalDay
+    ? { day: protection.day, lastGoalDay: protection.lastGoalDay } : null;
   const active = renamed.get(next.activeTreeId) || next.activeTreeId;
-  next.activeTreeId = trees.some(t => t.id === active) ? active : trees[0].id;
   // Зерно имеет смысл только для породы, у которой ещё нет места, и одно.
   const seeds = {};
   if (next.seeds && typeof next.seeds === 'object') {
@@ -478,6 +498,8 @@ function sanitizeGarden(state, base) {
     }
   }
   next.seeds = seeds;
+  next.trees = trees.length || (next.readingProtection && Object.keys(seeds).length) ? trees : base.trees;
+  next.activeTreeId = next.trees.some(t => t.id === active) ? active : next.trees[0]?.id ?? null;
   delete next.reserve;
   delete next.lastFridayGift;
   delete next.lastCircleDropDate;

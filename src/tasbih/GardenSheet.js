@@ -10,19 +10,14 @@ import { useAppearance } from '../utils/AppearanceContext';
 import { hapticLight } from '../utils/haptics';
 import SeedIcon from './SeedIcon';
 import { TreeSilhouette } from './TreeView';
-import { growthRatio, harvestCount, HARVEST_EVERY, isFruiting, SPECIES, STAGE_NAMES, STAGES } from './model';
-
-// Сад на пять мест: у каждой породы одно место, больше деревьев не бывает.
-// Деревья не копятся списком — выросшее остаётся на своём месте и плодоносит
-// дальше, за ним можно снова ухаживать в любой момент. Зерно выпадает только за
-// первый урожай и всегда новой породы, поэтому зёрен за всё время четыре.
+import { growthRatio, isFruiting, SPECIES, stageName } from './model';
 
 const RULES = [
   { ru: 'Каждое поминание растит выбранное дерево, первые 33 за день — вдвое.', en: 'Every remembrance grows the chosen tree; the first 33 each day count double.', tr: 'Her zikir seçilen ağacı büyütür; günün ilk 33’ü iki katı sayılır.', id: 'Setiap dzikir menumbuhkan pohon yang dipilih; 33 pertama setiap hari dihitung dua kali lipat.', fr: 'Chaque dhikr fait grandir l’arbre choisi ; les 33 premiers de la journée comptent double.', de: 'Jeder Dhikr lässt den gewählten Baum wachsen; die ersten 33 am Tag zählen doppelt.', es: 'Cada dhikr hace crecer el árbol elegido; los primeros 33 de cada día cuentan doble.' },
   { ru: 'В первые полчаса после намаза дерево растёт в полтора раза быстрее.', en: 'In the half hour after prayer the tree grows one and a half times faster.', tr: 'Namazdan sonraki yarım saatte ağaç bir buçuk kat hızlı büyür.', id: 'Dalam setengah jam setelah shalat, pohon tumbuh satu setengah kali lebih cepat.', fr: 'Dans la demi-heure qui suit la prière, l’arbre pousse une fois et demie plus vite.', de: 'In der halben Stunde nach dem Gebet wächst der Baum anderthalbmal so schnell.', es: 'En la media hora posterior a la oración, el árbol crece una vez y media más rápido.' },
   { ru: 'В пятницу поминания понемногу поливают весь сад, а не только выбранное дерево.', en: 'On Friday remembrance waters the whole garden a little, not just the chosen tree.', tr: 'Cuma günü zikir yalnızca seçilen ağacı değil, tüm bahçeyi biraz sular.', id: 'Pada hari Jumat, dzikir menyiram seluruh kebun sedikit demi sedikit, bukan hanya pohon yang dipilih.', fr: 'Le vendredi, le dhikr arrose un peu tout le jardin, et pas seulement l’arbre choisi.', de: 'Freitags bewässert der Dhikr den ganzen Garten ein wenig, nicht nur den gewählten Baum.', es: 'El viernes, el dhikr riega un poco todo el jardín, no solo el árbol elegido.' },
-  { ru: 'Первый урожай дерева приносит зерно новой породы — пока в саду есть место.', en: 'A tree\'s first harvest brings a seed of a new species while the garden has room.', tr: 'Ağacın ilk hasadı, bahçede yer olduğu sürece yeni bir türün tohumunu getirir.', id: 'Panen pertama sebuah pohon membawa biji jenis baru selama kebun masih punya ruang.', fr: 'La première récolte d’un arbre apporte une graine d’une nouvelle espèce tant que le jardin a de la place.', de: 'Die erste Ernte eines Baums bringt einen Samen einer neuen Art, solange im Garten Platz ist.', es: 'La primera cosecha de un árbol trae una semilla de una especie nueva mientras haya sitio en el jardín.' },
-  { ru: 'Выросшее дерево не уходит: оно даёт урожай за урожаем, пока о нём заботятся.', en: 'A grown tree stays: it keeps giving harvests while you tend it.', tr: 'Büyümüş ağaç gitmez: ona baktığınız sürece hasat vermeye devam eder.', id: 'Pohon yang sudah tumbuh tetap ada: ia terus berpanen selama Anda merawatnya.', fr: 'Un arbre adulte reste : il continue de donner des récoltes tant que vous en prenez soin.', de: 'Ein ausgewachsener Baum bleibt: Er trägt weiter Ernten, solange Sie ihn pflegen.', es: 'Un árbol crecido se queda: sigue dando cosechas mientras lo cuide.' },
+  { ru: 'Когда дерево созреет, можно получить семя новой породы.', en: 'When a tree matures, it can unlock a seed of a new species.' },
+  { ru: 'Зрелое дерево можно отдать за один пропущенный день чтения. Семя этой породы останется у вас.', en: 'A mature tree can cover one missed reading day. You keep a seed of the same species.' },
 ];
 
 const speciesLabel = (id, lang) => {
@@ -41,30 +36,21 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
   const seeds = Object.entries(state.seeds || {}).filter(([species, n]) => n > 0 && !trees.has(species)).map(([species]) => species);
   const active = state.trees.find(t => t.id === state.activeTreeId) || state.trees[0];
   const shown = (picked && state.trees.find(t => t.id === picked)) || active;
-  const finalStage = STAGES.length - 1;
-  const harvests = harvestCount(shown);
-  const ratio = isFruiting(shown)
-    ? ((shown.progress - STAGES[finalStage].requiredProgress) % HARVEST_EVERY) / HARVEST_EVERY
-    : growthRatio(shown);
-  const nextLabel = isFruiting(shown)
-    ? t('garden_to_harvest', { n: harvests + 1 })
-    : t('garden_to_stage', { name: pick(STAGE_NAMES[shown.stage + 1], lang) });
+  const ratio = shown ? growthRatio(shown) : 0;
+  const nextStage = shown && stageName(shown.species, shown.stage + 1);
 
   return (
     <DraggableSheet visible={visible} onClose={() => { setPicked(null); onClose(); }} title={t('garden_title')}>
       <Text style={styles.subtitle}>{t('garden_subtitle')}</Text>
 
-      {/* Панорама сада: пять мест в ряд. Пустое место — холмик: с зерном его
-          можно засадить, без зерна там вопрос. */}
       <View style={styles.panorama}>
         {SPECIES.map(s => {
           const tree = trees.get(s.id);
           const hasSeed = seeds.includes(s.id);
           const isActive = tree && tree.id === state.activeTreeId;
-          const isShown = tree && tree.id === shown.id;
+          const isShown = tree && tree.id === shown?.id;
           const status = tree
-            ? (isFruiting(tree) ? t('garden_harvest', { n: harvestCount(tree) })
-              : pick(STAGE_NAMES[tree.stage], lang))
+            ? pick(stageName(tree.species, tree.stage), lang)
             : hasSeed ? t('garden_plant') : t('garden_locked');
           return (
             <Pressable key={s.id} style={styles.place} accessibilityRole="button"
@@ -91,13 +77,13 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
       </View>
 
       {/* Выбранное дерево: сколько выросло и что дальше. Ухаживать можно за любым. */}
-      <View style={styles.card}>
+      {shown && <View style={styles.card}>
         <Text style={styles.cardTitle}>
-          {speciesLabel(shown.species, lang)} · {isFruiting(shown) ? t('garden_harvest', { n: harvests }) : pick(STAGE_NAMES[shown.stage], lang)}
+          {speciesLabel(shown.species, lang)} · {pick(stageName(shown.species, shown.stage), lang)}
         </Text>
-        <View style={styles.track}><View style={[styles.fill, { width: `${Math.max(0, Math.min(1, ratio)) * 100}%`, backgroundColor: accent }]} /></View>
+        {nextStage && <View style={styles.track}><View style={[styles.fill, { width: `${ratio * 100}%`, backgroundColor: accent }]} /></View>}
         <View style={styles.cardRow}>
-          <Text style={styles.cardSub}>{Math.round(ratio * 100)}% · {nextLabel}</Text>
+          <Text style={styles.cardSub}>{isFruiting(shown) ? t('garden_ready_to_offer') : `${Math.round(ratio * 100)}% · ${t('garden_to_stage', { name: pick(nextStage, lang) })}`}</Text>
           {shown.id === state.activeTreeId ? (
             <Text style={[styles.cardSub, { color: accent }]}>{t('garden_growing_now')}</Text>
           ) : (
@@ -107,7 +93,7 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
             </Pressable>
           )}
         </View>
-      </View>
+      </View>}
 
       {seeds.length > 0 && (
         <View style={styles.seedRow}>
@@ -134,9 +120,9 @@ export default function GardenSheet({ visible, onClose, state, plant, setActive 
 
 const styles = StyleSheet.create({
   subtitle: { ...TYPE.caption, color: COLORS.textMuted, marginBottom: SPACING.md },
-  panorama: { flexDirection: 'row', gap: SPACING.xs, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xs,
+  panorama: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: SPACING.sm, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.xs,
     borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
-  place: { flex: 1, alignItems: 'center' },
+  place: { width: '19%', alignItems: 'center' },
   placeArt: { width: '100%', aspectRatio: 0.8, alignItems: 'center', justifyContent: 'center',
     borderRadius: RADIUS.sm, borderWidth: 1, borderColor: 'transparent' },
   activeDot: { position: 'absolute', top: 4, right: 4, width: 6, height: 6, borderRadius: 3 },

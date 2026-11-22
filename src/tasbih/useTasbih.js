@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { ackDrop, addCustomDhikr, advance, AFTER_PRAYER, definition, plantSeed, registerDhikr, removeCustomDhikr, selectDhikr,
+import { ackDrop, addCustomDhikr, advance, AFTER_PRAYER, definition, offerMatureTree, plantSeed, registerDhikr, removeCustomDhikr, selectDhikr,
   setActiveTree, setCircleLimit, setSequence, tapEvent } from './model';
 import { tasbihPersistence } from './persistence';
 import { localDateKey } from '../utils/calendarDate';
@@ -17,7 +17,9 @@ function useTasbihState() {
   const current = useRef(null);
   const mounted = useRef(true);
   const revision = useRef(0);
+  const offering = useRef(false);
   const persist = useCallback(next => {
+    if (offering.current) return;
     current.current = next;
     setState(next);
     const rev = ++revision.current;
@@ -26,6 +28,7 @@ function useTasbihState() {
     }).catch(() => { if (mounted.current) setError(true); });
   }, []);
   const load = useCallback(() => {
+    if (offering.current) return;
     tasbihPersistence.load().then(value => {
       if (!mounted.current) return;
       current.current = value; setState(value); setError(false);
@@ -35,7 +38,7 @@ function useTasbihState() {
     mounted.current = true;
     load();
     const sub = AppState.addEventListener('change', status => {
-      if (status !== 'active' && current.current) tasbihPersistence.save(current.current).catch(() => { if (mounted.current) setError(true); });
+      if (status !== 'active' && current.current && !offering.current) tasbihPersistence.save(current.current).catch(() => { if (mounted.current) setError(true); });
     });
     return () => { mounted.current = false; sub.remove(); };
   }, [load]);
@@ -48,11 +51,25 @@ function useTasbihState() {
     // Returns the tapEvent classification ('tap' | 'circle' | 'complete') so
     // the screen can react with the right haptic without recomputing it.
     tap: () => {
-      if (!current.current) return 'tap';
+      if (!current.current || offering.current) return 'tap';
       const prev = current.current;
       const next = registerDhikr(prev, localDateKey(), { afterPrayer: afterPrayerNow(new Date(), AFTER_PRAYER.minutes), friday: isFridayNow() });
       persist(next);
       return tapEvent(prev, next);
+    },
+    offerTree: async (id, protection) => {
+      if (!current.current || offering.current || protection.day !== localDateKey()) return false;
+      const next = offerMatureTree(current.current, id, protection);
+      if (next === current.current) return false;
+      offering.current = true;
+      try {
+        await tasbihPersistence.save(next);
+        current.current = next;
+        if (mounted.current) { setState(next); setError(false); }
+        return true;
+      } finally {
+        offering.current = false;
+      }
     },
     select: id => { if (current.current) persist(selectDhikr(current.current, id)); },
     plant: species => { if (current.current) persist(plantSeed(current.current, species, localDateKey())); },

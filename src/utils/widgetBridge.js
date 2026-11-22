@@ -1,5 +1,6 @@
 import { ExtensionStorage } from '@bacons/apple-targets';
 import { loadJSON, todayKey, daysAgoKey } from './helpers';
+import { tasbihPersistence } from '../tasbih/persistence';
 import { prayerDayShift } from './calendarDate';
 
 const APP_GROUP = 'group.95233b59e7e45aab.1';
@@ -34,9 +35,10 @@ export function publishPrayerDay({ days, order, label, city }) {
 // сегодня шанс: снимок может пролежать в контейнере до следующего открытия.
 export async function publishStreak() {
   try {
-    const [count, lastGoalDay, progress, goal, history, freezes] = await Promise.all([
+    const [count, lastGoalDay, progress, goal, history, freezes, garden] = await Promise.all([
       loadJSON('streakCount', 0), loadJSON('lastGoalDay', null), loadJSON('readProgress', {}),
       loadJSON('dailyGoal', 5), loadJSON('goalHistory', {}), loadJSON('streakFreezes', 0),
+      tasbihPersistence.load().catch(() => null),
     ]);
     const today = todayKey();
     const week = [];
@@ -46,6 +48,8 @@ export async function publishStreak() {
     }
     shared().set('streak:v1', JSON.stringify({
       count, lastGoalDay, today, read: progress[today] || 0, goal, history: week, freezes,
+      treeProtectionDay: garden?.readingProtection?.lastGoalDay === lastGoalDay
+        ? garden?.readingProtection?.day : null,
     }));
     ExtensionStorage.reloadWidget();
     return true;

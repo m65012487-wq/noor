@@ -6,6 +6,11 @@ import Icon from '../components/Icon';
 import ScreenWrapper from '../components/ScreenWrapper';
 import GlassView from '../components/GlassView';
 import QuranSettingsSheet from '../components/QuranSettingsSheet';
+import DraggableSheet from '../components/DraggableSheet';
+import useTasbih from '../tasbih/useTasbih';
+import { isFruiting, SPECIES } from '../tasbih/model';
+import { TreeSilhouette } from '../tasbih/TreeView';
+import { pick } from '../i18n/languages';
 import { SectionTitle } from '../components/ui';
 import { COLORS, SPACING, RADIUS, FONTS, TYPE, READER } from '../constants/theme';
 import { getSurahList, getSurah, getSurahAudio } from '../utils/quranApi';
@@ -18,13 +23,26 @@ import { surahMeaning } from '../constants/surahNames';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 import { useAppSettings } from '../utils/AppSettingsContext';
 import { publishStreak } from '../utils/widgetBridge';
-import { advanceStreak, consecutiveGoalDays, streakStatus, FREEZE_MAX } from '../utils/streakFreeze';
+import { advanceStreak, canOfferTree, consecutiveGoalDays, hasTreeProtection, streakStatus, FREEZE_MAX } from '../utils/streakFreeze';
 import { useTabSwipe } from '../utils/useTabSwipe';
 
 const TOTAL_AYAHS = 6236;
 
+async function loadStreakForDay(day, protection) {
+  const [count, lastGoalDay, freezes] = await Promise.all([
+    loadJSON('streakCount', 0), loadJSON('lastGoalDay', null), loadJSON('streakFreezes', 0),
+  ]);
+  return {
+    streak: count, lastGoalDay, gap: lastGoalDay ? dayDiff(day, lastGoalDay) : null, freezes,
+    treeProtected: hasTreeProtection(protection, lastGoalDay, day),
+  };
+}
+
 export default function ReadingScreen() {
-  const { fonts } = useAppearance();
+  const { fonts, accent } = useAppearance();
+  const { state: garden, offerTree } = useTasbih();
+  const protection = garden?.readingProtection;
+  const matureTrees = garden?.trees.filter(isFruiting) || [];
   const { t, lang } = useLang();
   const { translationId, reciterId, showArabic, showTranslit, showTranslation, fontScale } = useQuranPrefs();
   const { dailyGoal } = useAppSettings();
@@ -40,10 +58,19 @@ export default function ReadingScreen() {
   const [loading, setLoading] = useState(true);
   const [streak, setStreak] = useState(0);
   const [freezes, setFreezes] = useState(0);
+  const [offerFor, setOfferFor] = useState(null);
+  const [treePicker, setTreePicker] = useState(false);
+  const [chosenTreeId, setChosenTreeId] = useState(null);
+  const [savingTree, setSavingTree] = useState(false);
+  const [treeError, setTreeError] = useState(false);
+  const canProtect = focused && offerFor === day && matureTrees.length > 0;
+  const chosenTree = matureTrees.find(tree => tree.id === chosenTreeId);
+  const treeName = tree => pick(SPECIES.find(species => species.id === tree.species), lang);
   // Короткая строка о том, что сделала бронь: потратилась или выдана новая.
   const [freezeNote, setFreezeNote] = useState(null);
   const countingRef = useRef(false);
   const pagingRef = useRef(false);
+  const declinedTreeFor = useRef(null);
   const finalAyahDay = useRef(null);
   // Заметка гаснет сама: висящая до следующего касания она двигала карточку аята.
   useEffect(() => {
@@ -83,18 +110,18 @@ export default function ReadingScreen() {
     if (!focused) return undefined;
     let active = true;
     Promise.all([
-      loadJSON('streakCount', 0), loadJSON('lastGoalDay', null),
-      loadJSON('streakFreezes', 0), loadJSON('readProgress', {}),
-    ]).then(([count, last, savedFreezes, progress]) => {
+      loadStreakForDay(day, protection), loadJSON('readProgress', {}),
+    ]).then(([reading, progress]) => {
       if (!active || countingRef.current || day !== todayKey()) return;
-      const status = streakStatus({ streak: count, gap: last ? dayDiff(day, last) : null, freezes: savedFreezes });
+      const status = streakStatus(reading);
+      setOfferFor(canOfferTree(reading) ? day : null);
       setStreak(status.streak);
       setFreezes(status.freezes);
       setReadToday(progress[day] || 0);
       setGoalDone((progress[day] || 0) >= dailyGoal);
     });
     return () => { active = false; };
-  }, [day, dailyGoal, focused]);
+  }, [day, dailyGoal, focused, protection]);
 
   useEffect(() => {
     if (!list) return;
@@ -114,6 +141,43 @@ export default function ReadingScreen() {
   const ayah = surahData
     ? (surahData.ayahs.find((a) => a.number === pos.ayah) || surahData.ayahs[pos.ayah - 1])
     : null;
+
+  function closeTreePicker() {
+    setTreePicker(false);
+    setChosenTreeId(null);
+    setTreeError(false);
+  }
+
+  async function confirmTree() {
+    if (countingRef.current || !chosenTree || !canProtect) return;
+    countingRef.current = true;
+    setSavingTree(true);
+    setTreeError(false);
+    try {
+      const reading = await loadStreakForDay(day, protection);
+      if (day !== todayKey() || !canOfferTree(reading)) {
+        setOfferFor(null);
+        closeTreePicker();
+        return;
+      }
+      if (!await offerTree(chosenTree.id, { day, lastGoalDay: reading.lastGoalDay })) {
+        setTreeError(true);
+        return;
+      }
+      setOfferFor(null);
+      setStreak(reading.streak);
+      setFreezes(0);
+      setFreezeNote(t('tree_protect_done'));
+      hapticSuccess();
+      closeTreePicker();
+      publishStreak();
+    } catch {
+      setTreeError(true);
+    } finally {
+      setSavingTree(false);
+      countingRef.current = false;
+    }
+  }
 
   function animateSwap(fn) {
     return new Promise(resolve => Animated.timing(fade, { toValue: 0, duration: 110, useNativeDriver: true }).start(() => {
@@ -144,13 +208,9 @@ export default function ReadingScreen() {
     if (!history[readingDay] && newCount >= dailyGoal) {
       history[readingDay] = true;
       await saveJSON('goalHistory', history);
-      const last = await loadJSON('lastGoalDay', null);
-      const result = advanceStreak({
-        streak: await loadJSON('streakCount', 0),
-        gap: last ? dayDiff(readingDay, last) : null,
-        freezes: await loadJSON('streakFreezes', 0),
-        consecutiveDays: consecutiveGoalDays(history, readingDay),
-      });
+      const reading = await loadStreakForDay(readingDay, protection);
+      const result = advanceStreak({ ...reading, consecutiveDays: consecutiveGoalDays(history, readingDay) });
+      setOfferFor(null);
       await saveJSON('streakCount', result.streak);
       await saveJSON('streakFreezes', result.freezes);
       await saveJSON('lastGoalDay', readingDay);
@@ -166,6 +226,10 @@ export default function ReadingScreen() {
 
   async function turnPage(next, credit = false) {
     if (pagingRef.current || loading || !ayah) return;
+    if (credit && canProtect && day === todayKey() && declinedTreeFor.current !== day && readToday + 1 >= dailyGoal) {
+      setTreePicker(true);
+      return;
+    }
     pagingRef.current = true;
     try {
       await stopAudio();
@@ -281,6 +345,16 @@ export default function ReadingScreen() {
         </GlassView>
       </View>
 
+      {canProtect && (
+        <Pressable accessibilityRole="button" style={styles.treeOffer} onPress={() => setTreePicker(true)}>
+          <View style={styles.treeCopy}>
+            <Text style={styles.treeTitle}>{t('tree_protect_title')}</Text>
+            <Text style={styles.treeHint}>{t('tree_protect_hint')}</Text>
+          </View>
+          <Icon name="shield_empty" size={20} color={accent} />
+        </Pressable>
+      )}
+
       {/* Ayah card — swipeable, scrollable inside */}
       <View style={{ flex: 1 }} {...panResponder.panHandlers}>
         {loading || !ayah ? (
@@ -330,6 +404,36 @@ export default function ReadingScreen() {
       </View>
       <Text style={styles.todayHint}>{readToday} / {dailyGoal} · ← →</Text>
       {settingsOpen && <QuranSettingsSheet visible onClose={() => setSettingsOpen(false)} displayOnly />}
+      <DraggableSheet visible={treePicker && canProtect} onClose={closeTreePicker} title={t('tree_protect_title')}>
+        <Text style={styles.treeHint}>{t('tree_protect_info')}</Text>
+        <View style={styles.treeChoices}>
+          {matureTrees.map(tree => {
+            const selected = tree.id === chosenTreeId;
+            return (
+              <Pressable key={tree.id} accessibilityRole="radio" accessibilityState={{ selected, disabled: savingTree }}
+                disabled={savingTree} onPress={() => { setChosenTreeId(tree.id); setTreeError(false); }}
+                style={[styles.treeChoice, selected && { borderColor: accent }]}>
+                <View style={styles.treePreview}>
+                  <TreeSilhouette species={tree.species} stage={tree.stage} color={accent} />
+                </View>
+                <Text style={styles.treeTitle}>{treeName(tree)}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {treeError && <Text accessibilityLiveRegion="polite" style={styles.treeHint}>{t('tree_protect_error')}</Text>}
+        {chosenTree && (
+          <Pressable accessibilityRole="button" accessibilityState={{ disabled: savingTree, busy: savingTree }}
+            disabled={savingTree} onPress={confirmTree} style={styles.treeOffer}>
+            <Text style={styles.treeTitle}>{t('tree_protect_confirm', { name: treeName(chosenTree) })}</Text>
+            {savingTree && <ActivityIndicator color={accent} />}
+          </Pressable>
+        )}
+        <Pressable accessibilityRole="button" disabled={savingTree} style={styles.treeCancel}
+          onPress={() => { declinedTreeFor.current = day; closeTreePicker(); }}>
+          <Text style={styles.treeHint}>{t('tree_protect_skip')}</Text>
+        </Pressable>
+      </DraggableSheet>
     </ScreenWrapper>
   );
 }
@@ -348,6 +452,16 @@ const styles = StyleSheet.create({
   statInner: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md },
   streakIcon: { width: 32, height: 32, tintColor: COLORS.white, marginRight: SPACING.sm },
   freezes: { flexDirection: 'row', gap: 4, marginLeft: 'auto', paddingLeft: SPACING.xs },
+  treeOffer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm,
+    padding: SPACING.sm, marginVertical: SPACING.xs, borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
+  treeCopy: { flex: 1, gap: SPACING.xxs },
+  treeTitle: { ...TYPE.callout, color: COLORS.text, fontWeight: '600', flexShrink: 1 },
+  treeHint: { ...TYPE.caption, color: COLORS.textMuted },
+  treeChoices: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: SPACING.xs, marginVertical: SPACING.sm },
+  treeChoice: { width: '48%', alignItems: 'center', justifyContent: 'center', padding: SPACING.xs,
+    borderWidth: 1, borderColor: 'transparent', borderRadius: RADIUS.md, backgroundColor: COLORS.surface },
+  treePreview: { width: 52, height: 62 },
+  treeCancel: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   freezeNote: { ...TYPE.caption, color: COLORS.emberSoft, textAlign: 'center', marginBottom: SPACING.xs },
   statBig: { ...TYPE.heading, color: COLORS.white, fontWeight: '800' },
   statLabel: { ...TYPE.caption, color: COLORS.textMuted },

@@ -1,8 +1,11 @@
 // Сгенерировано scripts/tasbih_assets/build_v5.py — не править руками.
 // Силуэты деревьев (Krea-2): белый с альфой, цвет даёт тема через tintColor.
 // Холст и корень — как у прежних SVG-силуэтов; bounds — рамка силуэта в единицах холста.
+import { EXTRA_TREE_ART, EXTRA_TREE_BOUNDS } from './extraTreeArt';
+
 export const TREE_CANVAS = { width: 240, height: 300, baseX: 120, baseY: 270 };
 export const TREE_ART = {
+  ...EXTRA_TREE_ART,
   olive: [
     require('../../assets/tasbih/trees5/olive_0.png'),
     require('../../assets/tasbih/trees5/olive_1.png'),
@@ -55,6 +58,7 @@ export const TREE_ART = {
   ],
 };
 export const TREE_BOUNDS = {
+  ...EXTRA_TREE_BOUNDS,
   olive: [{ x: 82.2, y: 246.0, width: 75.8, height: 30.0 }, { x: 91.8, y: 230.0, width: 56.8, height: 46.0 }, { x: 87.8, y: 198.0, width: 64.8, height: 78.0 }, { x: 70.8, y: 158.0, width: 98.2, height: 118.0 }, { x: 58.8, y: 118.0, width: 123.5, height: 158.0 }, { x: 28.8, y: 84.0, width: 187.0, height: 192.0 }, { x: 3.5, y: 54.8, width: 228.0, height: 221.2 }, { x: 5.0, y: 44.8, width: 228.0, height: 231.2 }],
   fig: [{ x: 82.2, y: 246.0, width: 75.8, height: 30.0 }, { x: 91.8, y: 230.0, width: 56.8, height: 46.0 }, { x: 87.8, y: 198.0, width: 64.8, height: 78.0 }, { x: 70.5, y: 158.0, width: 99.2, height: 118.0 }, { x: 45.5, y: 118.0, width: 150.0, height: 158.0 }, { x: 21.5, y: 92.5, width: 197.5, height: 183.5 }, { x: 6.8, y: 92.5, width: 228.0, height: 183.5 }, { x: 4.0, y: 74.2, width: 228.0, height: 201.8 }],
   pomegranate: [{ x: 82.2, y: 246.0, width: 75.8, height: 30.0 }, { x: 91.8, y: 230.0, width: 56.8, height: 46.0 }, { x: 87.8, y: 198.0, width: 64.8, height: 78.0 }, { x: 80.2, y: 158.0, width: 79.2, height: 118.0 }, { x: 62.2, y: 118.0, width: 109.2, height: 158.0 }, { x: 42.0, y: 84.0, width: 153.0, height: 192.0 }, { x: 15.2, y: 54.0, width: 207.8, height: 222.0 }, { x: 11.2, y: 40.0, width: 214.2, height: 236.0 }],

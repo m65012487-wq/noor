@@ -14,6 +14,7 @@ struct StreakData: Codable {
     // Брони серии: каждая продлевает жизнь серии ещё на сутки (streakFreeze.js).
     // Поле необязательное: снимок от прежней версии приложения его не содержит.
     let freezes: Int?
+    let treeProtectionDay: String?
 
     static func load() -> StreakData? {
         guard
@@ -30,7 +31,7 @@ struct StreakData: Codable {
         let now = Date()
         let day = { (offset: Int) in dayKey(Calendar.current.date(byAdding: .day, value: -offset, to: now) ?? now) }
         return StreakData(count: 12, lastGoalDay: day(1), today: day(0), read: 3, goal: 5,
-                          history: [1, 2, 4, 5, 6].map(day), freezes: 1)
+                          history: [1, 2, 4, 5, 6].map(day), freezes: 1, treeProtectionDay: nil)
     }
 }
 
@@ -57,7 +58,8 @@ struct StreakStatus {
         }
         let gap = data.lastGoalDay.flatMap { daysBetween($0, now) }
         // За каждый завершившийся день пропуска расходуется один щит.
-        let limit = 1 + min(2, max(0, data.freezes ?? 0))
+        let treeProtection = data.treeProtectionDay.map { $0 <= today ? 1 : 0 } ?? 0
+        let limit = 1 + min(2, max(0, data.freezes ?? 0)) + treeProtection
         let alive = gap.map { $0 <= limit } ?? false
         let done = data.lastGoalDay == today
         let week = (0..<7).reversed().map { offset -> Bool in

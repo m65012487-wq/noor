@@ -20,7 +20,7 @@ import GardenSheet from './GardenSheet';
 import DhikrSheet from './DhikrSheet';
 import useTasbih from './useTasbih';
 import { GARDEN_SCENE } from './gardenScene';
-import { activeTree, AFTER_PRAYER, definition, harvestCount, HARVEST_EVERY, isSequenceMode, SETS, DHIKR, growthRatio, sequenceSteps, SPECIES, STAGE_NAMES, STAGES } from './model';
+import { activeTree, AFTER_PRAYER, definition, isSequenceMode, SETS, DHIKR, growthRatio, sequenceSteps, SPECIES, stageName } from './model';
 import { afterPrayerNow, isFridayNow } from '../utils/prayerWindow';
 import { capturesDismiss, finishesDismiss } from './dismissGesture';
 
@@ -129,18 +129,13 @@ export default function TasbihScreen({ onClose }) {
   const drop = state?.pendingDrops?.[0] || null;
   const dropKey = drop ? `${state.pendingDrops.length}:${drop.species}:${drop.reason}` : null;
   const seedTotal = state ? Object.values(state.seeds || {}).reduce((sum, n) => sum + n, 0) : 0;
-  const stageLabel = tree ? pick(STAGE_NAMES[tree.stage], lang) : '';
+  const stageLabel = tree ? pick(stageName(tree.species, tree.stage), lang) : '';
   const treeSpecies = tree ? SPECIES.find(s => s.id === tree.species) : null;
   const speciesLabel = treeSpecies ? pick(treeSpecies, lang) : '';
   const ratio = tree ? growthRatio(tree) : 0;
   // Окно «после намаза»: проверяется на каждой отрисовке, а они идут на каждое
   // нажатие и на смену подсказки, поэтому отдельный таймер не нужен.
   const afterPrayer = afterPrayerNow(new Date(), AFTER_PRAYER.minutes);
-  const fruiting = !!tree && tree.stage === STAGES.length - 1;
-  // Плодоносящее дерево растёт дальше урожаями: полоса показывает путь к следующему.
-  const harvests = harvestCount(tree);
-  const harvestRatio = fruiting
-    ? clamp01(((tree.progress - STAGES[STAGES.length - 1].requiredProgress) % HARVEST_EVERY) / HARVEST_EVERY) : 0;
   // Одна подсказка под шапкой, а не стопка строк: пятница важнее окна после
   // намаза. Подсказка прячется, если её набор уже выбран.
   const friday = isFridayNow();
@@ -223,7 +218,7 @@ export default function TasbihScreen({ onClose }) {
           <Text style={styles.caption}>{t('tasbih_error')}</Text>
         </Pressable>}
 
-        {!state || !tree ? <ActivityIndicator style={{ flex: 1 }} color={accent} /> : (
+        {!state ? <ActivityIndicator style={{ flex: 1 }} color={accent} /> : (
           <>
             <Animated.View style={[styles.words, longText && styles.wordsLong, { opacity: textFade }]}>
               {/* Длинный зикр не ужимается в одну строку до точек: кегль не
@@ -264,7 +259,7 @@ export default function TasbihScreen({ onClose }) {
               accessibilityLabel={`${t('tasbih_name')}. ${phrase}. ${state.currentDhikrCount}${item.target != null ? ` ${t('tasbih_of')} ${item.target}` : ''}`}
               accessibilityHint={t('tasbih_tap_hint')}>
               <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, reduceMotion ? null : breathStyle]}>
-                <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />
+                {tree && <TreeView species={tree.species} stage={tree.stage} pulse={pulse} reduceMotion={reduceMotion} />}
               </Animated.View>
               {!!geo && <LeafBurst geo={geo} burst={burst} reduceMotion={reduceMotion} />}
               {!!geo && <WateringCan geo={geo} water={water} progress={watering} reduceMotion={reduceMotion} />}
@@ -276,14 +271,12 @@ export default function TasbihScreen({ onClose }) {
                 <Text style={styles.hint}>{t('tasbih_first_hint')}</Text>
               ) : (
                 <>
-                  <Text style={styles.stageLine}>
-                    {speciesLabel} · {fruiting ? t('garden_harvest', { n: harvests }) : stageLabel}
-                  </Text>
+                  {tree && <Text style={styles.stageLine}>{speciesLabel} · {stageLabel}</Text>}
                   {seedTotal > 0 ? (
                     <Text style={styles.plantHint} numberOfLines={1}>{t('tasbih_plant_hint')}</Text>
-                  ) : (
+                  ) : tree && ratio < 1 && (
                     <View style={styles.growthTrack}>
-                      <View style={[styles.growthFill, { width: `${(fruiting ? harvestRatio : ratio) * 100}%`, backgroundColor: accent }]} />
+                      <View style={[styles.growthFill, { width: `${ratio * 100}%`, backgroundColor: accent }]} />
                     </View>
                   )}
                 </>

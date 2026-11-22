@@ -12,11 +12,19 @@ export function aliveGap(freezes) {
   return 1 + Math.max(0, Math.min(FREEZE_MAX, Math.floor(freezes || 0)));
 }
 
-export function streakStatus({ streak, gap, freezes }) {
+export function hasTreeProtection(protection, lastGoalDay, day) {
+  return !!protection && protection.lastGoalDay === lastGoalDay && protection.day <= day;
+}
+
+export function canOfferTree({ streak, gap, freezes, treeProtected }) {
+  return streak > 0 && !treeProtected && gap === aliveGap(freezes) + 1;
+}
+
+export function streakStatus({ streak, gap, freezes, treeProtected = false }) {
   const have = aliveGap(freezes) - 1;
   const missed = Number.isFinite(gap) ? Math.max(0, gap - 1) : 0;
   const used = Math.min(have, missed);
-  return { streak: Number.isFinite(gap) && missed <= have ? streak : 0, freezes: have - used, used };
+  return { streak: Number.isFinite(gap) && missed <= have + Number(treeProtected) ? streak : 0, freezes: have - used, used };
 }
 
 export function consecutiveGoalDays(history, day) {
@@ -32,8 +40,8 @@ export function consecutiveGoalDays(history, day) {
 // Цель выполнена впервые за сегодня. gap — сколько суток прошло с прошлого
 // выполненного дня (null, если такого не было).
 // Возвращает новую серию, остаток броней, сколько потрачено и заработано.
-export function advanceStreak({ streak, gap, freezes, consecutiveDays }) {
-  const status = streakStatus({ streak, gap, freezes });
+export function advanceStreak({ streak, gap, freezes, consecutiveDays, treeProtected }) {
+  const status = streakStatus({ streak, gap, freezes, treeProtected });
   const earned = consecutiveDays >= FREEZE_EVERY && consecutiveDays % FREEZE_EVERY === 0
     && status.freezes < FREEZE_MAX ? 1 : 0;
   return { streak: status.streak + 1, freezes: status.freezes + earned, used: status.used, earned };

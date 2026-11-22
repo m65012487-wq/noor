@@ -114,15 +114,14 @@ test('every remembrance is one unit of growth, the first 33 of the day count dou
   // Потолка нет: 300 поминаний за день — 333 роста.
   assert.equal(model.activeTree(taps(300)).progress, 333);
 });
-test('10000 taps in a day give 10033 growth: the tree fruits once and keeps counting harvests', () => {
+test('a mature tree stops growing while the dhikr counter keeps counting', () => {
   const state = taps(10000, model.initialState(), day, { rng: () => 0 });
   const tree = model.activeTree(state);
   assert.equal(state.activeDays, 1);
-  assert.equal(tree.progress, 10033);
+  assert.equal(state.totalDhikrCount, 10000);
+  assert.equal(tree.progress, model.STAGES.at(-1).requiredProgress);
   assert.equal(tree.stage, model.STAGES.length - 1);
   assert.equal(tree.harvested, true);
-  // первый урожай на 2000, дальше по одному на каждую тысячу
-  assert.equal(model.harvestCount(tree), 1 + Math.floor((10033 - 2000) / model.HARVEST_EVERY));
   assert.ok(!('reserve' in state));
   // зерно одно — за первый урожай, и новой породы
   assert.deepEqual(state.pendingDrops.map(d => d.reason), ['harvest']);
@@ -137,7 +136,8 @@ test('a first harvest gives a seed of a species not in the garden yet, and none 
   assert.notEqual(lonely.pendingDrops[0].species, 'sidr');
   assert.equal(lonely.seeds[lonely.pendingDrops[0].species], 1);
   // все места заняты (деревом или ждущим зерном) — зерна нет
-  const full = { ...model.initialState(), trees: [nearFruit('t1', 'olive')], seeds: { fig: 1, pomegranate: 1, date_palm: 1, sidr: 1 } };
+  const seeds = Object.fromEntries(model.SPECIES.filter(s => s.id !== 'olive').map(s => [s.id, 1]));
+  const full = { ...model.initialState(), trees: [nearFruit('t1', 'olive')], seeds };
   assert.deepEqual(model.registerDhikr(full, day, { rng: () => 0 }).pendingDrops, []);
 });
 test('stages are chosen by growth alone, with no day requirements', () => {
@@ -256,7 +256,7 @@ test('sidr stays out of the drop pool until three distinct species are owned', (
     { id: 't2', species: 'fig', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false },
     { id: 't3', species: 'pomegranate', progress: 0, activeDays: 0, stage: 0, lastGrowDate: null, plantedOn: null, harvested: false },
   ] };
-  const withSidr = model.registerDhikr(threeSpecies, '2026-09-20', { rng: rngHigh });
+  const withSidr = model.registerDhikr(threeSpecies, '2026-09-20', { rng: () => 23 / 98 });
   assert.equal(withSidr.pendingDrops[0].species, 'sidr');
 });
 test('plantSeed spends a seed and makes the new tree active; a missing seed is a no-op', () => {
@@ -779,14 +779,13 @@ test('restoreState cleans the sequence and keeps the index inside its steps', ()
 });
 
 const fruitingTree = (id = 't1', species = 'olive') => ({ id, species, progress: 2500, activeDays: 40, stage: 7, lastGrowDate: null, plantedOn: null, harvested: true });
-test('a fruiting tree keeps growing and counting harvests; a seed fills an empty place and the old tree stays', () => {
+test('legacy mature growth is preserved; a seed fills an empty garden slot', () => {
   const fruiting = { ...model.initialState(), seeds: { fig: 1 }, trees: [fruitingTree()] };
-  assert.equal(model.harvestCount(fruitingTree()), 1);
   let state = taps(10, fruiting);
-  assert.equal(model.activeTree(state).progress, 2520);
+  assert.equal(model.activeTree(state).progress, 2500);
   assert.equal(state.pendingDrops.length, 0);
   state = taps(1000, state);
-  assert.equal(model.harvestCount(model.activeTree(state)), 2);
+  assert.equal(model.activeTree(state).progress, 2500);
   const planted = model.plantSeed(state, 'fig', day);
   const tree = model.activeTree(planted);
   assert.equal(tree.species, 'fig');
@@ -812,11 +811,59 @@ test('only the chosen tree grows, except on Friday when the whole garden gets a 
   let friday = state;
   for (let i = 0; i < 5; i++) friday = model.registerDhikr(friday, day, { friday: true });
   assert.equal(friday.trees.find(t => t.id === 't2').progress, 10);
-  // десятые доли складываются с погрешностью — сравниваем с допуском
-  assert.ok(Math.abs(friday.trees.find(t => t.id === 't1').progress - (2500 + 10 * model.FRIDAY_WATERING)) < 1e-9);
+  assert.equal(friday.trees.find(t => t.id === 't1').progress, 2500);
+  const withTwoYoung = { ...state, trees: [{ ...state.trees[0], progress: 0, stage: 0, harvested: false }, young] };
+  const watered = model.registerDhikr(withTwoYoung, day, { friday: true });
+  assert.equal(watered.trees[0].progress, 2 * model.FRIDAY_WATERING);
   // полив не трогает счётчики дней у невыбранного дерева
   assert.equal(friday.trees.find(t => t.id === 't1').lastGrowDate, null);
 });
+test('a complete legacy garden can start growing new species', () => {
+  const legacy = model.SPECIES.slice(0, 5);
+  const state = { ...model.initialState(), trees: legacy.map(({ id }, i) => fruitingTree(`t${i + 1}`, id)) };
+  const updated = model.registerDhikr(model.restoreState(state), day, { rng: () => 0 });
+  assert.deepEqual(updated.seeds, { apricot: 1 });
+  assert.deepEqual(model.registerDhikr(updated, day).seeds, updated.seeds);
+});
+
+test('using the last mature tree durably stores the protection and a replantable seed', () => {
+  const protection = { day: '2026-09-15', lastGoalDay: day };
+  const state = { ...model.initialState(), trees: [fruitingTree('t1', 'sequoia')] };
+  const young = { ...state, trees: [{ ...state.trees[0], stage: 6 }] };
+  assert.equal(model.offerMatureTree(young, 't1', protection), young);
+  const used = model.offerMatureTree(state, 't1', protection);
+  assert.deepEqual(used.trees, []);
+  assert.equal(used.activeTreeId, null);
+  assert.deepEqual(used.seeds, { sequoia: 1 });
+  assert.deepEqual(used.readingProtection, protection);
+  const restored = model.restoreState(JSON.parse(JSON.stringify(used)));
+  assert.deepEqual(restored.trees, []);
+  assert.deepEqual(restored.readingProtection, protection);
+  const replanted = model.plantSeed(restored, 'sequoia', protection.day);
+  assert.equal(model.activeTree(replanted).stage, 0);
+  const again = { ...state, readingProtection: protection };
+  assert.equal(model.offerMatureTree(again, 't1', { ...protection, day: '2026-09-16' }), again);
+});
+
+test('tree protection covers one day after shields without counting it as reading', () => {
+  const { advanceStreak, canOfferTree, hasTreeProtection, streakStatus } = load('src/utils/streakFreeze.js');
+  const reading = { streak: 12, gap: 4, freezes: 2 };
+  assert.equal(canOfferTree({ ...reading, gap: 3 }), false);
+  assert.equal(canOfferTree({ ...reading, gap: 5 }), false);
+  assert.equal(canOfferTree({ ...reading, freezes: 0, gap: 2 }), true);
+  assert.equal(canOfferTree(reading), true);
+  const protection = { day: '2026-09-17', lastGoalDay: day };
+  assert.equal(hasTreeProtection(protection, day, '2026-09-16'), false);
+  assert.equal(hasTreeProtection(protection, '2026-09-14', '2026-09-17'), false);
+  const treeProtected = hasTreeProtection(protection, day, '2026-09-17');
+  assert.equal(treeProtected, true);
+  assert.equal(canOfferTree({ ...reading, treeProtected }), false);
+  assert.deepEqual(streakStatus({ ...reading, treeProtected }), { streak: 12, freezes: 0, used: 2 });
+  assert.equal(streakStatus({ ...reading, treeProtected, gap: 5 }).streak, 0);
+  assert.deepEqual(advanceStreak({ ...reading, treeProtected, consecutiveDays: 1 }),
+    { streak: 13, freezes: 0, used: 2, earned: 0 });
+});
+
 test('v2 saves migrate to v3: default sequence, empty reserve, trees catch up to the new thresholds, old drops stay', () => {
   const tree = (id, species, progress, stage, harvested = false) => ({ id, species, progress, activeDays: 7, stage, lastGrowDate: day, plantedOn: null, harvested });
   const v2 = { version: 2, selectedDhikr: 'allahuakbar', currentDhikrIndex: 2, currentDhikrCount: 12, totalDhikrCount: 500,
